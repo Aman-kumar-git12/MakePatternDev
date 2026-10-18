@@ -214,7 +214,7 @@ export const QuestionWorkspace: React.FC<QuestionWorkspaceProps> = ({
 
   const difficultyColors = {
     Easy: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-    Medium: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+    Medium: 'bg-[#fef08a]/15 text-yellow-300 border-[#fef08a]/30',
     Hard: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
   };
 
@@ -289,12 +289,12 @@ export const QuestionWorkspace: React.FC<QuestionWorkspaceProps> = ({
           <div className="flex items-center space-x-1.5 flex-wrap flex-shrink-0">
             {/* Problem URL: Combined Open Problem + Edit button */}
             {formattedProblemUrl ? (
-              <div className="inline-flex items-center rounded-lg bg-blue-600/20 border border-blue-500/30 overflow-hidden shadow-sm">
+              <div className="inline-flex items-center rounded-lg bg-[#fef08a]/20 border border-[#fef08a]/35 overflow-hidden shadow-sm">
                 <a
                   href={formattedProblemUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center space-x-1 px-2.5 py-1 text-blue-300 hover:bg-blue-600/30 text-xs font-semibold transition"
+                  className="flex items-center space-x-1 px-2.5 py-1 text-yellow-300 hover:bg-[#fef08a]/30 text-xs font-semibold transition"
                   title={`Open problem on ${formattedProblemUrl}`}
                 >
                   <ExternalLink className="w-3 h-3" />
@@ -306,7 +306,7 @@ export const QuestionWorkspace: React.FC<QuestionWorkspaceProps> = ({
                     setTempUrl(problemUrl);
                     setIsUrlModalOpen(true);
                   }}
-                  className="p-1 text-blue-300 hover:text-white hover:bg-blue-600/40 border-l border-blue-500/30 transition"
+                  className="p-1 text-yellow-300 hover:text-white hover:bg-[#fef08a]/40 border-l border-[#fef08a]/35 transition"
                   title="Edit problem link"
                 >
                   <Edit2 className="w-3 h-3" />
@@ -319,7 +319,7 @@ export const QuestionWorkspace: React.FC<QuestionWorkspaceProps> = ({
                   setTempUrl(problemUrl);
                   setIsUrlModalOpen(true);
                 }}
-                className="flex items-center space-x-1 px-2 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-blue-300 border border-slate-700 text-xs transition"
+                className="flex items-center space-x-1 px-2 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-yellow-300 border border-slate-700 text-xs transition"
                 title="Add problem link"
               >
                 <Link2 className="w-3 h-3" />
@@ -331,7 +331,7 @@ export const QuestionWorkspace: React.FC<QuestionWorkspaceProps> = ({
             <div className="flex items-center space-x-1 text-xs text-slate-400 px-1">
               {saveStatus === 'saving' && (
                 <>
-                  <Loader2 className="w-3 h-3 animate-spin text-blue-400" />
+                  <Loader2 className="w-3 h-3 animate-spin text-yellow-300" />
                   <span className="text-[10px]">Saving...</span>
                 </>
               )}
@@ -343,7 +343,7 @@ export const QuestionWorkspace: React.FC<QuestionWorkspaceProps> = ({
               )}
               {saveStatus === 'unsaved' && (
                 <>
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#fef08a]" />
                   <span className="text-[10px]">Unsaved</span>
                 </>
               )}
@@ -354,14 +354,14 @@ export const QuestionWorkspace: React.FC<QuestionWorkspaceProps> = ({
               onClick={() => onToggleBookmark(question.id)}
               className={`px-2 py-1 rounded-lg border transition flex items-center space-x-1 text-xs font-medium ${
                 question.is_bookmarked
-                  ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+                  ? 'bg-[#fef08a]/20 border-[#fef08a]/35 text-yellow-300'
                   : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white'
               }`}
               title={question.is_bookmarked ? 'Remove bookmark' : 'Bookmark question'}
             >
               <Star
                 className={`w-3 h-3 ${
-                  question.is_bookmarked ? 'fill-amber-400 text-amber-400' : ''
+                  question.is_bookmarked ? 'fill-[#fef08a] text-yellow-300' : ''
                 }`}
               />
               <span className="text-[11px] hidden sm:inline">
@@ -376,7 +376,7 @@ export const QuestionWorkspace: React.FC<QuestionWorkspaceProps> = ({
               className={`text-xs font-semibold px-2 py-1 rounded-lg border focus:outline-none cursor-pointer ${difficultyColors[difficulty]}`}
             >
               <option value="Easy" className="bg-[#0D1527] text-emerald-400">Easy</option>
-              <option value="Medium" className="bg-[#0D1527] text-amber-400">Medium</option>
+              <option value="Medium" className="bg-[#0D1527] text-yellow-300">Medium</option>
               <option value="Hard" className="bg-[#0D1527] text-rose-400">Hard</option>
             </select>
 
@@ -401,7 +401,7 @@ export const QuestionWorkspace: React.FC<QuestionWorkspaceProps> = ({
           onClick={() => setActiveTab('code')}
           className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
             activeTab === 'code'
-              ? 'bg-blue-600 text-white shadow-md shadow-blue-600/25'
+              ? 'bg-[#fef08a] text-[#18181b] shadow-md shadow-yellow-200/30'
               : 'text-slate-400 hover:text-white hover:bg-slate-900/60'
           }`}
         >
@@ -413,7 +413,7 @@ export const QuestionWorkspace: React.FC<QuestionWorkspaceProps> = ({
           onClick={() => setActiveTab('notes')}
           className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
             activeTab === 'notes'
-              ? 'bg-blue-600 text-white shadow-md shadow-blue-600/25'
+              ? 'bg-[#fef08a] text-[#18181b] shadow-md shadow-yellow-200/30'
               : 'text-slate-400 hover:text-white hover:bg-slate-900/60'
           }`}
         >
@@ -425,7 +425,7 @@ export const QuestionWorkspace: React.FC<QuestionWorkspaceProps> = ({
           onClick={() => setActiveTab('testcases')}
           className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
             activeTab === 'testcases'
-              ? 'bg-blue-600 text-white shadow-md shadow-blue-600/25'
+              ? 'bg-[#fef08a] text-[#18181b] shadow-md shadow-yellow-200/30'
               : 'text-slate-400 hover:text-white hover:bg-slate-900/60'
           }`}
         >
@@ -437,7 +437,7 @@ export const QuestionWorkspace: React.FC<QuestionWorkspaceProps> = ({
           onClick={() => setActiveTab('complexity')}
           className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
             activeTab === 'complexity'
-              ? 'bg-blue-600 text-white shadow-md shadow-blue-600/25'
+              ? 'bg-[#fef08a] text-[#18181b] shadow-md shadow-yellow-200/30'
               : 'text-slate-400 hover:text-white hover:bg-slate-900/60'
           }`}
         >

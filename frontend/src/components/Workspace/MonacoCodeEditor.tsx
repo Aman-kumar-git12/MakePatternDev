@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import type { Solution, SupportedLanguage, ComplexityAnalysisResult } from '../../types/dsa';
 import { api } from '../../services/api';
+import { useTheme } from '../../context/ThemeContext';
 
 interface MonacoCodeEditorProps {
   solutions: Solution[];
@@ -98,6 +99,7 @@ export const MonacoCodeEditor: React.FC<MonacoCodeEditorProps> = ({
   onUpdateSolution,
   onDeleteSolution,
 }) => {
+  const { isDark } = useTheme();
   const [activeSolutionId, setActiveSolutionId] = useState<string>(solutions[0]?.id || '');
   const [copied, setCopied] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -382,7 +384,7 @@ export const MonacoCodeEditor: React.FC<MonacoCodeEditorProps> = ({
               className="flex items-center space-x-1 px-2.5 py-1 rounded-xl text-xs border border-dashed border-slate-700 hover:border-slate-500 text-slate-400 hover:text-white transition flex-shrink-0"
               title="Add Better Approach solution"
             >
-              <Plus className="w-3 h-3 text-amber-400" />
+              <Plus className="w-3 h-3 text-yellow-300" />
               <span>+ Better Approach</span>
             </button>
           )}
@@ -489,7 +491,7 @@ export const MonacoCodeEditor: React.FC<MonacoCodeEditorProps> = ({
                 <div className="flex items-center space-x-2">
                   <span className="font-semibold text-white">{activeSolution.title}</span>
                   {!isSaved && (
-                    <span className="text-[10px] text-amber-400 font-medium">● Unsaved edits</span>
+                    <span className="text-[10px] text-yellow-300 font-medium">● Unsaved edits</span>
                   )}
                 </div>
                 <span className="text-[11px] font-mono text-slate-500 uppercase">
@@ -501,7 +503,7 @@ export const MonacoCodeEditor: React.FC<MonacoCodeEditorProps> = ({
                 <Editor
                   height="100%"
                   language={monacoLanguage(activeSolution.language)}
-                  theme="vs-dark"
+                  theme={isDark ? 'vs-dark' : 'light'}
                   value={code}
                   onChange={handleCodeChange}
                   options={{
@@ -525,7 +527,7 @@ export const MonacoCodeEditor: React.FC<MonacoCodeEditorProps> = ({
                 {/* Header */}
                 <div className="flex items-center justify-between border-b border-slate-800 pb-2">
                   <div className="flex items-center space-x-2">
-                    <Clock className="w-4 h-4 text-blue-400" />
+                    <Clock className="w-4 h-4 text-yellow-300" />
                     <h4 className="text-xs font-bold text-white uppercase tracking-wider">
                       Complexity Analysis
                     </h4>
@@ -537,7 +539,7 @@ export const MonacoCodeEditor: React.FC<MonacoCodeEditorProps> = ({
                     className="flex items-center space-x-1 text-[11px] px-2 py-0.5 rounded-lg border border-slate-700/80 bg-slate-800/60 hover:bg-slate-700 text-slate-300 hover:text-white transition disabled:opacity-50"
                     title="Re-run static complexity analysis"
                   >
-                    <RefreshCw className={`w-3 h-3 ${isAnalyzing ? 'animate-spin text-blue-400' : ''}`} />
+                    <RefreshCw className={`w-3 h-3 ${isAnalyzing ? 'animate-spin text-yellow-300' : ''}`} />
                     <span>Re-analyze</span>
                   </button>
                 </div>
@@ -547,12 +549,12 @@ export const MonacoCodeEditor: React.FC<MonacoCodeEditorProps> = ({
                   <span className="text-slate-400 text-[11px]">Analysis Status:</span>
                   <div>
                     {isAnalyzing ? (
-                      <span className="text-[11px] font-medium text-blue-400 flex items-center space-x-1">
+                      <span className="text-[11px] font-medium text-yellow-300 flex items-center space-x-1">
                         <RefreshCw className="w-3 h-3 animate-spin" />
                         <span>Analyzing...</span>
                       </span>
                     ) : activeSolution.analysis_status === 'Unable to Analyze' ? (
-                      <span className="text-[11px] font-medium text-amber-400 flex items-center space-x-1">
+                      <span className="text-[11px] font-medium text-yellow-300 flex items-center space-x-1">
                         <AlertTriangle className="w-3 h-3" />
                         <span>Unable to analyze</span>
                       </span>
@@ -570,17 +572,17 @@ export const MonacoCodeEditor: React.FC<MonacoCodeEditorProps> = ({
                   {/* Time Complexity Card */}
                   <div
                     onClick={() => setIsEditingComplexity(true)}
-                    className="bg-[#0D1527] border border-blue-500/30 hover:border-blue-500/60 rounded-xl p-2.5 cursor-pointer transition group relative shadow-sm"
+                    className="bg-[#0D1527] border border-yellow-200/30 hover:border-yellow-200/60 rounded-xl p-2.5 cursor-pointer transition group relative shadow-sm"
                     title="Click to edit Time Complexity"
                   >
                     <div className="flex items-center justify-between text-slate-400 text-[10px] uppercase font-semibold mb-1">
                       <div className="flex items-center space-x-1">
-                        <Clock className="w-3 h-3 text-blue-400" />
+                        <Clock className="w-3 h-3 text-yellow-300" />
                         <span>Time</span>
                       </div>
-                      <Edit3 className="w-3 h-3 text-slate-500 group-hover:text-blue-400 transition" />
+                      <Edit3 className="w-3 h-3 text-slate-500 group-hover:text-yellow-300 transition" />
                     </div>
-                    <div className="text-lg font-bold font-mono text-blue-300">
+                    <div className="text-lg font-bold font-mono text-yellow-300">
                       {activeSolution.time_complexity ? (
                         activeSolution.time_complexity
                       ) : (
@@ -599,22 +601,22 @@ export const MonacoCodeEditor: React.FC<MonacoCodeEditorProps> = ({
                   {/* Space Complexity Card */}
                   <div
                     onClick={() => setIsEditingComplexity(true)}
-                    className="bg-[#0D1527] border border-purple-500/30 hover:border-purple-500/60 rounded-xl p-2.5 cursor-pointer transition group relative shadow-sm"
+                    className="bg-[#0D1527] border border-slate-700 hover:border-slate-500 rounded-xl p-2.5 cursor-pointer transition group relative shadow-sm"
                     title="Click to edit Space Complexity"
                   >
                     <div className="flex items-center justify-between text-slate-400 text-[10px] uppercase font-semibold mb-1">
                       <div className="flex items-center space-x-1">
-                        <HardDrive className="w-3 h-3 text-purple-400" />
+                        <HardDrive className="w-3 h-3 text-emerald-400" />
                         <span>Space</span>
                       </div>
-                      <Edit3 className="w-3 h-3 text-slate-500 group-hover:text-purple-400 transition" />
+                      <Edit3 className="w-3 h-3 text-slate-500 group-hover:text-emerald-400 transition" />
                     </div>
-                    <div className="text-lg font-bold font-mono text-purple-300">
+                    <div className="text-lg font-bold font-mono text-emerald-400">
                       {activeSolution.space_complexity || 'O(1)'}
                     </div>
                     <span className="text-[9px] font-sans block mt-0.5">
                       {activeSolution.manual_space_complexity ? (
-                        <span className="text-amber-400 font-semibold">(Manual Override)</span>
+                        <span className="text-yellow-300 font-semibold">(Manual Override)</span>
                       ) : (
                         <span className="text-slate-500">(Auto Estimated)</span>
                       )}

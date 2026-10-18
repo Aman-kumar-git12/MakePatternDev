@@ -87,7 +87,7 @@ export const AllQuestionsView: React.FC<AllQuestionsViewProps> = ({
 
   const difficultyColors = {
     Easy: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
-    Medium: 'text-amber-400 bg-amber-500/10 border-amber-500/20',
+    Medium: 'text-yellow-300 bg-[#fef08a]/15 border border-[#fef08a]/30',
     Hard: 'text-rose-400 bg-rose-500/10 border-rose-500/20',
   };
 
@@ -96,9 +96,9 @@ export const AllQuestionsView: React.FC<AllQuestionsViewProps> = ({
       case 'Solved':
         return <CheckCircle2 className="w-4 h-4 text-emerald-400" />;
       case 'In Progress':
-        return <Clock className="w-4 h-4 text-blue-400" />;
+        return <Clock className="w-4 h-4 text-yellow-300" />;
       case 'Needs Revision':
-        return <RotateCcw className="w-4 h-4 text-amber-400" />;
+        return <RotateCcw className="w-4 h-4 text-yellow-300" />;
       default:
         return <Circle className="w-4 h-4 text-slate-500" />;
     }
@@ -109,7 +109,7 @@ export const AllQuestionsView: React.FC<AllQuestionsViewProps> = ({
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#0D1527] border border-slate-800 rounded-2xl p-6 shadow-xl">
         <div className="flex items-center space-x-3">
-          <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-400 shadow-md">
+          <div className="p-3 rounded-xl bg-[#fef08a]/20 border border-[#fef08a]/35 text-yellow-300 shadow-md">
             <FileText className="w-6 h-6" />
           </div>
           <div>
@@ -120,7 +120,7 @@ export const AllQuestionsView: React.FC<AllQuestionsViewProps> = ({
 
         <button
           onClick={onOpenNewQuestion}
-          className="flex items-center space-x-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-semibold shadow-lg shadow-blue-500/20 active:scale-95 transition self-start sm:self-auto"
+          className="flex items-center space-x-2 px-4 py-2.5 bg-[#fef08a] hover:bg-[#fef9c3] text-[#18181b] rounded-xl text-xs font-semibold shadow-md shadow-yellow-200/30 active:scale-95 transition self-start sm:self-auto"
         >
           <Plus className="w-4 h-4" />
           <span>Add Question</span>
@@ -187,7 +187,7 @@ export const AllQuestionsView: React.FC<AllQuestionsViewProps> = ({
               onClick={() => setViewMode('list')}
               className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
                 viewMode === 'list'
-                  ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                  ? 'bg-[#fef08a] text-[#18181b] shadow-md shadow-yellow-200/30'
                   : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
               }`}
               title="Switch to List View"
@@ -200,7 +200,7 @@ export const AllQuestionsView: React.FC<AllQuestionsViewProps> = ({
               onClick={() => setViewMode('card')}
               className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
                 viewMode === 'card'
-                  ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                  ? 'bg-[#fef08a] text-[#18181b] shadow-md shadow-yellow-200/30'
                   : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
               }`}
               title="Switch to Card View"
@@ -247,11 +247,11 @@ export const AllQuestionsView: React.FC<AllQuestionsViewProps> = ({
 
                     <div className="min-w-0">
                       <div className="flex items-center space-x-2">
-                        <h4 className="font-semibold text-sm text-slate-100 group-hover:text-blue-300 transition truncate">
+                        <h4 className="font-semibold text-sm text-slate-100 group-hover:text-yellow-300 transition truncate">
                           {q.title}
                         </h4>
                         {q.is_bookmarked && (
-                          <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400 flex-shrink-0" />
+                          <Star className="w-3.5 h-3.5 text-yellow-300 fill-[#fef08a] flex-shrink-0" />
                         )}
                         {q.problem_url && (
                           <a
@@ -302,12 +302,12 @@ export const AllQuestionsView: React.FC<AllQuestionsViewProps> = ({
                         e.stopPropagation();
                         onToggleBookmark(q.id);
                       }}
-                      className="p-1 text-slate-400 hover:text-amber-400 transition"
+                      className="p-1 text-slate-400 hover:text-yellow-300 transition"
                       title="Toggle bookmark"
                     >
                       <Star
                         className={`w-4 h-4 ${
-                          q.is_bookmarked ? 'fill-amber-400 text-amber-400' : ''
+                          q.is_bookmarked ? 'fill-[#fef08a] text-yellow-300' : ''
                         }`}
                       />
                     </button>
@@ -362,12 +362,12 @@ export const AllQuestionsView: React.FC<AllQuestionsViewProps> = ({
                           e.stopPropagation();
                           onToggleBookmark(q.id);
                         }}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-amber-400 hover:bg-slate-800 transition"
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-yellow-300 hover:bg-slate-800 transition"
                         title="Toggle bookmark"
                       >
                         <Star
                           className={`w-4 h-4 ${
-                            q.is_bookmarked ? 'fill-amber-400 text-amber-400' : ''
+                            q.is_bookmarked ? 'fill-[#fef08a] text-yellow-300' : ''
                           }`}
                         />
                       </button>

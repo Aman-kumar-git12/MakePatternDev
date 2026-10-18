@@ -76,12 +76,6 @@ def register(user_in: UserCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(user)
 
-    try:
-        from app.services.seed_service import seed_demo_data
-        seed_demo_data(db, user)
-    except Exception as err:
-        print(f"Seed error on user registration: {err}")
-
     token = create_access_token({"sub": user.id})
     return Token(access_token=token, token_type="bearer", user=UserResponse.model_validate(user))
 

@@ -76,6 +76,8 @@ def build_tree_for_user(db: Session, user_id: str) -> List[FolderTreeResponse]:
             tags=tags_list,
             is_bookmarked=(q.id in bookmarked_qids),
             folder_path="",
+            position=q.position or 0,
+            created_at=q.created_at,
             updated_at=q.updated_at
         )
         folder_questions.setdefault(q.folder_id, []).append(item)

@@ -64,7 +64,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
 
   const difficultyColors = {
     Easy: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
-    Medium: 'text-amber-400 bg-amber-500/10 border-amber-500/20',
+    Medium: 'text-yellow-300 bg-[#fef08a]/15 border border-[#fef08a]/30',
     Hard: 'text-rose-400 bg-rose-500/10 border-rose-500/20',
   };
 
@@ -137,7 +137,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                                 {q.title}
                               </h5>
                               {q.is_bookmarked && (
-                                <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400 flex-shrink-0" />
+                                <Star className="w-3.5 h-3.5 text-yellow-300 fill-[#fef08a] flex-shrink-0" />
                               )}
                             </div>
                             <p className="text-xs text-slate-400 truncate">

@@ -46,7 +46,7 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
 
   const difficultyColors = {
     Easy: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
-    Medium: 'text-amber-400 bg-amber-500/10 border-amber-500/20',
+    Medium: 'text-yellow-300 bg-[#fef08a]/15 border border-[#fef08a]/30',
     Hard: 'text-rose-400 bg-rose-500/10 border-rose-500/20',
   };
 
@@ -55,9 +55,9 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
       case 'Solved':
         return <CheckCircle2 className="w-4 h-4 text-emerald-400" />;
       case 'In Progress':
-        return <Clock className="w-4 h-4 text-blue-400" />;
+        return <Clock className="w-4 h-4 text-yellow-300" />;
       case 'Needs Revision':
-        return <RotateCcw className="w-4 h-4 text-amber-400" />;
+        return <RotateCcw className="w-4 h-4 text-yellow-300" />;
       default:
         return <Circle className="w-4 h-4 text-slate-500" />;
     }
@@ -68,7 +68,7 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
       {/* View Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#0D1527] border border-slate-800 rounded-2xl p-6 shadow-xl">
         <div className="flex items-center space-x-3">
-          <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 shadow-md">
+          <div className="p-3 rounded-xl bg-[#fef08a]/20 border border-[#fef08a]/35 text-yellow-300 shadow-md">
             <Bookmark className="w-6 h-6" />
           </div>
           <div>
@@ -132,7 +132,7 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
               onClick={() => setViewMode('list')}
               className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
                 viewMode === 'list'
-                  ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                  ? 'bg-[#fef08a] text-[#18181b] shadow-md shadow-yellow-200/30'
                   : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
               }`}
               title="Switch to List View"
@@ -145,7 +145,7 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
               onClick={() => setViewMode('card')}
               className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
                 viewMode === 'card'
-                  ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                  ? 'bg-[#fef08a] text-[#18181b] shadow-md shadow-yellow-200/30'
                   : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
               }`}
               title="Switch to Card View"
@@ -189,10 +189,10 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
 
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center space-x-2">
-                      <h4 className="font-semibold text-sm text-slate-100 group-hover:text-blue-300 transition truncate">
+                      <h4 className="font-semibold text-sm text-slate-100 group-hover:text-yellow-300 transition truncate">
                         {q.title}
                       </h4>
-                      <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400 flex-shrink-0" />
+                      <Star className="w-3.5 h-3.5 text-yellow-300 fill-[#fef08a] flex-shrink-0" />
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2 mt-0.5 text-xs text-slate-400">
@@ -269,7 +269,7 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
                       e.stopPropagation();
                       onRemoveBookmark(q.id);
                     }}
-                    className="p-1.5 rounded-lg text-amber-400 hover:text-rose-400 hover:bg-rose-500/10 transition"
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition"
                     title="Remove bookmark"
                   >
                     <Trash2 className="w-4 h-4" />

@@ -2,10 +2,11 @@ import json
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
+from sqlalchemy import func
 from app.database import get_db
 from app.models.folder import Folder
 from app.models.user import User
-from app.schemas.folder import FolderCreate, FolderUpdate, FolderMove, FolderTreeResponse
+from app.schemas.folder import FolderCreate, FolderUpdate, FolderMove, FolderTreeResponse, ReorderItem
 from app.routers.auth import get_current_user
 from app.services.folder_service import (
     build_tree_for_user,
@@ -38,13 +39,22 @@ def create_folder(
 
     tags_json = json.dumps(folder_in.tags) if folder_in.tags else "[]"
 
+    if folder_in.position is not None:
+        folder_pos = folder_in.position
+    else:
+        max_pos = db.query(func.max(Folder.position)).filter(
+            Folder.user_id == current_user.id,
+            Folder.parent_id == folder_in.parent_id
+        ).scalar()
+        folder_pos = (max_pos + 1) if max_pos is not None else 0
+
     folder = Folder(
         user_id=current_user.id,
         parent_id=folder_in.parent_id,
         name=folder_in.name.strip(),
         description=folder_in.description or "",
         tags=tags_json,
-        position=folder_in.position or 0
+        position=folder_pos
     )
     db.add(folder)
     db.commit()
@@ -72,6 +82,20 @@ def create_folder(
         subfolders=[],
         questions=[]
     )
+
+@router.post("/reorder")
+def reorder_folders(
+    items: List[ReorderItem],
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    for item in items:
+        db.query(Folder).filter(
+            Folder.id == item.id,
+            Folder.user_id == current_user.id
+        ).update({"position": item.position})
+    db.commit()
+    return {"message": "Folders reordered successfully"}
 
 @router.put("/{folder_id}", response_model=FolderTreeResponse)
 def update_folder(

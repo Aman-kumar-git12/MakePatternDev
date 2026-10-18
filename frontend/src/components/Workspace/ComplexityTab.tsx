@@ -52,10 +52,10 @@ export const ComplexityTab: React.FC<ComplexityTabProps> = ({ solutions }) => {
                     {/* Time Complexity */}
                     <div className="p-3 rounded-lg bg-slate-900/80 border border-slate-800 flex items-center justify-between">
                       <div className="flex items-center space-x-2 text-slate-400">
-                        <Clock className="w-3.5 h-3.5 text-amber-400" />
+                        <Clock className="w-3.5 h-3.5 text-yellow-300" />
                         <span>Time:</span>
                       </div>
-                      <span className="font-bold text-amber-300">
+                      <span className="font-bold text-yellow-300">
                         {sol.time_complexity || <span className="text-slate-500 font-normal italic font-sans">Not set</span>}
                       </span>
                     </div>

@@ -15,6 +15,7 @@ import {
   Search,
   FolderTree,
   ExternalLink,
+  GripVertical,
 } from 'lucide-react';
 import type { Folder, QuestionListItem, Difficulty, QuestionStatus } from '../../types/dsa';
 
@@ -30,9 +31,49 @@ interface MyPatternsViewProps {
   onOpenCreateQuestion: (folderId: string) => void;
   onToggleBookmark?: (questionId: string) => void;
   onDeleteQuestion?: (questionId: string, questionTitle: string) => void;
+  onReorderFolders?: (reorderedFolders: Folder[]) => Promise<void> | void;
+  onReorderQuestions?: (folderId: string, reorderedQuestions: QuestionListItem[]) => Promise<void> | void;
 }
 
 const EXPANDED_STORAGE_KEY = 'mp_mypatterns_expanded_nodes';
+
+interface DragState {
+  type: 'root-folder' | 'subfolder' | 'question';
+  id: string;
+  folderId?: string; // For questions: folder_id
+  parentId?: string | null; // For subfolders: parent folder ID
+}
+
+interface DropTarget {
+  type: 'root-folder' | 'subfolder' | 'question';
+  id: string;
+  position: 'before' | 'after';
+}
+
+// First added shown first at top (position ASC, then created_at ASC)
+const sortFolders = (list: Folder[]): Folder[] => {
+  return [...list].sort((a, b) => {
+    const posA = a.position ?? 0;
+    const posB = b.position ?? 0;
+    if (posA !== posB) return posA - posB;
+    if (a.created_at && b.created_at) {
+      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+    }
+    return 0;
+  });
+};
+
+const sortQuestions = (list: QuestionListItem[]): QuestionListItem[] => {
+  return [...list].sort((a, b) => {
+    const posA = a.position ?? 0;
+    const posB = b.position ?? 0;
+    if (posA !== posB) return posA - posB;
+    if (a.created_at && b.created_at) {
+      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+    }
+    return 0;
+  });
+};
 
 export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
   folders,
@@ -46,13 +87,18 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
   onOpenCreateQuestion,
   onToggleBookmark,
   onDeleteQuestion,
+  onReorderFolders,
+  onReorderQuestions,
 }) => {
   const [newTopicName, setNewTopicName] = useState('');
   const [isAddingTopic, setIsAddingTopic] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Initial state: starts collapsed ({}) on first visit.
-  // Persisted across page navigation in sessionStorage so returning to this page keeps open state.
+  // Drag and Drop state
+  const [dragState, setDragState] = useState<DragState | null>(null);
+  const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
+
+  // Nodes are expanded by default unless explicitly collapsed
   const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>(() => {
     try {
       const saved = sessionStorage.getItem(EXPANDED_STORAGE_KEY);
@@ -65,11 +111,17 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
     return {};
   });
 
+  const isNodeExpanded = (nodeId: string): boolean => {
+    // Default to true (expanded) if not explicitly set
+    return expandedNodes[nodeId] !== false;
+  };
+
   const toggleNode = (nodeId: string) => {
     setExpandedNodes((prev) => {
+      const currentlyOpen = prev[nodeId] !== false;
       const next = {
         ...prev,
-        [nodeId]: !prev[nodeId],
+        [nodeId]: !currentlyOpen,
       };
       try {
         sessionStorage.setItem(EXPANDED_STORAGE_KEY, JSON.stringify(next));
@@ -95,13 +147,16 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
     }
   };
 
-  // Build a lookup map of questions by folder ID
+  // Build a lookup map of questions by folder ID, sorted FIFO (first added at top)
   const questionsByFolder = useMemo(() => {
     const map = new Map<string, QuestionListItem[]>();
     for (const q of questions) {
       const list = map.get(q.folder_id) || [];
       list.push(q);
       map.set(q.folder_id, list);
+    }
+    for (const [folderId, list] of map.entries()) {
+      map.set(folderId, sortQuestions(list));
     }
     return map;
   }, [questions]);
@@ -112,7 +167,7 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
 
   const difficultyColors: Record<Difficulty, string> = {
     Easy: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
-    Medium: 'text-amber-400 bg-amber-500/10 border-amber-500/20',
+    Medium: 'text-yellow-300 bg-[#fef08a]/15 border border-[#fef08a]/30',
     Hard: 'text-rose-400 bg-rose-500/10 border-rose-500/20',
   };
 
@@ -121,20 +176,25 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
       case 'Solved':
         return <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />;
       case 'In Progress':
-        return <Clock className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />;
+        return <Clock className="w-3.5 h-3.5 text-yellow-300 flex-shrink-0" />;
       case 'Needs Revision':
-        return <RotateCcw className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />;
+        return <RotateCcw className="w-3.5 h-3.5 text-yellow-300 flex-shrink-0" />;
       default:
         return <Circle className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />;
     }
   };
 
+  // Sort root folders FIFO / by position
+  const sortedRootFolders = useMemo(() => {
+    return sortFolders(folders);
+  }, [folders]);
+
   // Filter root folders
   const filteredFolders = useMemo(() => {
-    if (!searchQuery.trim()) return folders;
+    if (!searchQuery.trim()) return sortedRootFolders;
     const q = searchQuery.toLowerCase();
 
-    return folders.filter((f) => {
+    return sortedRootFolders.filter((f) => {
       const matchName = f.name.toLowerCase().includes(q);
       const matchDesc = f.description?.toLowerCase().includes(q);
       const hasMatchingSubfolder = f.subfolders?.some((sub) =>
@@ -142,25 +202,198 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
       );
       return matchName || matchDesc || hasMatchingSubfolder;
     });
-  }, [folders, searchQuery]);
+  }, [sortedRootFolders, searchQuery]);
+
+  // Drag handlers for Root Topics
+  const handleRootTopicDrop = (targetTopicId: string) => {
+    if (!dragState || dragState.type !== 'root-folder' || dragState.id === targetTopicId) {
+      setDragState(null);
+      setDropTarget(null);
+      return;
+    }
+
+    const currentList = [...sortedRootFolders];
+    const dragIdx = currentList.findIndex((f) => f.id === dragState.id);
+    const targetIdx = currentList.findIndex((f) => f.id === targetTopicId);
+
+    if (dragIdx === -1 || targetIdx === -1) {
+      setDragState(null);
+      setDropTarget(null);
+      return;
+    }
+
+    const [dragged] = currentList.splice(dragIdx, 1);
+    const insertIdx = currentList.findIndex((f) => f.id === targetTopicId);
+    const finalIdx = dropTarget?.position === 'after' ? insertIdx + 1 : insertIdx;
+    currentList.splice(finalIdx, 0, dragged);
+
+    const reordered = currentList.map((f, idx) => ({ ...f, position: idx }));
+    if (onReorderFolders) {
+      onReorderFolders(reordered);
+    }
+    setDragState(null);
+    setDropTarget(null);
+  };
+
+  // Drag handlers for Questions (STRICT: only within same folder)
+  const handleQuestionDrop = (folderId: string, targetQuestionId: string) => {
+    if (
+      !dragState ||
+      dragState.type !== 'question' ||
+      dragState.folderId !== folderId ||
+      dragState.id === targetQuestionId
+    ) {
+      setDragState(null);
+      setDropTarget(null);
+      return;
+    }
+
+    const currentList = [...(questionsByFolder.get(folderId) || [])];
+    const dragIdx = currentList.findIndex((q) => q.id === dragState.id);
+    const targetIdx = currentList.findIndex((q) => q.id === targetQuestionId);
+
+    if (dragIdx === -1 || targetIdx === -1) {
+      setDragState(null);
+      setDropTarget(null);
+      return;
+    }
+
+    const [dragged] = currentList.splice(dragIdx, 1);
+    const insertIdx = currentList.findIndex((q) => q.id === targetQuestionId);
+    const finalIdx = dropTarget?.position === 'after' ? insertIdx + 1 : insertIdx;
+    currentList.splice(finalIdx, 0, dragged);
+
+    const reordered = currentList.map((q, idx) => ({ ...q, position: idx }));
+    if (onReorderQuestions) {
+      onReorderQuestions(folderId, reordered);
+    }
+    setDragState(null);
+    setDropTarget(null);
+  };
+
+  // Drag handlers for Subtopics (STRICT: only within same parent folder)
+  const handleSubtopicDrop = (parentId: string, targetSubtopicId: string) => {
+    if (
+      !dragState ||
+      dragState.type !== 'subfolder' ||
+      dragState.parentId !== parentId ||
+      dragState.id === targetSubtopicId
+    ) {
+      setDragState(null);
+      setDropTarget(null);
+      return;
+    }
+
+    const findAndReorderSubfolders = (nodes: Folder[]): Folder[] => {
+      return nodes.map((node) => {
+        if (node.id === parentId) {
+          const subList = sortFolders(node.subfolders || []);
+          const dragIdx = subList.findIndex((s) => s.id === dragState.id);
+          const targetIdx = subList.findIndex((s) => s.id === targetSubtopicId);
+
+          if (dragIdx !== -1 && targetIdx !== -1) {
+            const [dragged] = subList.splice(dragIdx, 1);
+            const insertIdx = subList.findIndex((s) => s.id === targetSubtopicId);
+            const finalIdx = dropTarget?.position === 'after' ? insertIdx + 1 : insertIdx;
+            subList.splice(finalIdx, 0, dragged);
+            const reorderedSub = subList.map((s, idx) => ({ ...s, position: idx }));
+            return { ...node, subfolders: reorderedSub };
+          }
+        }
+        if (node.subfolders && node.subfolders.length > 0) {
+          return { ...node, subfolders: findAndReorderSubfolders(node.subfolders) };
+        }
+        return node;
+      });
+    };
+
+    const newTree = findAndReorderSubfolders(folders);
+    if (onReorderFolders) {
+      onReorderFolders(newTree);
+    }
+    setDragState(null);
+    setDropTarget(null);
+  };
 
   // Render a recursive subtopic / nested folder node
   const renderSubtopicNode = (node: Folder) => {
-    const isNodeExpanded = !!expandedNodes[node.id];
+    const expanded = isNodeExpanded(node.id);
     const nodeQuestions = getQuestionsForFolder(node.id);
-    const subtopics = node.subfolders || [];
+    const subtopics = sortFolders(node.subfolders || []);
     const hasChildren = subtopics.length > 0 || nodeQuestions.length > 0;
 
+    const isDraggingThis = dragState?.id === node.id;
+    const isTargetThis = dropTarget?.id === node.id;
+
     return (
-      <div key={node.id} className="text-xs space-y-1">
+      <div
+        key={node.id}
+        className={`text-xs space-y-1 rounded-lg transition-all ${
+          isDraggingThis ? 'opacity-40 border border-dashed border-slate-600' : ''
+        } ${
+          isTargetThis && dropTarget?.position === 'before'
+            ? 'border-t-2 border-t-yellow-400'
+            : isTargetThis && dropTarget?.position === 'after'
+            ? 'border-b-2 border-b-yellow-400'
+            : ''
+        }`}
+        onDragOver={(e) => {
+          if (
+            dragState?.type === 'subfolder' &&
+            dragState.parentId === node.parent_id &&
+            dragState.id !== node.id
+          ) {
+            e.preventDefault();
+            e.stopPropagation();
+            const rect = e.currentTarget.getBoundingClientRect();
+            const isAfter = e.clientY - rect.top > rect.height / 2;
+            setDropTarget({ type: 'subfolder', id: node.id, position: isAfter ? 'after' : 'before' });
+          }
+        }}
+        onDragLeave={() => {
+          if (dropTarget?.id === node.id) {
+            setDropTarget(null);
+          }
+        }}
+        onDrop={(e) => {
+          if (node.parent_id) {
+            e.preventDefault();
+            e.stopPropagation();
+            handleSubtopicDrop(node.parent_id, node.id);
+          }
+        }}
+      >
         {/* Node Row Header */}
         <div
           onClick={() => toggleNode(node.id)}
           className="flex items-center justify-between py-1.5 px-2.5 rounded-lg hover:bg-slate-800/60 cursor-pointer transition select-none group"
         >
-          <div className="flex items-center space-x-2 min-w-0">
+          <div className="flex items-center space-x-1.5 min-w-0">
+            {/* Drag Handle for Subtopic */}
+            <div
+              draggable
+              onDragStart={(e) => {
+                e.stopPropagation();
+                e.dataTransfer.setData('text/plain', node.id);
+                setDragState({
+                  type: 'subfolder',
+                  id: node.id,
+                  parentId: node.parent_id,
+                });
+              }}
+              onDragEnd={() => {
+                setDragState(null);
+                setDropTarget(null);
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="cursor-grab active:cursor-grabbing p-0.5 text-slate-500 hover:text-slate-300 transition"
+              title="Drag to rearrange subtopic within this folder"
+            >
+              <GripVertical className="w-3.5 h-3.5" />
+            </div>
+
             <span className="text-slate-500 hover:text-white transition">
-              {isNodeExpanded ? (
+              {expanded ? (
                 <ChevronDown className="w-3.5 h-3.5 text-slate-300" />
               ) : (
                 <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
@@ -233,80 +466,140 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
         </div>
 
         {/* Node Children (Questions & Nested Subtopics) */}
-        {isNodeExpanded && (
+        {expanded && (
           <div className="pl-4 ml-2 border-l border-slate-800 space-y-1 py-1">
             {/* Recursive Sub-subtopics */}
             {subtopics.map((sub) => renderSubtopicNode(sub))}
 
             {/* Questions in this subtopic */}
-            {nodeQuestions.map((q) => (
-              <div
-                key={q.id}
-                onClick={() => onSelectQuestion(q.id)}
-                className="flex items-center justify-between py-1.5 px-2.5 rounded-md hover:bg-slate-800/40 cursor-pointer transition group"
-              >
-                <div className="flex items-center space-x-2.5 min-w-0">
-                  <div title={q.status}>{renderStatusIcon(q.status)}</div>
-                  <FileCode className="w-3 h-3 text-slate-500 flex-shrink-0" />
-                  <span className="text-slate-300 group-hover:text-blue-300 font-medium truncate">
-                    {q.title}
-                  </span>
-                </div>
+            {nodeQuestions.map((q) => {
+              const isDraggingQ = dragState?.id === q.id;
+              const isTargetQ = dropTarget?.id === q.id;
 
-                <div className="flex items-center space-x-2 flex-shrink-0">
-                  <span
-                    className={`text-[9px] font-semibold px-2 py-0.5 rounded-full border ${
-                      difficultyColors[q.difficulty] || 'text-slate-400'
-                    }`}
-                  >
-                    {q.difficulty}
-                  </span>
-
-                  {onToggleBookmark && (
-                    <button
-                      onClick={(e) => {
+              return (
+                <div
+                  key={q.id}
+                  onClick={() => onSelectQuestion(q.id)}
+                  onDragOver={(e) => {
+                    // Strict: only allow if dragged question belongs to same folder
+                    if (
+                      dragState?.type === 'question' &&
+                      dragState.folderId === q.folder_id &&
+                      dragState.id !== q.id
+                    ) {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const isAfter = e.clientY - rect.top > rect.height / 2;
+                      setDropTarget({ type: 'question', id: q.id, position: isAfter ? 'after' : 'before' });
+                    }
+                  }}
+                  onDragLeave={() => {
+                    if (dropTarget?.id === q.id) {
+                      setDropTarget(null);
+                    }
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleQuestionDrop(q.folder_id, q.id);
+                  }}
+                  className={`flex items-center justify-between py-1.5 px-2.5 rounded-md hover:bg-slate-800/40 cursor-pointer transition group ${
+                    isDraggingQ ? 'opacity-40 border border-dashed border-slate-600' : ''
+                  } ${
+                    isTargetQ && dropTarget?.position === 'before'
+                      ? 'border-t-2 border-t-yellow-400'
+                      : isTargetQ && dropTarget?.position === 'after'
+                      ? 'border-b-2 border-b-yellow-400'
+                      : ''
+                  }`}
+                >
+                  <div className="flex items-center space-x-2 min-w-0">
+                    {/* Drag handle for question */}
+                    <div
+                      draggable
+                      onDragStart={(e) => {
                         e.stopPropagation();
-                        onToggleBookmark(q.id);
+                        e.dataTransfer.setData('text/plain', q.id);
+                        setDragState({
+                          type: 'question',
+                          id: q.id,
+                          folderId: q.folder_id,
+                        });
                       }}
-                      className="p-0.5 text-slate-500 hover:text-amber-400 transition"
-                      title="Bookmark"
-                    >
-                      <Star
-                        className={`w-3 h-3 ${
-                          q.is_bookmarked ? 'fill-amber-400 text-amber-400' : ''
-                        }`}
-                      />
-                    </button>
-                  )}
-
-                  {q.problem_url && (
-                    <a
-                      href={q.problem_url}
-                      target="_blank"
-                      rel="noreferrer"
+                      onDragEnd={() => {
+                        setDragState(null);
+                        setDropTarget(null);
+                      }}
                       onClick={(e) => e.stopPropagation()}
-                      className="text-slate-500 hover:text-blue-400 p-0.5 transition"
-                      title="Open external problem URL"
+                      className="cursor-grab active:cursor-grabbing p-0.5 text-slate-500 hover:text-slate-300 transition"
+                      title="Drag to rearrange problem within this folder"
                     >
-                      <ExternalLink className="w-3 h-3" />
-                    </a>
-                  )}
+                      <GripVertical className="w-3 h-3" />
+                    </div>
 
-                  {onDeleteQuestion && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDeleteQuestion(q.id, q.title);
-                      }}
-                      className="opacity-0 group-hover:opacity-100 p-0.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded transition"
-                      title={`Delete question "${q.title}"`}
+                    <div title={q.status}>{renderStatusIcon(q.status)}</div>
+                    <FileCode className="w-3 h-3 text-slate-500 flex-shrink-0" />
+                    <span className="text-slate-300 group-hover:text-blue-300 font-medium truncate">
+                      {q.title}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center space-x-2 flex-shrink-0">
+                    <span
+                      className={`text-[9px] font-semibold px-2 py-0.5 rounded-full border ${
+                        difficultyColors[q.difficulty] || 'text-slate-400'
+                      }`}
                     >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
-                  )}
+                      {q.difficulty}
+                    </span>
+
+                    {onToggleBookmark && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onToggleBookmark(q.id);
+                        }}
+                        className="p-0.5 text-slate-500 hover:text-yellow-300 transition"
+                        title="Bookmark"
+                      >
+                        <Star
+                          className={`w-3 h-3 ${
+                            q.is_bookmarked ? 'fill-[#fef08a] text-yellow-300' : ''
+                          }`}
+                        />
+                      </button>
+                    )}
+
+                    {q.problem_url && (
+                      <a
+                        href={q.problem_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-slate-500 hover:text-blue-400 p-0.5 transition"
+                        title="Open external problem URL"
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    )}
+
+                    {onDeleteQuestion && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDeleteQuestion(q.id, q.title);
+                        }}
+                        className="opacity-0 group-hover:opacity-100 p-0.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded transition"
+                        title={`Delete question "${q.title}"`}
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
 
             {/* Empty prompt */}
             {!hasChildren && (
@@ -334,7 +627,7 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <div className="flex items-center space-x-2">
-              <Layers className="w-5 h-5 text-blue-400" />
+              <Layers className="w-5 h-5 text-yellow-400" />
               <h1 className="text-lg font-bold text-white tracking-tight">
                 Topics & Patterns Management
               </h1>
@@ -347,7 +640,7 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
           <div className="flex items-center space-x-2">
             <button
               onClick={onOpenCreateTopic}
-              className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-md shadow-blue-600/30 transition"
+              className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-[#fef08a] hover:bg-[#fef9c3] text-[#18181b] text-xs font-semibold shadow-md shadow-yellow-200/30 transition"
               title="Create a new top-level DSA topic"
             >
               <Plus className="w-3.5 h-3.5" />
@@ -410,25 +703,77 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
           </div>
         ) : (
           filteredFolders.map((pattern) => {
-            const isExpanded = !!expandedNodes[pattern.id];
+            const expanded = isNodeExpanded(pattern.id);
             const patternQuestions = getQuestionsForFolder(pattern.id);
-            const subfolders = pattern.subfolders || [];
+            const subfolders = sortFolders(pattern.subfolders || []);
             const hasChildren = subfolders.length > 0 || patternQuestions.length > 0;
             const totalQ = pattern.question_count || 0;
+
+            const isDraggingTopic = dragState?.id === pattern.id;
+            const isTargetTopic = dropTarget?.id === pattern.id;
 
             return (
               <div
                 key={pattern.id}
-                className="bg-[#0D1527] border border-slate-800/90 rounded-xl p-4 shadow-md transition hover:border-slate-700/90"
+                onDragOver={(e) => {
+                  if (dragState?.type === 'root-folder' && dragState.id !== pattern.id) {
+                    e.preventDefault();
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const isAfter = e.clientY - rect.top > rect.height / 2;
+                    setDropTarget({
+                      type: 'root-folder',
+                      id: pattern.id,
+                      position: isAfter ? 'after' : 'before',
+                    });
+                  }
+                }}
+                onDragLeave={() => {
+                  if (dropTarget?.id === pattern.id) {
+                    setDropTarget(null);
+                  }
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  handleRootTopicDrop(pattern.id);
+                }}
+                className={`bg-[#0D1527] border border-slate-800/90 rounded-xl p-4 shadow-md transition hover:border-slate-700/90 ${
+                  isDraggingTopic ? 'opacity-40 border-dashed border-slate-600' : ''
+                } ${
+                  isTargetTopic && dropTarget?.position === 'before'
+                    ? 'border-t-2 border-t-yellow-400'
+                    : isTargetTopic && dropTarget?.position === 'after'
+                    ? 'border-b-2 border-b-yellow-400'
+                    : ''
+                }`}
               >
                 {/* Topic Header */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-slate-800/70">
-                  <div className="flex items-center space-x-2.5 min-w-0">
+                  <div className="flex items-center space-x-2 min-w-0">
+                    {/* Drag Handle for Root Topic */}
+                    <div
+                      draggable
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData('text/plain', pattern.id);
+                        setDragState({
+                          type: 'root-folder',
+                          id: pattern.id,
+                        });
+                      }}
+                      onDragEnd={() => {
+                        setDragState(null);
+                        setDropTarget(null);
+                      }}
+                      className="cursor-grab active:cursor-grabbing p-1 text-slate-500 hover:text-slate-300 transition"
+                      title="Drag to rearrange topic order"
+                    >
+                      <GripVertical className="w-4 h-4" />
+                    </div>
+
                     <div
                       onClick={() => toggleNode(pattern.id)}
                       className="w-5 h-5 flex items-center justify-center text-slate-400 hover:text-white cursor-pointer transition flex-shrink-0"
                     >
-                      {isExpanded ? (
+                      {expanded ? (
                         <ChevronDown className="w-4 h-4 text-slate-200" />
                       ) : (
                         <div className="w-4 h-4 rounded-full border border-slate-600/70 flex items-center justify-center hover:border-slate-400">
@@ -504,7 +849,7 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
                 </div>
 
                 {/* Expanded Tree Structure inside this topic */}
-                {isExpanded && (
+                {expanded && (
                   <div className="pt-2 pl-2">
                     {hasChildren ? (
                       <div className="relative pl-5 ml-2 border-l border-slate-700/50 space-y-1">
@@ -512,74 +857,138 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
                         {subfolders.map((sub) => renderSubtopicNode(sub))}
 
                         {/* 2. Questions directly under root pattern */}
-                        {patternQuestions.map((q) => (
-                          <div
-                            key={q.id}
-                            onClick={() => onSelectQuestion(q.id)}
-                            className="flex items-center justify-between py-1.5 px-2.5 rounded-md hover:bg-slate-800/50 cursor-pointer transition group relative before:content-[''] before:absolute before:-left-5 before:top-1/2 before:w-3.5 before:h-[1px] before:bg-slate-700/50"
-                          >
-                            <div className="flex items-center space-x-2 min-w-0">
-                              <div title={q.status}>{renderStatusIcon(q.status)}</div>
-                              <FileCode className="w-3 h-3 text-slate-500 flex-shrink-0" />
-                              <span className="text-slate-300 group-hover:text-blue-300 font-medium truncate">
-                                {q.title}
-                              </span>
-                            </div>
+                        {patternQuestions.map((q) => {
+                          const isDraggingQ = dragState?.id === q.id;
+                          const isTargetQ = dropTarget?.id === q.id;
 
-                            <div className="flex items-center space-x-2 flex-shrink-0">
-                              <span
-                                className={`text-[9px] font-semibold px-2 py-0.5 rounded-full border ${
-                                  difficultyColors[q.difficulty] || 'text-slate-400'
-                                }`}
-                              >
-                                {q.difficulty}
-                              </span>
-
-                              {onToggleBookmark && (
-                                <button
-                                  onClick={(e) => {
+                          return (
+                            <div
+                              key={q.id}
+                              onClick={() => onSelectQuestion(q.id)}
+                              onDragOver={(e) => {
+                                // Strict: only allow if dragged question belongs to same folder
+                                if (
+                                  dragState?.type === 'question' &&
+                                  dragState.folderId === q.folder_id &&
+                                  dragState.id !== q.id
+                                ) {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  const rect = e.currentTarget.getBoundingClientRect();
+                                  const isAfter = e.clientY - rect.top > rect.height / 2;
+                                  setDropTarget({
+                                    type: 'question',
+                                    id: q.id,
+                                    position: isAfter ? 'after' : 'before',
+                                  });
+                                }
+                              }}
+                              onDragLeave={() => {
+                                if (dropTarget?.id === q.id) {
+                                  setDropTarget(null);
+                                }
+                              }}
+                              onDrop={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleQuestionDrop(q.folder_id, q.id);
+                              }}
+                              className={`flex items-center justify-between py-1.5 px-2.5 rounded-md hover:bg-slate-800/50 cursor-pointer transition group relative before:content-[''] before:absolute before:-left-5 before:top-1/2 before:w-3.5 before:h-[1px] before:bg-slate-700/50 ${
+                                isDraggingQ ? 'opacity-40 border border-dashed border-slate-600' : ''
+                              } ${
+                                isTargetQ && dropTarget?.position === 'before'
+                                  ? 'border-t-2 border-t-yellow-400'
+                                  : isTargetQ && dropTarget?.position === 'after'
+                                  ? 'border-b-2 border-b-yellow-400'
+                                  : ''
+                              }`}
+                            >
+                              <div className="flex items-center space-x-2 min-w-0">
+                                {/* Drag handle for question */}
+                                <div
+                                  draggable
+                                  onDragStart={(e) => {
                                     e.stopPropagation();
-                                    onToggleBookmark(q.id);
+                                    e.dataTransfer.setData('text/plain', q.id);
+                                    setDragState({
+                                      type: 'question',
+                                      id: q.id,
+                                      folderId: q.folder_id,
+                                    });
                                   }}
-                                  className="p-0.5 text-slate-500 hover:text-amber-400 transition"
-                                  title="Bookmark"
-                                >
-                                  <Star
-                                    className={`w-3 h-3 ${
-                                      q.is_bookmarked ? 'fill-amber-400 text-amber-400' : ''
-                                    }`}
-                                  />
-                                </button>
-                              )}
-
-                              {q.problem_url && (
-                                <a
-                                  href={q.problem_url}
-                                  target="_blank"
-                                  rel="noreferrer"
+                                  onDragEnd={() => {
+                                    setDragState(null);
+                                    setDropTarget(null);
+                                  }}
                                   onClick={(e) => e.stopPropagation()}
-                                  className="text-slate-500 hover:text-blue-400 p-0.5 transition"
-                                  title="Open external problem URL"
+                                  className="cursor-grab active:cursor-grabbing p-0.5 text-slate-500 hover:text-slate-300 transition"
+                                  title="Drag to rearrange problem within this topic"
                                 >
-                                  <ExternalLink className="w-3 h-3" />
-                                </a>
-                              )}
+                                  <GripVertical className="w-3 h-3" />
+                                </div>
 
-                              {onDeleteQuestion && (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    onDeleteQuestion(q.id, q.title);
-                                  }}
-                                  className="opacity-0 group-hover:opacity-100 p-0.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded transition"
-                                  title={`Delete question "${q.title}"`}
+                                <div title={q.status}>{renderStatusIcon(q.status)}</div>
+                                <FileCode className="w-3 h-3 text-slate-500 flex-shrink-0" />
+                                <span className="text-slate-300 group-hover:text-blue-300 font-medium truncate">
+                                  {q.title}
+                                </span>
+                              </div>
+
+                              <div className="flex items-center space-x-2 flex-shrink-0">
+                                <span
+                                  className={`text-[9px] font-semibold px-2 py-0.5 rounded-full border ${
+                                    difficultyColors[q.difficulty] || 'text-slate-400'
+                                  }`}
                                 >
-                                  <Trash2 className="w-3 h-3" />
-                                </button>
-                              )}
+                                  {q.difficulty}
+                                </span>
+
+                                {onToggleBookmark && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onToggleBookmark(q.id);
+                                    }}
+                                    className="p-0.5 text-slate-500 hover:text-yellow-300 transition"
+                                    title="Bookmark"
+                                  >
+                                    <Star
+                                      className={`w-3 h-3 ${
+                                        q.is_bookmarked ? 'fill-[#fef08a] text-yellow-300' : ''
+                                      }`}
+                                    />
+                                  </button>
+                                )}
+
+                                {q.problem_url && (
+                                  <a
+                                    href={q.problem_url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="text-slate-500 hover:text-blue-400 p-0.5 transition"
+                                    title="Open external problem URL"
+                                  >
+                                    <ExternalLink className="w-3 h-3" />
+                                  </a>
+                                )}
+
+                                {onDeleteQuestion && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onDeleteQuestion(q.id, q.title);
+                                    }}
+                                    className="opacity-0 group-hover:opacity-100 p-0.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded transition"
+                                    title={`Delete question "${q.title}"`}
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </button>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     ) : (
                       <div className="py-3 px-2 text-xs text-slate-500 italic flex items-center justify-between">

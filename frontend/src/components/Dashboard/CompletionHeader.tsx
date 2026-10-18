@@ -33,89 +33,123 @@ export const CompletionHeader: React.FC<CompletionHeaderProps> = ({ summary, onS
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div
           onClick={() => onSelectView && onSelectView('patterns')}
-          className="bg-[#0B1222] border border-slate-800/90 hover:border-slate-700/80 rounded-xl p-3 cursor-pointer transition shadow-md group"
+          className="rounded-xl p-3 cursor-pointer transition group"
+          style={{
+            backgroundColor: 'var(--bg-card)',
+            border: '1px solid var(--border-primary)',
+            boxShadow: 'var(--shadow-card)',
+          }}
         >
-          <div className="flex items-center space-x-2 text-blue-400 mb-1">
+          <div className="flex items-center space-x-2 text-yellow-400 mb-1">
             <Layers className="w-3.5 h-3.5" />
-            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Topics</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Topics</span>
           </div>
-          <div className="text-xl font-bold text-white group-hover:text-blue-300 transition">{totalTopics}</div>
+          <div className="text-xl font-bold group-hover:text-yellow-300 transition" style={{ color: 'var(--text-primary)' }}>{totalTopics}</div>
         </div>
 
         <div
           onClick={() => onSelectView && onSelectView('patterns')}
-          className="bg-[#0B1222] border border-slate-800/90 hover:border-slate-700/80 rounded-xl p-3 cursor-pointer transition shadow-md group"
+          className="rounded-xl p-3 cursor-pointer transition group"
+          style={{
+            backgroundColor: 'var(--bg-card)',
+            border: '1px solid var(--border-primary)',
+            boxShadow: 'var(--shadow-card)',
+          }}
         >
-          <div className="flex items-center space-x-2 text-indigo-400 mb-1">
+          <div className="flex items-center space-x-2 text-yellow-300 mb-1">
             <FolderTree className="w-3.5 h-3.5" />
-            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Subtopics</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Subtopics</span>
           </div>
-          <div className="text-xl font-bold text-white group-hover:text-indigo-300 transition">{totalSubtopics}</div>
+          <div className="text-xl font-bold group-hover:text-yellow-200 transition" style={{ color: 'var(--text-primary)' }}>{totalSubtopics}</div>
         </div>
 
         <div
           onClick={() => onSelectView && onSelectView('all-questions')}
-          className="bg-[#0B1222] border border-slate-800/90 hover:border-slate-700/80 rounded-xl p-3 cursor-pointer transition shadow-md group"
+          className="rounded-xl p-3 cursor-pointer transition group"
+          style={{
+            backgroundColor: 'var(--bg-card)',
+            border: '1px solid var(--border-primary)',
+            boxShadow: 'var(--shadow-card)',
+          }}
         >
           <div className="flex items-center space-x-2 text-emerald-400 mb-1">
             <CheckCircle2 className="w-3.5 h-3.5" />
-            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Solved</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Solved</span>
           </div>
-          <div className="text-xl font-bold text-white group-hover:text-emerald-300 transition">
-            {solved} <span className="text-xs font-normal text-slate-500">/ {total}</span>
+          <div className="text-xl font-bold group-hover:text-emerald-300 transition" style={{ color: 'var(--text-primary)' }}>
+            {solved} <span className="text-xs font-normal" style={{ color: 'var(--text-muted)' }}>/ {total}</span>
           </div>
         </div>
 
         <div
           onClick={() => onSelectView && onSelectView('revision')}
-          className="bg-[#0B1222] border border-slate-800/90 hover:border-slate-700/80 rounded-xl p-3 cursor-pointer transition shadow-md group"
+          className="rounded-xl p-3 cursor-pointer transition group"
+          style={{
+            backgroundColor: 'var(--bg-card)',
+            border: '1px solid var(--border-primary)',
+            boxShadow: 'var(--shadow-card)',
+          }}
         >
-          <div className="flex items-center space-x-2 text-amber-400 mb-1">
+          <div className="flex items-center space-x-2 text-yellow-300 mb-1">
             <RotateCcw className="w-3.5 h-3.5" />
-            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Needs Revision</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Needs Revision</span>
           </div>
-          <div className="text-xl font-bold text-amber-400 group-hover:text-amber-300 transition">{needsRevision}</div>
+          <div className="text-xl font-bold text-yellow-300 group-hover:text-yellow-200 transition">{needsRevision}</div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
         {/* 1. OVERALL COMPLETION */}
-        <div className="md:col-span-4 bg-[#0B1222] border border-slate-800/90 rounded-2xl p-5 flex flex-col justify-between shadow-xl">
+        <div
+          className="md:col-span-4 rounded-2xl p-5 flex flex-col justify-between"
+          style={{
+            backgroundColor: 'var(--bg-card)',
+            border: '1px solid var(--border-primary)',
+            boxShadow: 'var(--shadow-elevated)',
+          }}
+        >
           <div>
             {/* Header */}
-            <div className="flex items-center space-x-2 text-blue-400 mb-3">
+            <div className="flex items-center space-x-2 text-yellow-300 mb-3">
               <PieChart className="w-4 h-4 stroke-[2.2]" />
-              <span className="text-[11px] font-bold tracking-wider uppercase text-slate-300">
+              <span className="text-[11px] font-bold tracking-wider uppercase" style={{ color: 'var(--text-secondary)' }}>
                 Overall Completion
               </span>
             </div>
 
             {/* Stats Row */}
             <div className="flex items-baseline justify-between mb-3">
-              <span className="text-3xl font-extrabold text-white tracking-tight">
+              <span className="text-3xl font-extrabold tracking-tight" style={{ color: 'var(--text-primary)' }}>
                 {overallPercentage}%
               </span>
-              <span className="text-xs font-medium text-slate-400">
+              <span className="text-xs font-medium" style={{ color: 'var(--text-tertiary)' }}>
                 {solved} / {total} Solved
               </span>
             </div>
           </div>
 
-          {/* Blue Progress Bar */}
-          <div className="w-full h-1.5 rounded-full bg-slate-800 overflow-hidden">
+          {/* Light Yellow Progress Bar */}
+          <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--bg-elevated)' }}>
             <div
-              className="h-full bg-blue-600 rounded-full transition-all duration-500 shadow-sm shadow-blue-500/50"
+              className="h-full bg-[#fef08a] rounded-full transition-all duration-500 shadow-sm shadow-yellow-200/30"
               style={{ width: `${Math.min(100, Math.max(overallPercentage, 3))}%` }}
             />
           </div>
         </div>
 
         {/* 2. DIFFICULTY BREAKDOWN */}
-        <div className="md:col-span-8 bg-[#0B1222] border border-slate-800/90 rounded-2xl p-5 flex flex-col justify-between shadow-xl">
+        <div
+          className="md:col-span-8 rounded-2xl p-5 flex flex-col justify-between"
+          style={{
+            backgroundColor: 'var(--bg-card)',
+            border: '1px solid var(--border-primary)',
+            boxShadow: 'var(--shadow-elevated)',
+          }}
+        >
         {/* Header */}
         <div className="flex items-center space-x-2 text-emerald-400 mb-3">
           <Award className="w-4 h-4 stroke-[2.2]" />
-          <span className="text-[11px] font-bold tracking-wider uppercase text-slate-300">
+          <span className="text-[11px] font-bold tracking-wider uppercase" style={{ color: 'var(--text-secondary)' }}>
             Difficulty Breakdown
           </span>
         </div>
@@ -123,17 +157,23 @@ export const CompletionHeader: React.FC<CompletionHeaderProps> = ({ summary, onS
         {/* 3 Sub-Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {/* Easy */}
-          <div className="bg-[#090F1C] border border-slate-800/80 rounded-xl p-3 flex flex-col justify-between">
+          <div
+            className="rounded-xl p-3 flex flex-col justify-between"
+            style={{
+              backgroundColor: 'var(--bg-card-alt)',
+              border: '1px solid var(--border-subtle)',
+            }}
+          >
             <div>
               <span className="text-xs font-semibold text-emerald-400 block mb-1">
                 Easy
               </span>
               <div className="flex items-baseline space-x-1 mb-2">
-                <span className="text-lg font-bold text-white">{easySolved}</span>
-                <span className="text-xs text-slate-400 font-medium">/ {easyTotal}</span>
+                <span className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>{easySolved}</span>
+                <span className="text-xs font-medium" style={{ color: 'var(--text-tertiary)' }}>/ {easyTotal}</span>
               </div>
             </div>
-            <div className="w-full h-1.5 rounded-full bg-slate-800 overflow-hidden">
+            <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--bg-elevated)' }}>
               <div
                 className="h-full bg-emerald-500 rounded-full transition-all duration-500"
                 style={{ width: `${Math.min(100, Math.max(easyPct, 2))}%` }}
@@ -142,36 +182,48 @@ export const CompletionHeader: React.FC<CompletionHeaderProps> = ({ summary, onS
           </div>
 
           {/* Medium */}
-          <div className="bg-[#090F1C] border border-slate-800/80 rounded-xl p-3 flex flex-col justify-between">
+          <div
+            className="rounded-xl p-3 flex flex-col justify-between"
+            style={{
+              backgroundColor: 'var(--bg-card-alt)',
+              border: '1px solid var(--border-subtle)',
+            }}
+          >
             <div>
-              <span className="text-xs font-semibold text-amber-400 block mb-1">
+              <span className="text-xs font-semibold text-yellow-300 block mb-1">
                 Medium
               </span>
               <div className="flex items-baseline space-x-1 mb-2">
-                <span className="text-lg font-bold text-white">{medSolved}</span>
-                <span className="text-xs text-slate-400 font-medium">/ {medTotal}</span>
+                <span className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>{medSolved}</span>
+                <span className="text-xs font-medium" style={{ color: 'var(--text-tertiary)' }}>/ {medTotal}</span>
               </div>
             </div>
-            <div className="w-full h-1.5 rounded-full bg-slate-800 overflow-hidden">
+            <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--bg-elevated)' }}>
               <div
-                className="h-full bg-amber-500 rounded-full transition-all duration-500"
+                className="h-full bg-[#fef08a] rounded-full transition-all duration-500"
                 style={{ width: `${Math.min(100, Math.max(medPct, 2))}%` }}
               />
             </div>
           </div>
 
           {/* Hard */}
-          <div className="bg-[#090F1C] border border-slate-800/80 rounded-xl p-3 flex flex-col justify-between">
+          <div
+            className="rounded-xl p-3 flex flex-col justify-between"
+            style={{
+              backgroundColor: 'var(--bg-card-alt)',
+              border: '1px solid var(--border-subtle)',
+            }}
+          >
             <div>
               <span className="text-xs font-semibold text-rose-400 block mb-1">
                 Hard
               </span>
               <div className="flex items-baseline space-x-1 mb-2">
-                <span className="text-lg font-bold text-white">{hardSolved}</span>
-                <span className="text-xs text-slate-400 font-medium">/ {hardTotal}</span>
+                <span className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>{hardSolved}</span>
+                <span className="text-xs font-medium" style={{ color: 'var(--text-tertiary)' }}>/ {hardTotal}</span>
               </div>
             </div>
-            <div className="w-full h-1.5 rounded-full bg-slate-800 overflow-hidden">
+            <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--bg-elevated)' }}>
               <div
                 className="h-full bg-rose-500 rounded-full transition-all duration-500"
                 style={{ width: `${hardPct > 0 ? hardPct : 0}%` }}

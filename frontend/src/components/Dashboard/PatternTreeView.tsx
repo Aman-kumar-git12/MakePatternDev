@@ -32,7 +32,7 @@ export const PatternTreeView: React.FC<PatternTreeViewProps> = ({
   // Store expanded state for folders by ID
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {};
-    // By default, expand "Beginner Problems" or root folders
+    // By default, expand root folders
     for (const f of folders) {
       initial[f.id] = true;
     }
@@ -55,17 +55,17 @@ export const PatternTreeView: React.FC<PatternTreeViewProps> = ({
       case 'Solved':
         return <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />;
       case 'In Progress':
-        return <Clock className="w-3.5 h-3.5 text-blue-400" />;
+        return <Clock className="w-3.5 h-3.5 text-yellow-300" />;
       case 'Needs Revision':
-        return <RotateCcw className="w-3.5 h-3.5 text-amber-400" />;
+        return <RotateCcw className="w-3.5 h-3.5 text-yellow-300" />;
       default:
-        return <Circle className="w-3.5 h-3.5 text-slate-500" />;
+        return <Circle className="w-3.5 h-3.5" style={{ color: 'var(--text-muted)' }} />;
     }
   };
 
   const difficultyColors: Record<Difficulty, string> = {
     Easy: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
-    Medium: 'text-amber-400 bg-amber-500/10 border-amber-500/20',
+    Medium: 'text-yellow-300 bg-[#fef08a]/15 border border-[#fef08a]/30',
     Hard: 'text-rose-400 bg-rose-500/10 border-rose-500/20',
   };
 
@@ -81,19 +81,25 @@ export const PatternTreeView: React.FC<PatternTreeViewProps> = ({
         {/* Row Header */}
         <div
           onClick={() => toggleFolder(folder.id)}
-          className={`flex items-center justify-between py-2.5 px-3 rounded-xl cursor-pointer transition group ${
-            isRoot
-              ? 'hover:bg-slate-800/40 text-slate-200 font-medium'
-              : 'hover:bg-[#121B30] text-slate-300 font-normal'
-          }`}
+          className="flex items-center justify-between py-2.5 px-3 rounded-xl cursor-pointer transition group"
+          style={{ color: isRoot ? 'var(--text-primary)' : 'var(--text-secondary)' }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = 'var(--bg-hover)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = '';
+          }}
         >
           <div className="flex items-center space-x-2.5 min-w-0">
             {/* Expand / Collapse Icon */}
-            <div className="w-5 h-5 flex items-center justify-center text-slate-400 group-hover:text-white transition">
+            <div className="w-5 h-5 flex items-center justify-center transition" style={{ color: 'var(--text-tertiary)' }}>
               {isExpanded ? (
                 <ChevronDown className="w-4 h-4" />
               ) : (
-                <div className="w-4 h-4 rounded-full border border-slate-600/70 flex items-center justify-center group-hover:border-slate-400">
+                <div
+                  className="w-4 h-4 rounded-full flex items-center justify-center"
+                  style={{ border: '1px solid var(--border-hover)' }}
+                >
                   <ChevronRight className="w-2.5 h-2.5" />
                 </div>
               )}
@@ -101,11 +107,12 @@ export const PatternTreeView: React.FC<PatternTreeViewProps> = ({
 
             {/* Folder Name */}
             <span
-              className={`text-sm truncate ${
+              className={`truncate ${
                 isRoot
-                  ? 'text-white font-medium text-[15px]'
-                  : 'text-slate-300 group-hover:text-white text-[13.5px]'
+                  ? 'font-medium text-[15px]'
+                  : 'text-[13.5px]'
               }`}
+              style={{ color: isRoot ? 'var(--text-primary)' : 'var(--text-secondary)' }}
             >
               {folder.name}
             </span>
@@ -114,7 +121,7 @@ export const PatternTreeView: React.FC<PatternTreeViewProps> = ({
           {/* Right Action / Count */}
           <div className="flex items-center space-x-2">
             {folderQuestions.length > 0 && (
-              <span className="text-[11px] text-slate-500 group-hover:text-slate-400 transition">
+              <span className="text-[11px] transition" style={{ color: 'var(--text-muted)' }}>
                 {folderQuestions.length} {folderQuestions.length === 1 ? 'problem' : 'problems'}
               </span>
             )}
@@ -124,7 +131,8 @@ export const PatternTreeView: React.FC<PatternTreeViewProps> = ({
                 e.stopPropagation();
                 onOpenNewQuestion(folder.id);
               }}
-              className="opacity-0 group-hover:opacity-100 p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700/60 transition"
+              className="opacity-0 group-hover:opacity-100 p-1 rounded-lg transition"
+              style={{ color: 'var(--text-tertiary)' }}
               title="Add Question to this topic"
             >
               <Plus className="w-3.5 h-3.5" />
@@ -147,7 +155,10 @@ export const PatternTreeView: React.FC<PatternTreeViewProps> = ({
 
         {/* Children (Subfolders and Questions) with connecting tree lines */}
         {isExpanded && (
-          <div className="relative pl-6 ml-3.5 border-l border-slate-700/50 space-y-0.5 mt-0.5 mb-1.5">
+          <div
+            className="relative pl-6 ml-3.5 space-y-0.5 mt-0.5 mb-1.5"
+            style={{ borderLeft: '1px solid var(--border-subtle)' }}
+          >
             {/* 1. Subfolders */}
             {subfolders.map((sub) =>
               renderFolderNode(sub, false)
@@ -158,11 +169,18 @@ export const PatternTreeView: React.FC<PatternTreeViewProps> = ({
               <div
                 key={q.id}
                 onClick={() => onSelectQuestion(q.id)}
-                className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-slate-800/50 cursor-pointer transition group relative before:content-[''] before:absolute before:-left-6 before:top-1/2 before:w-4 before:h-[1px] before:bg-slate-700/50"
+                className="flex items-center justify-between py-2 px-3 rounded-lg cursor-pointer transition group relative"
+                style={{ color: 'var(--text-secondary)' }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'var(--bg-hover)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '';
+                }}
               >
                 <div className="flex items-center space-x-2.5 min-w-0">
                   <div className="flex-shrink-0">{renderStatusIcon(q.status)}</div>
-                  <span className="text-xs text-slate-200 group-hover:text-blue-300 transition truncate font-medium">
+                  <span className="text-xs group-hover:text-blue-300 transition truncate font-medium" style={{ color: 'var(--text-primary)' }}>
                     {q.title}
                   </span>
                 </div>
@@ -170,8 +188,9 @@ export const PatternTreeView: React.FC<PatternTreeViewProps> = ({
                 <div className="flex items-center space-x-2 flex-shrink-0">
                   <span
                     className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
-                      difficultyColors[q.difficulty] || 'text-slate-400'
+                      difficultyColors[q.difficulty] || ''
                     }`}
+                    style={!difficultyColors[q.difficulty] ? { color: 'var(--text-tertiary)' } : undefined}
                   >
                     {q.difficulty}
                   </span>
@@ -182,12 +201,13 @@ export const PatternTreeView: React.FC<PatternTreeViewProps> = ({
                         e.stopPropagation();
                         onToggleBookmark(q.id);
                       }}
-                      className="p-1 text-slate-500 hover:text-amber-400 transition"
+                      className="p-1 hover:text-yellow-300 transition"
+                      style={{ color: 'var(--text-muted)' }}
                       title="Bookmark"
                     >
                       <Star
                         className={`w-3.5 h-3.5 ${
-                          q.is_bookmarked ? 'fill-amber-400 text-amber-400' : ''
+                          q.is_bookmarked ? 'fill-[#fef08a] text-yellow-300' : ''
                         }`}
                       />
                     </button>
@@ -198,11 +218,11 @@ export const PatternTreeView: React.FC<PatternTreeViewProps> = ({
 
             {/* If folder is empty and has no subfolders, show friendly add prompt */}
             {!hasChildren && (
-              <div className="py-2 px-3 text-xs text-slate-500 italic flex items-center justify-between">
+              <div className="py-2 px-3 text-xs italic flex items-center justify-between" style={{ color: 'var(--text-muted)' }}>
                 <span>No problems in this topic yet</span>
                 <button
                   onClick={() => onOpenNewQuestion(folder.id)}
-                  className="text-blue-400 hover:text-blue-300 font-medium text-xs flex items-center space-x-1"
+                  className="text-yellow-400 hover:text-yellow-300 font-medium text-xs flex items-center space-x-1"
                 >
                   <Plus className="w-3 h-3" />
                   <span>Add First Question</span>
@@ -216,10 +236,17 @@ export const PatternTreeView: React.FC<PatternTreeViewProps> = ({
   };
 
   return (
-    <div className="bg-[#0B101E] border border-slate-800/90 rounded-2xl p-5 shadow-xl">
+    <div
+      className="rounded-2xl p-5"
+      style={{
+        backgroundColor: 'var(--bg-card)',
+        border: '1px solid var(--border-primary)',
+        boxShadow: 'var(--shadow-elevated)',
+      }}
+    >
       <div className="space-y-2">
         {folders.length === 0 ? (
-          <div className="p-8 text-center text-xs text-slate-500">
+          <div className="p-8 text-center text-xs" style={{ color: 'var(--text-muted)' }}>
             No categories available. Click "New Question" above to start!
           </div>
         ) : (

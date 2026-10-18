@@ -139,6 +139,13 @@ class ApiService {
     });
   }
 
+  async reorderFolders(items: Array<{ id: string; position: number }>): Promise<void> {
+    return this.request<void>('/folders/reorder', {
+      method: 'POST',
+      body: JSON.stringify(items),
+    });
+  }
+
   // Questions API
   async listQuestions(params?: { folder_id?: string; difficulty?: string; status?: string; search?: string }): Promise<QuestionListItem[]> {
     const query = new URLSearchParams();
@@ -175,6 +182,13 @@ class ApiService {
     return this.request<Question>(`/questions/${id}`, {
       method: 'PUT',
       body: JSON.stringify(updates),
+    });
+  }
+
+  async reorderQuestions(items: Array<{ id: string; position: number }>): Promise<void> {
+    return this.request<void>('/questions/reorder', {
+      method: 'POST',
+      body: JSON.stringify(items),
     });
   }
 

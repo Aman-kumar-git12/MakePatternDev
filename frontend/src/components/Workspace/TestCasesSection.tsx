@@ -352,7 +352,7 @@ export const TestCasesSection: React.FC<TestCasesSectionProps> = ({
                 </div>
 
                 {tc.notes && (
-                  <div className="mt-2 text-[11px] text-amber-300/80 bg-amber-500/10 border border-amber-500/20 rounded-lg px-2.5 py-1 flex items-center space-x-1.5">
+                  <div className="mt-2 text-[11px] text-yellow-300 bg-[#fef08a]/15 border border-[#fef08a]/30 rounded-lg px-2.5 py-1 flex items-center space-x-1.5">
                     <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
                     <span>{tc.notes}</span>
                   </div>

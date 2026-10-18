@@ -200,7 +200,7 @@ export const CreateQuestionModal: React.FC<CreateQuestionModalProps> = ({
                     d === 'Easy'
                       ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50'
                       : d === 'Medium'
-                      ? 'bg-amber-500/20 text-amber-400 border-amber-500/50'
+                      ? 'bg-[#fef08a]/25 text-yellow-300 border-[#fef08a]/50'
                       : 'bg-rose-500/20 text-rose-400 border-rose-500/50';
 
                   return (

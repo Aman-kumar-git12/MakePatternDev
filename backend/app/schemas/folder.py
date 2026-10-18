@@ -24,6 +24,10 @@ class FolderMove(BaseModel):
     target_parent_id: Optional[str] = None
     new_position: Optional[int] = None
 
+class ReorderItem(BaseModel):
+    id: str
+    position: int
+
 class FolderTreeResponse(BaseModel):
     id: str
     user_id: str

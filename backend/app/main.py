@@ -4,7 +4,6 @@ from contextlib import asynccontextmanager
 from app.database import engine, Base, SessionLocal
 from app.config import settings
 from app.routers import auth, folders, questions, solutions, bookmarks, progress, search, test_cases
-from app.services.seed_service import seed_demo_data
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -20,25 +19,6 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.critical(f"Database schema initialization failed: {e}", exc_info=True)
         raise
-
-    # Seed demo curriculum only in development when database has no users
-    if getattr(settings, "ENVIRONMENT", "production") == "development":
-        db = SessionLocal()
-        try:
-            from app.models.user import User
-            user_count = db.query(User).count()
-            if user_count == 0:
-                logger.info("No users found in development database. Seeding demo user and patterns...")
-                seed_demo_data(db)
-                logger.info("Demo data seeded successfully.")
-            else:
-                logger.info(f"Database has {user_count} user(s). Demo seeding skipped.")
-        except Exception as e:
-            logger.error(f"Development demo seeding failed: {e}", exc_info=True)
-        finally:
-            db.close()
-    else:
-        logger.info("Non-development environment: demo seeding disabled.")
 
     yield
 

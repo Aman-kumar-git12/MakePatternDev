@@ -100,7 +100,7 @@ export const MoveModal: React.FC<MoveModalProps> = ({
         </button>
 
         <div className="flex items-center space-x-3 mb-5">
-          <div className="p-2.5 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30">
+          <div className="p-2.5 rounded-xl bg-[#fef08a]/20 text-yellow-300 border border-[#fef08a]/35">
             <ArrowRightLeft className="w-5 h-5" />
           </div>
           <div>
@@ -126,7 +126,7 @@ export const MoveModal: React.FC<MoveModalProps> = ({
             <select
               value={targetId || ''}
               onChange={(e) => setTargetId(e.target.value ? e.target.value : null)}
-              className="w-full bg-[#0A0F1D] border border-slate-700/80 rounded-xl px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+              className="w-full bg-[#0A0F1D] border border-slate-700/80 rounded-xl px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-yellow-300 transition"
             >
               {type === 'folder' && <option value="">(Root Level)</option>}
               {flatList.map((f) => {
@@ -151,7 +151,7 @@ export const MoveModal: React.FC<MoveModalProps> = ({
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-5 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 active:scale-95 text-white font-medium text-sm transition shadow-lg shadow-amber-600/30 disabled:opacity-50"
+              className="px-5 py-2 rounded-xl bg-[#fef08a] hover:bg-[#fef9c3] active:scale-95 text-[#18181b] font-semibold text-sm transition shadow-md shadow-yellow-200/30 disabled:opacity-50"
             >
               {isSubmitting ? 'Moving...' : 'Confirm Move'}
             </button>

@@ -84,14 +84,14 @@ export const ProgressView: React.FC<ProgressViewProps> = ({ summary, folders: _f
 
             {/* Medium */}
             <div className="p-3 rounded-xl bg-[#0A0F1D] border border-slate-800">
-              <span className="text-xs font-semibold text-amber-400 block mb-1">Medium</span>
+              <span className="text-xs font-semibold text-yellow-300 block mb-1">Medium</span>
               <div className="flex items-baseline space-x-1">
                 <span className="text-lg font-bold text-white">{diffBreakdown.Medium.solved}</span>
                 <span className="text-xs text-slate-400">/ {diffBreakdown.Medium.total}</span>
               </div>
               <div className="w-full h-1.5 rounded-full bg-slate-800 overflow-hidden mt-2">
                 <div
-                  className="h-full bg-amber-500 rounded-full"
+                  className="h-full bg-[#fef08a] rounded-full"
                   style={{ width: `${calculatePct(diffBreakdown.Medium.solved, diffBreakdown.Medium.total)}%` }}
                 />
               </div>

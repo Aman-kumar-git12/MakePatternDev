@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import {
   Layers,
   User as UserIcon,
@@ -18,6 +19,7 @@ import {
 export const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
   const { register } = useAuth();
+  const { isDark } = useTheme();
 
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -61,37 +63,48 @@ export const RegisterPage: React.FC = () => {
     }
   };
 
+  const inputStyle = {
+    backgroundColor: 'var(--bg-input)',
+    border: '1px solid var(--border-primary)',
+    color: 'var(--text-primary)',
+  };
+
   return (
-    <div className="min-h-screen w-full bg-[#060911] text-slate-100 flex flex-col justify-between overflow-x-hidden selection:bg-blue-500/30 font-sans">
+    <div className="min-h-screen w-full flex flex-col justify-between overflow-x-hidden selection:bg-blue-500/30 font-sans" style={{ backgroundColor: 'var(--bg-base)', color: 'var(--text-primary)' }}>
       {/* Background Ambient Glow Orbs */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
-        <div className="absolute -top-40 -right-40 w-96 h-96 bg-indigo-600/15 rounded-full blur-[140px]" />
-        <div className="absolute top-1/2 -left-40 w-[500px] h-[500px] bg-blue-600/15 rounded-full blur-[150px]" />
-        <div className="absolute -bottom-40 right-1/4 w-96 h-96 bg-violet-600/15 rounded-full blur-[140px]" />
-        <div className="absolute inset-0 bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:24px_24px] opacity-25" />
+        <div className={`absolute -top-40 -right-40 w-96 h-96 rounded-full blur-[140px] ${isDark ? 'bg-yellow-400/5' : 'bg-yellow-200/20'}`} />
+        <div className={`absolute top-1/2 -left-40 w-[500px] h-[500px] rounded-full blur-[150px] ${isDark ? 'bg-yellow-500/5' : 'bg-yellow-100/20'}`} />
+        <div className={`absolute -bottom-40 right-1/4 w-96 h-96 rounded-full blur-[140px] ${isDark ? 'bg-yellow-400/5' : 'bg-yellow-200/15'}`} />
+        {isDark && <div className="absolute inset-0 bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:24px_24px] opacity-25" />}
       </div>
 
       {/* Top Navigation Bar */}
       <header className="px-6 py-5 max-w-7xl mx-auto w-full flex items-center justify-between z-10">
         <Link to="/" className="flex items-center space-x-3 group">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-blue-500/30 group-hover:scale-105 transition-transform duration-200">
-            <Layers className="w-5 h-5 text-white" />
+          <div className="w-10 h-10 rounded-xl bg-[#fef08a] flex items-center justify-center shadow-md shadow-yellow-200/30 group-hover:scale-105 transition-transform duration-200">
+            <Layers className="w-5 h-5 text-[#18181b]" />
           </div>
           <div>
-            <span className="text-lg font-bold tracking-tight bg-gradient-to-r from-white via-slate-100 to-slate-400 bg-clip-text text-transparent">
+            <span className="text-lg font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
               MakePattern
             </span>
-            <span className="block text-[10px] font-medium text-blue-400 tracking-wider uppercase">
+            <span className="block text-[10px] font-medium text-yellow-300 tracking-wider uppercase">
               DSA Curriculum
             </span>
           </div>
         </Link>
 
         <div className="flex items-center space-x-3">
-          <span className="text-xs text-slate-400 hidden sm:inline">Already registered?</span>
+          <span className="text-xs hidden sm:inline" style={{ color: 'var(--text-tertiary)' }}>Already registered?</span>
           <Link
             to="/login"
-            className="px-4 py-2 rounded-xl text-xs font-semibold bg-[#0D1527] hover:bg-[#14203D] border border-slate-800 text-slate-200 hover:text-white transition duration-200 shadow-sm"
+            className="px-4 py-2 rounded-xl text-xs font-semibold transition duration-200 shadow-sm"
+            style={{
+              backgroundColor: 'var(--bg-elevated)',
+              border: '1px solid var(--border-primary)',
+              color: 'var(--text-primary)',
+            }}
           >
             Sign In
           </Link>
@@ -102,20 +115,27 @@ export const RegisterPage: React.FC = () => {
       <main className="flex-1 flex items-center justify-center px-4 py-8 z-10">
         <div className="w-full max-w-md">
           {/* Main Card */}
-          <div className="relative rounded-3xl bg-[#090E1A]/85 backdrop-blur-xl border border-slate-800/80 p-8 sm:p-10 shadow-2xl shadow-black/80">
+          <div
+            className="relative rounded-3xl backdrop-blur-xl p-8 sm:p-10"
+            style={{
+              backgroundColor: 'var(--bg-elevated)',
+              border: '1px solid var(--border-primary)',
+              boxShadow: 'var(--shadow-dropdown)',
+            }}
+          >
             {/* Subtle Top Accent Glow */}
-            <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-indigo-500/50 to-transparent" />
+            <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-yellow-400/40 to-transparent" />
 
             {/* Header */}
             <div className="text-center mb-6">
-              <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-medium mb-3">
+              <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-yellow-400/15 border border-yellow-400/30 text-yellow-300 text-xs font-medium mb-3">
                 <Sparkles className="w-3.5 h-3.5" />
                 <span>Begin Your Journey</span>
               </div>
-              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight" style={{ color: 'var(--text-primary)' }}>
                 Create your account
               </h1>
-              <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">
+              <p className="text-xs mt-1.5 leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
                 Join MakePattern to track patterns, code in Monaco editor, and master DSA interviews
               </p>
             </div>
@@ -131,11 +151,11 @@ export const RegisterPage: React.FC = () => {
             {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-3.5">
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1" htmlFor="reg-fullname">
+                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }} htmlFor="reg-fullname">
                   Full Name
                 </label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none" style={{ color: 'var(--text-tertiary)' }}>
                     <UserIcon className="w-4 h-4" />
                   </div>
                   <input
@@ -146,17 +166,18 @@ export const RegisterPage: React.FC = () => {
                     onChange={(e) => setFullName(e.target.value)}
                     placeholder="e.g. Aman Kumar"
                     autoComplete="name"
-                    className="w-full pl-10 pr-4 py-2.5 bg-[#0D1322] border border-slate-700/80 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition shadow-inner"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl text-xs focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition shadow-inner"
+                    style={inputStyle}
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1" htmlFor="reg-email">
+                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }} htmlFor="reg-email">
                   Email Address
                 </label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none" style={{ color: 'var(--text-tertiary)' }}>
                     <Mail className="w-4 h-4" />
                   </div>
                   <input
@@ -167,17 +188,18 @@ export const RegisterPage: React.FC = () => {
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="name@example.com"
                     autoComplete="email"
-                    className="w-full pl-10 pr-4 py-2.5 bg-[#0D1322] border border-slate-700/80 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition shadow-inner"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl text-xs focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition shadow-inner"
+                    style={inputStyle}
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1" htmlFor="reg-password">
+                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }} htmlFor="reg-password">
                   Password
                 </label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none" style={{ color: 'var(--text-tertiary)' }}>
                     <Lock className="w-4 h-4" />
                   </div>
                   <input
@@ -188,12 +210,14 @@ export const RegisterPage: React.FC = () => {
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="At least 6 characters"
                     autoComplete="new-password"
-                    className="w-full pl-10 pr-10 py-2.5 bg-[#0D1322] border border-slate-700/80 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition shadow-inner"
+                    className="w-full pl-10 pr-10 py-2.5 rounded-xl text-xs focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition shadow-inner"
+                    style={inputStyle}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword((prev) => !prev)}
-                    className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-200 transition"
+                    className="absolute inset-y-0 right-0 pr-3.5 flex items-center transition"
+                    style={{ color: 'var(--text-tertiary)' }}
                     title={showPassword ? 'Hide password' : 'Show password'}
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -202,11 +226,11 @@ export const RegisterPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1" htmlFor="reg-confirm-password">
+                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }} htmlFor="reg-confirm-password">
                   Confirm Password
                 </label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none" style={{ color: 'var(--text-tertiary)' }}>
                     <Lock className="w-4 h-4" />
                   </div>
                   <input
@@ -217,14 +241,15 @@ export const RegisterPage: React.FC = () => {
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="Repeat password"
                     autoComplete="new-password"
-                    className="w-full pl-10 pr-4 py-2.5 bg-[#0D1322] border border-slate-700/80 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition shadow-inner"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl text-xs focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition shadow-inner"
+                    style={inputStyle}
                   />
                 </div>
               </div>
 
               {/* Perks Note */}
               <div className="py-1">
-                <div className="flex items-center space-x-2 text-[11px] text-slate-400">
+                <div className="flex items-center space-x-2 text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
                   <CheckCircle className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
                   <span>Includes full starter DSA curriculum &amp; practice patterns</span>
                 </div>
@@ -234,11 +259,11 @@ export const RegisterPage: React.FC = () => {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full mt-2 py-3 px-4 rounded-xl font-semibold text-xs text-white bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 hover:from-blue-500 hover:via-indigo-500 hover:to-violet-500 shadow-lg shadow-indigo-600/30 flex items-center justify-center space-x-2 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed group active:scale-[0.99]"
+                className="w-full mt-2 py-3 px-4 rounded-xl font-semibold text-xs text-[#18181b] bg-[#fef08a] hover:bg-[#fef9c3] shadow-md shadow-yellow-200/30 flex items-center justify-center space-x-2 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed group active:scale-[0.99]"
               >
                 {isSubmitting ? (
                   <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <Loader2 className="w-4 h-4 animate-spin text-[#18181b]" />
                     <span>Creating your profile...</span>
                   </>
                 ) : (
@@ -251,12 +276,12 @@ export const RegisterPage: React.FC = () => {
             </form>
 
             {/* Bottom Card Footer */}
-            <div className="mt-6 pt-5 border-t border-slate-800/80 text-center">
-              <p className="text-xs text-slate-400">
+            <div className="mt-6 pt-5 text-center" style={{ borderTop: '1px solid var(--border-primary)' }}>
+              <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
                 Already have an account?{' '}
                 <Link
                   to="/login"
-                  className="font-semibold text-indigo-400 hover:text-indigo-300 transition"
+                  className="font-semibold text-yellow-300 hover:text-yellow-200 transition"
                 >
                   Sign in
                 </Link>
@@ -267,7 +292,7 @@ export const RegisterPage: React.FC = () => {
       </main>
 
       {/* Footer */}
-      <footer className="py-4 text-center text-xs text-slate-600 z-10">
+      <footer className="py-4 text-center text-xs z-10" style={{ color: 'var(--text-muted)' }}>
         MakePattern &copy; {new Date().getFullYear()} &mdash; All Rights Reserved
       </footer>
     </div>
