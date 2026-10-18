@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from app.database import engine, Base, SessionLocal
 from app.config import settings
-from app.routers import auth, folders, questions, solutions, bookmarks, progress, search
+from app.routers import auth, folders, questions, solutions, bookmarks, progress, search, test_cases
 from app.services.seed_service import seed_demo_data
 import logging
 
@@ -51,8 +51,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-from app.routers import auth, folders, questions, solutions, bookmarks, progress, search, test_cases
 
 # Register Routers
 app.include_router(auth.router, prefix="/api")

@@ -1,6 +1,6 @@
 import { Response } from 'express';
 
-export interface ApiResponsePayload<T> {
+interface ApiResponsePayload<T> {
   success: boolean;
   message: string;
   data?: T;

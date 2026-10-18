@@ -28,7 +28,7 @@ import type {
   Solution,
 } from './types/dsa';
 
-export function App() {
+function App() {
   const [currentView, setCurrentView] = useState<ViewMode>('home');
   const [folders, setFolders] = useState<Folder[]>([]);
   const [questions, setQuestions] = useState<QuestionListItem[]>([]);

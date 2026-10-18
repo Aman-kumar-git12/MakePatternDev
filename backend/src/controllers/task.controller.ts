@@ -3,7 +3,7 @@ import { taskService } from '../services/task.service.js';
 import { ApiResponse } from '../utils/apiResponse.js';
 import { TaskFilterQuery } from '../types/task.types.js';
 
-export class TaskController {
+class TaskController {
   async getAllTasks(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const filter: TaskFilterQuery = {
