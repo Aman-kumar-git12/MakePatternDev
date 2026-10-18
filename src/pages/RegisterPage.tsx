@@ -82,14 +82,14 @@ export const RegisterPage: React.FC = () => {
       {/* Top Navigation Bar */}
       <header className="px-6 py-5 max-w-7xl mx-auto w-full flex items-center justify-between z-10">
         <Link to="/" className="flex items-center space-x-3 group">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-yellow-400 to-yellow-300 flex items-center justify-center shadow-md shadow-yellow-400/20 group-hover:scale-105 transition-transform duration-200">
-            <Layers className="w-5 h-5 text-black" />
+          <div className="w-10 h-10 rounded-xl bg-[#fef08a] flex items-center justify-center shadow-md shadow-yellow-200/30 group-hover:scale-105 transition-transform duration-200">
+            <Layers className="w-5 h-5 text-[#18181b]" />
           </div>
           <div>
             <span className="text-lg font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
               MakePattern
             </span>
-            <span className="block text-[10px] font-medium text-yellow-400 tracking-wider uppercase">
+            <span className="block text-[10px] font-medium text-yellow-300 tracking-wider uppercase">
               DSA Curriculum
             </span>
           </div>
@@ -259,11 +259,11 @@ export const RegisterPage: React.FC = () => {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full mt-2 py-3 px-4 rounded-xl font-semibold text-xs text-black bg-yellow-400 hover:bg-yellow-300 shadow-md shadow-yellow-400/20 flex items-center justify-center space-x-2 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed group active:scale-[0.99]"
+                className="w-full mt-2 py-3 px-4 rounded-xl font-semibold text-xs text-[#18181b] bg-[#fef08a] hover:bg-[#fef9c3] shadow-md shadow-yellow-200/30 flex items-center justify-center space-x-2 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed group active:scale-[0.99]"
               >
                 {isSubmitting ? (
                   <>
-                    <Loader2 className="w-4 h-4 animate-spin text-black" />
+                    <Loader2 className="w-4 h-4 animate-spin text-[#18181b]" />
                     <span>Creating your profile...</span>
                   </>
                 ) : (
@@ -281,7 +281,7 @@ export const RegisterPage: React.FC = () => {
                 Already have an account?{' '}
                 <Link
                   to="/login"
-                  className="font-semibold text-yellow-400 hover:text-yellow-300 transition"
+                  className="font-semibold text-yellow-300 hover:text-yellow-200 transition"
                 >
                   Sign in
                 </Link>
