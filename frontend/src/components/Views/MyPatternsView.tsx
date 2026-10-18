@@ -25,10 +25,14 @@ interface MyPatternsViewProps {
   onCreateFolder: (name: string, parentId: string | null, description?: string, tags?: string[]) => Promise<void>;
   onEditFolder: (folder: Folder) => void;
   onDeleteFolder: (folderId: string, folderName: string) => void;
-  onOpenAddItem: (initialType?: 'topic' | 'subtopic' | 'file', folderId?: string) => void;
+  onOpenCreateTopic: () => void;
+  onOpenCreateSubtopic: (folderId: string) => void;
+  onOpenCreateQuestion: (folderId: string) => void;
   onToggleBookmark?: (questionId: string) => void;
   onDeleteQuestion?: (questionId: string, questionTitle: string) => void;
 }
+
+const EXPANDED_STORAGE_KEY = 'mp_mypatterns_expanded_nodes';
 
 export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
   folders,
@@ -37,7 +41,9 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
   onCreateFolder,
   onEditFolder,
   onDeleteFolder,
-  onOpenAddItem,
+  onOpenCreateTopic,
+  onOpenCreateSubtopic,
+  onOpenCreateQuestion,
   onToggleBookmark,
   onDeleteQuestion,
 }) => {
@@ -45,35 +51,33 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
   const [isAddingTopic, setIsAddingTopic] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Expanded folders state (all root patterns expanded by default)
+  // Initial state: starts collapsed ({}) on first visit.
+  // Persisted across page navigation in sessionStorage so returning to this page keeps open state.
   const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>(() => {
-    const init: Record<string, boolean> = {};
-    for (const f of folders) {
-      init[f.id] = true;
+    try {
+      const saved = sessionStorage.getItem(EXPANDED_STORAGE_KEY);
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch (e) {
+      console.warn('Failed to parse saved expanded nodes:', e);
     }
-    return init;
+    return {};
   });
 
-  // Keep newly added or loaded root topics expanded by default
-  React.useEffect(() => {
-    setExpandedNodes((prev) => {
-      const next = { ...prev };
-      let hasChanges = false;
-      for (const f of folders) {
-        if (next[f.id] === undefined) {
-          next[f.id] = true;
-          hasChanges = true;
-        }
-      }
-      return hasChanges ? next : prev;
-    });
-  }, [folders]);
-
   const toggleNode = (nodeId: string) => {
-    setExpandedNodes((prev) => ({
-      ...prev,
-      [nodeId]: !prev[nodeId],
-    }));
+    setExpandedNodes((prev) => {
+      const next = {
+        ...prev,
+        [nodeId]: !prev[nodeId],
+      };
+      try {
+        sessionStorage.setItem(EXPANDED_STORAGE_KEY, JSON.stringify(next));
+      } catch (e) {
+        console.warn('Failed to persist expanded nodes:', e);
+      }
+      return next;
+    });
   };
 
   const handleAddNewPatternTopic = async (e: React.FormEvent) => {
@@ -91,40 +95,19 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
     }
   };
 
-  const getQuestionsForFolder = (folderId: string): QuestionListItem[] => {
-    return questions.filter((q) => q.folder_id === folderId);
-  };
-
-  // Filter root folders and subtopics based on search query
-  const filteredFolders = useMemo(() => {
-    if (!searchQuery.trim()) return folders;
-    const query = searchQuery.toLowerCase();
-
-    return folders.filter((f) => {
-      const matchName = f.name.toLowerCase().includes(query);
-      const matchDesc = (f.description || '').toLowerCase().includes(query);
-      const matchTags = (f.tags || []).some((t) => t.toLowerCase().includes(query));
-      const matchSub = (f.subfolders || []).some((sf) =>
-        sf.name.toLowerCase().includes(query) || (sf.tags || []).some((t) => t.toLowerCase().includes(query))
-      );
-      const matchQ = questions.some(
-        (q) => q.folder_id === f.id && q.title.toLowerCase().includes(query)
-      );
-      return matchName || matchDesc || matchTags || matchSub || matchQ;
-    });
-  }, [folders, questions, searchQuery]);
-
-  const renderStatusIcon = (status: QuestionStatus) => {
-    switch (status) {
-      case 'Solved':
-        return <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />;
-      case 'In Progress':
-        return <Clock className="w-3.5 h-3.5 text-blue-400" />;
-      case 'Needs Revision':
-        return <RotateCcw className="w-3.5 h-3.5 text-amber-400" />;
-      default:
-        return <Circle className="w-3.5 h-3.5 text-slate-500" />;
+  // Build a lookup map of questions by folder ID
+  const questionsByFolder = useMemo(() => {
+    const map = new Map<string, QuestionListItem[]>();
+    for (const q of questions) {
+      const list = map.get(q.folder_id) || [];
+      list.push(q);
+      map.set(q.folder_id, list);
     }
+    return map;
+  }, [questions]);
+
+  const getQuestionsForFolder = (folderId: string): QuestionListItem[] => {
+    return questionsByFolder.get(folderId) || [];
   };
 
   const difficultyColors: Record<Difficulty, string> = {
@@ -133,50 +116,62 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
     Hard: 'text-rose-400 bg-rose-500/10 border-rose-500/20',
   };
 
-  // Render subfolder / subtopic tree node
+  const renderStatusIcon = (status: QuestionStatus) => {
+    switch (status) {
+      case 'Solved':
+        return <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />;
+      case 'In Progress':
+        return <Clock className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />;
+      case 'Needs Revision':
+        return <RotateCcw className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />;
+      default:
+        return <Circle className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />;
+    }
+  };
+
+  // Filter root folders
+  const filteredFolders = useMemo(() => {
+    if (!searchQuery.trim()) return folders;
+    const q = searchQuery.toLowerCase();
+
+    return folders.filter((f) => {
+      const matchName = f.name.toLowerCase().includes(q);
+      const matchDesc = f.description?.toLowerCase().includes(q);
+      const hasMatchingSubfolder = f.subfolders?.some((sub) =>
+        sub.name.toLowerCase().includes(q)
+      );
+      return matchName || matchDesc || hasMatchingSubfolder;
+    });
+  }, [folders, searchQuery]);
+
+  // Render a recursive subtopic / nested folder node
   const renderSubtopicNode = (node: Folder) => {
-    const isExpanded = !!expandedNodes[node.id];
+    const isNodeExpanded = !!expandedNodes[node.id];
     const nodeQuestions = getQuestionsForFolder(node.id);
-    const subfolders = node.subfolders || [];
-    const hasChildren = subfolders.length > 0 || nodeQuestions.length > 0;
+    const subtopics = node.subfolders || [];
+    const hasChildren = subtopics.length > 0 || nodeQuestions.length > 0;
 
     return (
-      <div key={node.id} className="relative select-none">
-        {/* Subtopic Row Header */}
+      <div key={node.id} className="text-xs space-y-1">
+        {/* Node Row Header */}
         <div
           onClick={() => toggleNode(node.id)}
-          className="flex items-center justify-between py-2 px-2.5 rounded-lg cursor-pointer transition hover:bg-[#121B30] text-slate-300 font-normal group"
+          className="flex items-center justify-between py-1.5 px-2.5 rounded-lg hover:bg-slate-800/60 cursor-pointer transition select-none group"
         >
           <div className="flex items-center space-x-2 min-w-0">
-            {/* Expand / Collapse Icon */}
-            <div className="w-4 h-4 flex items-center justify-center text-slate-400 group-hover:text-white transition">
-              {isExpanded ? (
+            <span className="text-slate-500 hover:text-white transition">
+              {isNodeExpanded ? (
                 <ChevronDown className="w-3.5 h-3.5 text-slate-300" />
               ) : (
-                <div className="w-3.5 h-3.5 rounded-full border border-slate-600/70 flex items-center justify-center group-hover:border-slate-400">
-                  <ChevronRight className="w-2 h-2 text-slate-400" />
-                </div>
+                <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
               )}
-            </div>
-
-            {/* Subtopic Name */}
-            <span className="text-xs font-medium text-slate-200 group-hover:text-white truncate">
-              {node.name}
             </span>
 
-            {/* Subtopic Tags */}
-            {node.tags && node.tags.length > 0 && (
-              <div className="hidden sm:flex items-center space-x-1">
-                {node.tags.slice(0, 2).map((t) => (
-                  <span
-                    key={t}
-                    className="text-[9px] px-1.5 py-0.2 rounded bg-slate-800 text-slate-400 border border-slate-700/60 font-mono"
-                  >
-                    #{t}
-                  </span>
-                ))}
-              </div>
-            )}
+            <FolderTree className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0" />
+
+            <span className="font-medium text-slate-200 group-hover:text-blue-300 transition truncate">
+              {node.name}
+            </span>
           </div>
 
           {/* Right Actions */}
@@ -185,17 +180,30 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
               {nodeQuestions.length} {nodeQuestions.length === 1 ? 'question' : 'questions'}
             </span>
 
+            {/* Add Subtopic to this subtopic */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenCreateSubtopic(node.id);
+              }}
+              className="opacity-0 group-hover:opacity-100 flex items-center space-x-1 px-2 py-0.5 rounded-md text-[11px] bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white transition shadow-sm border border-slate-700"
+              title={`Add Subtopic inside "${node.name}"`}
+            >
+              <Plus className="w-3 h-3 text-indigo-400" />
+              <span>Subtopic</span>
+            </button>
+
             {/* Add Question to this subtopic */}
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                onOpenAddItem('file', node.id);
+                onOpenCreateQuestion(node.id);
               }}
               className="opacity-0 group-hover:opacity-100 flex items-center space-x-1 px-2 py-0.5 rounded-md text-[11px] bg-blue-600/20 text-blue-300 hover:bg-blue-600 hover:text-white transition shadow-sm"
-              title={`Add Question inside "${node.name}"`}
+              title={`Add Problem inside "${node.name}"`}
             >
               <Plus className="w-3 h-3" />
-              <span>Add Question</span>
+              <span>Problem</span>
             </button>
 
             {/* Edit Subtopic */}
@@ -224,30 +232,28 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
           </div>
         </div>
 
-        {/* Subtopic Children (Questions) */}
-        {isExpanded && (
-          <div className="relative pl-5 ml-2.5 border-l border-slate-700/50 space-y-0.5 mt-0.5 mb-1">
-            {/* Nested subtopics if any */}
-            {subfolders.map((sub) => renderSubtopicNode(sub))}
+        {/* Node Children (Questions & Nested Subtopics) */}
+        {isNodeExpanded && (
+          <div className="pl-4 ml-2 border-l border-slate-800 space-y-1 py-1">
+            {/* Recursive Sub-subtopics */}
+            {subtopics.map((sub) => renderSubtopicNode(sub))}
 
             {/* Questions in this subtopic */}
             {nodeQuestions.map((q) => (
               <div
                 key={q.id}
                 onClick={() => onSelectQuestion(q.id)}
-                className="flex items-center justify-between py-1.5 px-2.5 rounded-md hover:bg-slate-800/50 cursor-pointer transition group relative before:content-[''] before:absolute before:-left-5 before:top-1/2 before:w-3.5 before:h-[1px] before:bg-slate-700/50"
+                className="flex items-center justify-between py-1.5 px-2.5 rounded-md hover:bg-slate-800/40 cursor-pointer transition group"
               >
-                <div className="flex items-center space-x-2 min-w-0">
-                  <div className="flex-shrink-0">{renderStatusIcon(q.status)}</div>
-                  <span className="text-xs text-slate-200 group-hover:text-blue-300 transition truncate font-medium">
+                <div className="flex items-center space-x-2.5 min-w-0">
+                  <div title={q.status}>{renderStatusIcon(q.status)}</div>
+                  <FileCode className="w-3 h-3 text-slate-500 flex-shrink-0" />
+                  <span className="text-slate-300 group-hover:text-blue-300 font-medium truncate">
                     {q.title}
                   </span>
-                  {q.problem_url && (
-                    <ExternalLink className="w-3 h-3 text-slate-500 group-hover:text-blue-400 flex-shrink-0" />
-                  )}
                 </div>
 
-                <div className="flex items-center space-x-1.5 flex-shrink-0">
+                <div className="flex items-center space-x-2 flex-shrink-0">
                   <span
                     className={`text-[9px] font-semibold px-2 py-0.5 rounded-full border ${
                       difficultyColors[q.difficulty] || 'text-slate-400'
@@ -273,6 +279,19 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
                     </button>
                   )}
 
+                  {q.problem_url && (
+                    <a
+                      href={q.problem_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-slate-500 hover:text-blue-400 p-0.5 transition"
+                      title="Open external problem URL"
+                    >
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  )}
+
                   {onDeleteQuestion && (
                     <button
                       onClick={(e) => {
@@ -294,7 +313,7 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
               <div className="py-2 px-2.5 text-xs text-slate-500 italic flex items-center justify-between">
                 <span>No problems in this subtopic yet</span>
                 <button
-                  onClick={() => onOpenAddItem('file', node.id)}
+                  onClick={() => onOpenCreateQuestion(node.id)}
                   className="text-blue-400 hover:text-blue-300 font-medium text-xs flex items-center space-x-1"
                 >
                   <Plus className="w-3 h-3" />
@@ -309,8 +328,8 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
   };
 
   return (
-    <div className="p-4 max-w-6xl mx-auto space-y-4 animate-fade-in">
-      {/* Top Header Card: Title, Search, and Quick Add Pattern */}
+    <div className="p-4 max-w-6xl mx-auto space-y-4 animate-fade-in font-sans">
+      {/* Top Header Card */}
       <div className="bg-[#0D1527] border border-slate-800 rounded-xl p-4 shadow-lg space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
@@ -327,7 +346,7 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
 
           <div className="flex items-center space-x-2">
             <button
-              onClick={() => onOpenAddItem('topic')}
+              onClick={onOpenCreateTopic}
               className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-md shadow-blue-600/30 transition"
               title="Create a new top-level DSA topic"
             >
@@ -348,43 +367,46 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search topics, subtopics, tags, or problems..."
-              className="w-full bg-[#080C14] border border-slate-700/80 rounded-xl pl-9 pr-3.5 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              placeholder="Search topics or subtopics..."
+              className="w-full pl-9 pr-3 py-1.5 bg-[#090E1A] border border-slate-800 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
             />
           </div>
 
-          {/* Quick Create Main Topic */}
-          <form onSubmit={handleAddNewPatternTopic} className="md:col-span-7 flex space-x-2">
+          {/* Inline Topic Creator */}
+          <form
+            onSubmit={handleAddNewPatternTopic}
+            className="md:col-span-7 flex items-center space-x-2"
+          >
             <input
               type="text"
               value={newTopicName}
               onChange={(e) => setNewTopicName(e.target.value)}
-              placeholder="Create new top-level topic (e.g. Heaps, Dynamic Programming, Graphs)..."
-              className="flex-1 bg-[#080C14] border border-slate-700/80 rounded-xl px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              placeholder="Quick create root topic (e.g. Heaps, Greedy)..."
+              className="flex-1 px-3 py-1.5 bg-[#090E1A] border border-slate-800 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
             />
             <button
               type="submit"
               disabled={isAddingTopic || !newTopicName.trim()}
-              className="flex items-center space-x-1 px-4 py-2 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/40 text-blue-300 hover:text-white text-xs font-semibold transition disabled:opacity-50 whitespace-nowrap"
+              className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 disabled:opacity-40 transition whitespace-nowrap"
             >
-              <Plus className="w-3.5 h-3.5" />
-              <span>{isAddingTopic ? 'Adding...' : 'Add Topic'}</span>
+              {isAddingTopic ? 'Adding...' : 'Add'}
             </button>
           </form>
         </div>
       </div>
 
-      {/* Topics List: Each topic rendered as a complete expandable card */}
-      <div className="space-y-3.5">
+      {/* Main Topics Container */}
+      <div className="space-y-3">
         {filteredFolders.length === 0 ? (
-          <div className="bg-[#0D1527] border border-slate-800 rounded-xl p-8 text-center text-slate-500 text-xs space-y-2">
-            <Layers className="w-8 h-8 mx-auto text-slate-600" />
-            <p className="font-semibold text-slate-400">
-              {searchQuery ? `No topics match "${searchQuery}"` : 'No topics added yet'}
-            </p>
-            <p className="text-[11px] text-slate-500">
-              Type a topic name above and click "Add Topic" to create your first DSA topic.
-            </p>
+          <div className="text-center py-12 bg-[#0D1527] border border-slate-800 rounded-xl space-y-2">
+            <Layers className="w-8 h-8 text-slate-600 mx-auto" />
+            <p className="text-xs text-slate-400">No pattern topics found.</p>
+            <button
+              onClick={onOpenCreateTopic}
+              className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow transition"
+            >
+              + Create First Topic
+            </button>
           </div>
         ) : (
           filteredFolders.map((pattern) => {
@@ -392,7 +414,6 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
             const patternQuestions = getQuestionsForFolder(pattern.id);
             const subfolders = pattern.subfolders || [];
             const hasChildren = subfolders.length > 0 || patternQuestions.length > 0;
-
             const totalQ = pattern.question_count || 0;
 
             return (
@@ -440,7 +461,7 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
                   <div className="flex items-center space-x-1.5 flex-wrap">
                     {/* Add Subtopic */}
                     <button
-                      onClick={() => onOpenAddItem('subtopic', pattern.id)}
+                      onClick={() => onOpenCreateSubtopic(pattern.id)}
                       className="flex items-center space-x-1 px-2.5 py-1 rounded-lg text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition"
                       title={`Add Subtopic under "${pattern.name}"`}
                     >
@@ -450,7 +471,7 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
 
                     {/* Add Question */}
                     <button
-                      onClick={() => onOpenAddItem('file', pattern.id)}
+                      onClick={() => onOpenCreateQuestion(pattern.id)}
                       className="flex items-center space-x-1 px-2.5 py-1 rounded-lg text-xs bg-blue-600 hover:bg-blue-500 text-white font-medium shadow-md transition"
                       title={`Add Question inside "${pattern.name}"`}
                     >
@@ -481,6 +502,7 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
                     </button>
                   </div>
                 </div>
+
                 {/* Expanded Tree Structure inside this topic */}
                 {isExpanded && (
                   <div className="pt-2 pl-2">
@@ -497,16 +519,14 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
                             className="flex items-center justify-between py-1.5 px-2.5 rounded-md hover:bg-slate-800/50 cursor-pointer transition group relative before:content-[''] before:absolute before:-left-5 before:top-1/2 before:w-3.5 before:h-[1px] before:bg-slate-700/50"
                           >
                             <div className="flex items-center space-x-2 min-w-0">
-                              <div className="flex-shrink-0">{renderStatusIcon(q.status)}</div>
-                              <span className="text-xs text-slate-200 group-hover:text-blue-300 transition truncate font-medium">
+                              <div title={q.status}>{renderStatusIcon(q.status)}</div>
+                              <FileCode className="w-3 h-3 text-slate-500 flex-shrink-0" />
+                              <span className="text-slate-300 group-hover:text-blue-300 font-medium truncate">
                                 {q.title}
                               </span>
-                              {q.problem_url && (
-                                <ExternalLink className="w-3 h-3 text-slate-500 group-hover:text-blue-400 flex-shrink-0" />
-                              )}
                             </div>
 
-                            <div className="flex items-center space-x-1.5 flex-shrink-0">
+                            <div className="flex items-center space-x-2 flex-shrink-0">
                               <span
                                 className={`text-[9px] font-semibold px-2 py-0.5 rounded-full border ${
                                   difficultyColors[q.difficulty] || 'text-slate-400'
@@ -532,6 +552,19 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
                                 </button>
                               )}
 
+                              {q.problem_url && (
+                                <a
+                                  href={q.problem_url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="text-slate-500 hover:text-blue-400 p-0.5 transition"
+                                  title="Open external problem URL"
+                                >
+                                  <ExternalLink className="w-3 h-3" />
+                                </a>
+                              )}
+
                               {onDeleteQuestion && (
                                 <button
                                   onClick={(e) => {
@@ -553,7 +586,7 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
                         <span>No subtopics or questions in this topic yet.</span>
                         <div className="flex items-center space-x-2">
                           <button
-                            onClick={() => onOpenAddItem('subtopic', pattern.id)}
+                            onClick={() => onOpenCreateSubtopic(pattern.id)}
                             className="text-blue-400 hover:text-blue-300 font-medium text-xs flex items-center space-x-1"
                           >
                             <Plus className="w-3 h-3" />
@@ -561,7 +594,7 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
                           </button>
                           <span>•</span>
                           <button
-                            onClick={() => onOpenAddItem('file', pattern.id)}
+                            onClick={() => onOpenCreateQuestion(pattern.id)}
                             className="text-blue-400 hover:text-blue-300 font-medium text-xs flex items-center space-x-1"
                           >
                             <Plus className="w-3 h-3" />

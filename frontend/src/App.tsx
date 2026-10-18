@@ -9,7 +9,9 @@ import { AllQuestionsView } from './components/Views/AllQuestionsView';
 import { ProgressView } from './components/Views/ProgressView';
 import { MyPatternsView } from './components/Views/MyPatternsView';
 import { GlobalSearchModal } from './components/Header/GlobalSearchModal';
-import { AddItemModal } from './components/Modals/AddItemModal';
+import { CreateTopicModal } from './components/Modals/CreateTopicModal';
+import { CreateSubtopicModal } from './components/Modals/CreateSubtopicModal';
+import { CreateQuestionModal } from './components/Modals/CreateQuestionModal';
 import { EditTopicModal } from './components/Modals/EditTopicModal';
 import { MoveModal } from './components/Modals/MoveModal';
 import { ConfirmDeleteModal } from './components/Modals/ConfirmDeleteModal';
@@ -46,9 +48,13 @@ function MainAppShell() {
   const [summary, setSummary] = useState<ProgressSummary | null>(null);
   const [activeQuestion, setActiveQuestion] = useState<Question | null>(null);
 
-  // Modals state
+  // Modals state - separate dedicated modals
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isCreateTopicOpen, setIsCreateTopicOpen] = useState(false);
+  const [isCreateSubtopicOpen, setIsCreateSubtopicOpen] = useState(false);
+  const [isCreateQuestionOpen, setIsCreateQuestionOpen] = useState(false);
+  const [modalTargetFolderId, setModalTargetFolderId] = useState<string | undefined>(undefined);
 
   const [moveData, setMoveData] = useState<{
     type: 'folder' | 'question';
@@ -72,10 +78,6 @@ function MainAppShell() {
   const [editFolderData, setEditFolderData] = useState<Folder | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const [isAddItemModalOpen, setIsAddItemModalOpen] = useState(false);
-  const [addItemInitialType, setAddItemInitialType] = useState<'topic' | 'subtopic' | 'file'>('file');
-  const [addItemFolderId, setAddItemFolderId] = useState<string | undefined>(undefined);
-
   // Derive active view mode from pathname
   const currentView = useMemo<ViewMode>(() => {
     const path = location.pathname;
@@ -89,18 +91,18 @@ function MainAppShell() {
     return 'home';
   }, [location.pathname]);
 
-  const handleOpenAddItem = (type: 'topic' | 'subtopic' | 'file' = 'file', folderId?: string) => {
-    setAddItemInitialType(type);
-    setAddItemFolderId(folderId);
-    setIsAddItemModalOpen(true);
+  const handleOpenNewTopic = () => {
+    setIsCreateTopicOpen(true);
   };
 
-  const handleOpenNewFolder = (parentId: string | null = null) => {
-    handleOpenAddItem(parentId ? 'subtopic' : 'topic', parentId || undefined);
+  const handleOpenNewSubtopic = (folderId?: string) => {
+    setModalTargetFolderId(folderId);
+    setIsCreateSubtopicOpen(true);
   };
 
   const handleOpenNewQuestion = (folderId?: string) => {
-    handleOpenAddItem('file', folderId);
+    setModalTargetFolderId(folderId);
+    setIsCreateQuestionOpen(true);
   };
 
   // Initial Data Fetch
@@ -236,6 +238,14 @@ function MainAppShell() {
     ]);
     setFolders(updatedTree);
     setSummary(updatedSummary);
+  };
+
+  const handleCreateTopic = async (name: string, description?: string, tags?: string[]) => {
+    await handleCreateFolder(name, null, description, tags);
+  };
+
+  const handleCreateSubtopic = async (name: string, parentId: string, description?: string, tags?: string[]) => {
+    await handleCreateFolder(name, parentId, description, tags);
   };
 
   const handleUpdateFolder = async (
@@ -467,7 +477,7 @@ function MainAppShell() {
               folders={folders}
               questions={questions}
               onSelectQuestion={handleSelectQuestion}
-              onOpenNewFolder={() => handleOpenNewFolder(null)}
+              onOpenNewFolder={() => handleOpenNewTopic()}
               onOpenNewQuestion={(folderId) => handleOpenNewQuestion(folderId)}
               onDeleteFolder={handleDeleteFolder}
               onOpenImportLeetCode={() => setIsImportModalOpen(true)}
@@ -554,7 +564,9 @@ function MainAppShell() {
               onCreateFolder={handleCreateFolder}
               onEditFolder={(folder) => setEditFolderData(folder)}
               onDeleteFolder={handleDeleteFolder}
-              onOpenAddItem={(type, folderId) => handleOpenAddItem(type, folderId)}
+              onOpenCreateTopic={handleOpenNewTopic}
+              onOpenCreateSubtopic={handleOpenNewSubtopic}
+              onOpenCreateQuestion={handleOpenNewQuestion}
               onToggleBookmark={handleToggleBookmark}
               onDeleteQuestion={handleDeleteQuestion}
             />
@@ -577,13 +589,28 @@ function MainAppShell() {
         onSelectQuestion={handleSelectQuestion}
       />
 
-      <AddItemModal
-        isOpen={isAddItemModalOpen}
-        onClose={() => setIsAddItemModalOpen(false)}
-        initialType={addItemInitialType}
-        initialFolderId={addItemFolderId}
+      {/* 1. Dedicated Topic Modal (Main Topic) */}
+      <CreateTopicModal
+        isOpen={isCreateTopicOpen}
+        onClose={() => setIsCreateTopicOpen(false)}
+        onCreateTopic={handleCreateTopic}
+      />
+
+      {/* 2. Dedicated Subtopic Modal */}
+      <CreateSubtopicModal
+        isOpen={isCreateSubtopicOpen}
+        onClose={() => setIsCreateSubtopicOpen(false)}
+        initialParentId={modalTargetFolderId}
         folders={folders}
-        onCreateFolder={handleCreateFolder}
+        onCreateSubtopic={handleCreateSubtopic}
+      />
+
+      {/* 3. Dedicated Problem Modal */}
+      <CreateQuestionModal
+        isOpen={isCreateQuestionOpen}
+        onClose={() => setIsCreateQuestionOpen(false)}
+        initialFolderId={modalTargetFolderId}
+        folders={folders}
         onCreateQuestion={handleCreateQuestion}
       />
 
