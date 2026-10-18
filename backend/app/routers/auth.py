@@ -44,24 +44,22 @@ def get_authenticated_user(token: Optional[str] = Depends(oauth2_scheme), db: Se
         )
 
 def get_current_user(token: Optional[str] = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
-    # If token is provided, verify it
+    # If a token is provided, strictly validate it (raises 401 on expired or invalid token)
     if token:
-        try:
-            return get_authenticated_user(token=token, db=db)
-        except HTTPException:
-            pass
+        return get_authenticated_user(token=token, db=db)
 
-    # Seamless development fallback: return the primary seeded demo user
-    user = db.query(User).filter(User.email == "aman@makepattern.dev").first()
-    if not user:
-        user = db.query(User).first()
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    return user
+    # Explicitly restricted bypass: only permitted in local development if ALLOW_DEV_FALLBACK_AUTH is explicitly True
+    if getattr(settings, "ENVIRONMENT", "production") == "development" and getattr(settings, "ALLOW_DEV_FALLBACK_AUTH", False):
+        user = db.query(User).filter(User.email == "aman@makepattern.dev").first() or db.query(User).first()
+        if user:
+            return user
+
+    # Reject unauthenticated requests
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Not authenticated. Valid Bearer token required.",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
 
 @router.post("/register", response_model=Token)
 def register(user_in: UserCreate, db: Session = Depends(get_db)):

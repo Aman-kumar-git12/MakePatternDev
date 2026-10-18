@@ -94,16 +94,18 @@ def update_folder(
     if folder_in.tags is not None:
         folder.tags = json.dumps(folder_in.tags)
     if folder_in.parent_id is not None:
-        if folder_in.parent_id != "":
+        target_id = folder_in.parent_id if folder_in.parent_id != "" else None
+        if target_id is not None:
+            if target_id == folder.id:
+                raise HTTPException(status_code=400, detail="Cannot move a folder into itself.")
             parent = db.query(Folder).filter(
-                Folder.id == folder_in.parent_id,
+                Folder.id == target_id,
                 Folder.user_id == current_user.id
             ).first()
             if not parent:
                 raise HTTPException(status_code=404, detail="Target parent folder not found")
-            folder.parent_id = folder_in.parent_id
-        else:
-            folder.parent_id = None
+        validate_folder_move(db, folder.id, target_id)
+        folder.parent_id = target_id
     if folder_in.position is not None:
         folder.position = folder_in.position
 

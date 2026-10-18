@@ -14,17 +14,31 @@ logger = logging.getLogger("dsa_tracker")
 async def lifespan(app: FastAPI):
     # Initialize database tables
     logger.info("Initializing database schema...")
-    Base.metadata.create_all(bind=engine)
-
-    # Seed demo data if database is empty
-    db = SessionLocal()
     try:
-        seed_demo_data(db)
-        logger.info("Seed data verified.")
+        Base.metadata.create_all(bind=engine)
+        logger.info("Database schema initialized successfully.")
     except Exception as e:
-        logger.warning(f"Seed initialization note: {e}")
-    finally:
-        db.close()
+        logger.critical(f"Database schema initialization failed: {e}", exc_info=True)
+        raise
+
+    # Seed demo curriculum only in development when database has no users
+    if getattr(settings, "ENVIRONMENT", "production") == "development":
+        db = SessionLocal()
+        try:
+            from app.models.user import User
+            user_count = db.query(User).count()
+            if user_count == 0:
+                logger.info("No users found in development database. Seeding demo user and patterns...")
+                seed_demo_data(db)
+                logger.info("Demo data seeded successfully.")
+            else:
+                logger.info(f"Database has {user_count} user(s). Demo seeding skipped.")
+        except Exception as e:
+            logger.error(f"Development demo seeding failed: {e}", exc_info=True)
+        finally:
+            db.close()
+    else:
+        logger.info("Non-development environment: demo seeding disabled.")
 
     yield
 
@@ -35,20 +49,20 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Configure CORS
-origins = [
-    settings.CLIENT_URL,
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "http://localhost:3000",
-    "*"
-]
+# Configure CORS strictly to permitted frontend origins (no wildcard with credentials)
+raw_origins = [settings.CLIENT_URL]
+if hasattr(settings, "CORS_ORIGINS") and settings.CORS_ORIGINS:
+    raw_origins.extend([o.strip() for o in settings.CORS_ORIGINS.split(",") if o.strip()])
+
+# Filter unique valid origins and strictly exclude "*"
+allowed_origins = sorted(list({origin for origin in raw_origins if origin and origin != "*"}))
+logger.info(f"Configured CORS allowed origins: {allowed_origins}")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=["*"],
 )
 
