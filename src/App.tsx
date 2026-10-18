@@ -268,6 +268,38 @@ function MainAppShell() {
     setQuestions(updatedQuestions);
   };
 
+  const handleReorderFolders = async (reorderedFolders: Folder[]) => {
+    setFolders(reorderedFolders);
+    try {
+      const payload: { id: string; position: number }[] = [];
+      const collectPositions = (nodes: Folder[]) => {
+        nodes.forEach((node, idx) => {
+          payload.push({ id: node.id, position: node.position ?? idx });
+          if (node.subfolders && node.subfolders.length > 0) {
+            collectPositions(node.subfolders);
+          }
+        });
+      };
+      collectPositions(reorderedFolders);
+      await api.reorderFolders(payload);
+    } catch (err) {
+      console.error('Failed to persist folder reordering:', err);
+    }
+  };
+
+  const handleReorderQuestions = async (folderId: string, reorderedQuestions: QuestionListItem[]) => {
+    setQuestions((prev) => {
+      const otherQuestions = prev.filter((q) => q.folder_id !== folderId);
+      return [...otherQuestions, ...reorderedQuestions];
+    });
+    try {
+      const payload = reorderedQuestions.map((q, idx) => ({ id: q.id, position: idx }));
+      await api.reorderQuestions(payload);
+    } catch (err) {
+      console.error('Failed to persist question reordering:', err);
+    }
+  };
+
   // Question Operations
   const handleCreateQuestion = async (data: {
     folder_id: string;
@@ -569,6 +601,8 @@ function MainAppShell() {
               onOpenCreateQuestion={handleOpenNewQuestion}
               onToggleBookmark={handleToggleBookmark}
               onDeleteQuestion={handleDeleteQuestion}
+              onReorderFolders={handleReorderFolders}
+              onReorderQuestions={handleReorderQuestions}
             />
           )}
 

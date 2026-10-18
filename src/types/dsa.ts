@@ -76,6 +76,8 @@ export interface QuestionListItem {
   tags: string[];
   is_bookmarked?: boolean;
   folder_path?: string;
+  position?: number;
+  created_at?: string;
   updated_at: string;
 }
 
