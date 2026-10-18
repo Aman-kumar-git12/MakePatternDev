@@ -1,0 +1,572 @@
+import { useState, useEffect, useCallback } from 'react';
+import { Sidebar } from './components/Sidebar/Sidebar';
+import { Header } from './components/Header/Header';
+import { Dashboard } from './components/Dashboard/Dashboard';
+import { QuestionWorkspace } from './components/Workspace/QuestionWorkspace';
+import { BookmarksView } from './components/Views/BookmarksView';
+import { AllQuestionsView } from './components/Views/AllQuestionsView';
+import { ProgressView } from './components/Views/ProgressView';
+import { MyPatternsView } from './components/Views/MyPatternsView';
+import { GlobalSearchModal } from './components/Header/GlobalSearchModal';
+import { AddItemModal } from './components/Modals/AddItemModal';
+import { EditTopicModal } from './components/Modals/EditTopicModal';
+import { MoveModal } from './components/Modals/MoveModal';
+import { ConfirmDeleteModal } from './components/Modals/ConfirmDeleteModal';
+import { RenameModal } from './components/Modals/RenameModal';
+import { ImportLeetCodeModal } from './components/Modals/ImportLeetCodeModal';
+
+import { api } from './services/api';
+import type {
+  Folder,
+  Question,
+  QuestionListItem,
+  ProgressSummary,
+  ViewMode,
+  Difficulty,
+  QuestionStatus,
+  SupportedLanguage,
+  Solution,
+} from './types/dsa';
+
+export function App() {
+  const [currentView, setCurrentView] = useState<ViewMode>('home');
+  const [folders, setFolders] = useState<Folder[]>([]);
+  const [questions, setQuestions] = useState<QuestionListItem[]>([]);
+  const [summary, setSummary] = useState<ProgressSummary | null>(null);
+  const [activeQuestion, setActiveQuestion] = useState<Question | null>(null);
+
+  // Modals state
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+
+  const [moveData, setMoveData] = useState<{
+    type: 'folder' | 'question';
+    id: string;
+    title: string;
+  } | null>(null);
+
+  const [deleteData, setDeleteData] = useState<{
+    title: string;
+    message: string;
+    itemType: 'folder' | 'question' | 'solution';
+    onConfirm: () => Promise<void>;
+  } | null>(null);
+
+  const [renameData, setRenameData] = useState<{
+    title: string;
+    initialValue: string;
+    onSubmit: (newName: string) => Promise<void>;
+  } | null>(null);
+
+  const [editFolderData, setEditFolderData] = useState<Folder | null>(null);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const [isAddItemModalOpen, setIsAddItemModalOpen] = useState(false);
+  const [addItemInitialType, setAddItemInitialType] = useState<'topic' | 'subtopic' | 'file'>('file');
+  const [addItemFolderId, setAddItemFolderId] = useState<string | undefined>(undefined);
+
+  const handleOpenAddItem = (type: 'topic' | 'subtopic' | 'file' = 'file', folderId?: string) => {
+    setAddItemInitialType(type);
+    setAddItemFolderId(folderId);
+    setIsAddItemModalOpen(true);
+  };
+
+  const handleOpenNewFolder = (parentId: string | null = null) => {
+    handleOpenAddItem(parentId ? 'subtopic' : 'topic', parentId || undefined);
+  };
+
+  const handleOpenNewQuestion = (folderId?: string) => {
+    handleOpenAddItem('file', folderId);
+  };
+
+  // Initial Data Fetch
+  const loadInitialData = useCallback(async () => {
+    try {
+      const [treeData, summaryData, listData] = await Promise.all([
+        api.getFolderTree(),
+        api.getProgressSummary(),
+        api.listQuestions(),
+      ]);
+
+      setFolders(treeData);
+      setSummary(summaryData);
+      setQuestions(listData);
+    } catch (err) {
+      console.error('Failed to load initial data:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadInitialData();
+  }, [loadInitialData]);
+
+  // Keyboard shortcut Ctrl/Cmd + K for global search
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsSearchOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  // Select Question & Open Workspace
+  const handleSelectQuestion = async (questionId: string) => {
+    try {
+      const q = await api.getQuestion(questionId);
+      setActiveQuestion(q);
+      setCurrentView('workspace');
+    } catch (err) {
+      console.error('Failed to open question:', err);
+    }
+  };
+
+  // Toggle Bookmark
+  const handleToggleBookmark = async (questionId: string) => {
+    try {
+      const res = await api.toggleBookmark(questionId);
+
+      // Update question list state
+      setQuestions((prev) =>
+        prev.map((q) => (q.id === questionId ? { ...q, is_bookmarked: res.is_bookmarked } : q))
+      );
+
+      // Update active question if currently open
+      if (activeQuestion && activeQuestion.id === questionId) {
+        setActiveQuestion({ ...activeQuestion, is_bookmarked: res.is_bookmarked });
+      }
+
+      // Refresh folder tree & summary
+      const [updatedTree, updatedSummary] = await Promise.all([
+        api.getFolderTree(),
+        api.getProgressSummary(),
+      ]);
+      setFolders(updatedTree);
+      setSummary(updatedSummary);
+    } catch (err) {
+      console.error('Failed to toggle bookmark:', err);
+    }
+  };
+
+  // Folder Operations
+  const handleCreateFolder = async (
+    name: string,
+    parentId: string | null = null,
+    description: string = '',
+    tags: string[] = []
+  ) => {
+    await api.createFolder(name, parentId, description, tags);
+    const [updatedTree, updatedSummary] = await Promise.all([
+      api.getFolderTree(),
+      api.getProgressSummary(),
+    ]);
+    setFolders(updatedTree);
+    setSummary(updatedSummary);
+  };
+
+  const handleUpdateFolder = async (
+    folderId: string,
+    updates: {
+      name?: string;
+      description?: string;
+      tags?: string[];
+      parent_id?: string | null;
+    }
+  ) => {
+    await api.updateFolder(folderId, updates);
+    const [updatedTree, updatedSummary, updatedQuestions] = await Promise.all([
+      api.getFolderTree(),
+      api.getProgressSummary(),
+      api.listQuestions(),
+    ]);
+    setFolders(updatedTree);
+    setSummary(updatedSummary);
+    setQuestions(updatedQuestions);
+  };
+
+  // Question Operations
+  const handleCreateQuestion = async (data: {
+    folder_id: string;
+    title: string;
+    problem_url?: string;
+    difficulty: Difficulty;
+    status: QuestionStatus;
+    tags: string[];
+    problem_statement: string;
+    notes?: string;
+  }) => {
+    const created = await api.createQuestion(data);
+    const [updatedTree, updatedSummary, updatedQuestions] = await Promise.all([
+      api.getFolderTree(),
+      api.getProgressSummary(),
+      api.listQuestions(),
+    ]);
+    setFolders(updatedTree);
+    setSummary(updatedSummary);
+    setQuestions(updatedQuestions);
+
+    // Open newly created question workspace immediately
+    if (created && created.id) {
+      const fullQ = await api.getQuestion(created.id);
+      setActiveQuestion(fullQ);
+      setCurrentView('workspace');
+    } else if (currentView !== 'patterns') {
+      setCurrentView('all-questions');
+    }
+  };
+
+  const handleSaveQuestion = async (updates: Partial<Question>) => {
+    if (!activeQuestion) return;
+    const updated = await api.updateQuestion(activeQuestion.id, updates);
+    setActiveQuestion(updated);
+
+    // Sync in list
+    setQuestions((prev) =>
+      prev.map((q) => (q.id === updated.id ? { ...q, ...updated } : q))
+    );
+
+    // Refresh summary & folder counts if status changed
+    if (updates.status || updates.difficulty || updates.title) {
+      const [updatedTree, updatedSummary] = await Promise.all([
+        api.getFolderTree(),
+        api.getProgressSummary(),
+      ]);
+      setFolders(updatedTree);
+      setSummary(updatedSummary);
+    }
+  };
+
+  const handleRenameQuestion = (questionId: string, currentTitle: string) => {
+    setRenameData({
+      title: 'Rename Question',
+      initialValue: currentTitle,
+      onSubmit: async (newTitle: string) => {
+        await api.updateQuestion(questionId, { title: newTitle });
+        const [updatedTree, updatedQuestions] = await Promise.all([
+          api.getFolderTree(),
+          api.listQuestions(),
+        ]);
+        setFolders(updatedTree);
+        setQuestions(updatedQuestions);
+        if (activeQuestion && activeQuestion.id === questionId) {
+          setActiveQuestion({ ...activeQuestion, title: newTitle });
+        }
+      },
+    });
+  };
+
+  const handleMoveQuestion = (questionId: string, questionTitle: string) => {
+    setMoveData({
+      type: 'question',
+      id: questionId,
+      title: questionTitle,
+    });
+  };
+
+  const handleDeleteQuestion = (questionId: string, questionTitle: string) => {
+    setDeleteData({
+      title: `Delete question "${questionTitle}"?`,
+      message: 'This will permanently remove this question along with all its code solutions, step-by-step notes, complexity estimates, and test cases.',
+      itemType: 'question',
+      onConfirm: async () => {
+        await api.deleteQuestion(questionId);
+        const [updatedTree, updatedSummary, updatedQuestions] = await Promise.all([
+          api.getFolderTree(),
+          api.getProgressSummary(),
+          api.listQuestions(),
+        ]);
+        setFolders(updatedTree);
+        setSummary(updatedSummary);
+        setQuestions(updatedQuestions);
+        if (activeQuestion && activeQuestion.id === questionId) {
+          setActiveQuestion(null);
+          setCurrentView('home');
+        }
+      },
+    });
+  };
+
+  const handleDeleteFolder = (folderId: string, folderName: string) => {
+    setDeleteData({
+      title: `Delete "${folderName}"?`,
+      message: 'Warning: Deleting this topic will permanently delete all its subtopics, questions, code solutions, and test cases. This action cannot be undone.',
+      itemType: 'folder',
+      onConfirm: async () => {
+        await api.deleteFolder(folderId);
+        const [updatedTree, updatedSummary, updatedQuestions] = await Promise.all([
+          api.getFolderTree(),
+          api.getProgressSummary(),
+          api.listQuestions(),
+        ]);
+        setFolders(updatedTree);
+        setSummary(updatedSummary);
+        setQuestions(updatedQuestions);
+      },
+    });
+  };
+
+  // Solutions Operations
+  const handleAddSolution = async (
+    questionId: string,
+    title: string,
+    language: SupportedLanguage,
+    timeComplexity: string = 'O(n)',
+    spaceComplexity: string = 'O(1)',
+    code: string = '',
+    solutionType?: string,
+    explanation?: string
+  ): Promise<Solution> => {
+    return api.createSolution(questionId, {
+      title,
+      language,
+      code,
+      time_complexity: timeComplexity,
+      space_complexity: spaceComplexity,
+      solution_type: solutionType,
+      explanation,
+    });
+  };
+
+  const handleUpdateSolution = async (solutionId: string, updates: Partial<Solution>) => {
+    await api.updateSolution(solutionId, updates);
+  };
+
+  const handleDeleteSolution = async (solutionId: string) => {
+    await api.deleteSolution(solutionId);
+  };
+
+  // Execute Move Modal
+  const handleExecuteMove = async (targetId: string | null) => {
+    if (!moveData) return;
+    if (moveData.type === 'folder') {
+      await api.moveFolder(moveData.id, targetId);
+    } else {
+      if (!targetId) throw new Error('A question must belong to a folder.');
+      await api.moveQuestion(moveData.id, targetId);
+    }
+
+    const [updatedTree, updatedSummary, updatedQuestions] = await Promise.all([
+      api.getFolderTree(),
+      api.getProgressSummary(),
+      api.listQuestions(),
+    ]);
+    setFolders(updatedTree);
+    setSummary(updatedSummary);
+    setQuestions(updatedQuestions);
+
+    if (activeQuestion && activeQuestion.id === moveData.id && targetId) {
+      const refreshedQ = await api.getQuestion(activeQuestion.id);
+      setActiveQuestion(refreshedQ);
+    }
+  };
+
+  const bookmarkedQuestions = questions.filter((q) => q.is_bookmarked);
+
+  return (
+    <div className="flex h-screen w-full bg-[#080C14] text-slate-100 overflow-hidden font-sans">
+      {/* 1. Left Sidebar - exactly 4 items: Home, My Patterns, All Questions, Bookmarks */}
+      <Sidebar
+        currentView={currentView}
+        onSelectView={(v) => {
+          setCurrentView(v);
+          if (v !== 'workspace') setActiveQuestion(null);
+        }}
+        bookmarkCount={bookmarkedQuestions.length}
+        isMobileOpen={isMobileMenuOpen}
+        onCloseMobile={() => setIsMobileMenuOpen(false)}
+      />
+
+      {/* 2. Main Content Area */}
+      <div className="flex-1 flex flex-col h-screen overflow-hidden">
+        {/* Top Header */}
+        <Header
+          onOpenSearch={() => setIsSearchOpen(true)}
+          onOpenNewQuestion={() => handleOpenNewQuestion()}
+          onToggleMobileMenu={() => setIsMobileMenuOpen((prev) => !prev)}
+          userName="Aman Kumar"
+        />
+
+        {/* View Switcher */}
+        <main className="flex-1 overflow-y-auto custom-scrollbar">
+          {currentView === 'home' && (
+            <Dashboard
+              summary={summary}
+              folders={folders}
+              questions={questions}
+              onSelectQuestion={handleSelectQuestion}
+              onOpenNewFolder={() => handleOpenNewFolder(null)}
+              onOpenNewQuestion={(folderId) => handleOpenNewQuestion(folderId)}
+              onDeleteFolder={handleDeleteFolder}
+              onOpenImportLeetCode={() => setIsImportModalOpen(true)}
+              onSelectView={setCurrentView}
+              onToggleBookmark={handleToggleBookmark}
+            />
+          )}
+
+          {currentView === 'workspace' && activeQuestion && (
+            <QuestionWorkspace
+              question={activeQuestion}
+              onSaveQuestion={handleSaveQuestion}
+              onToggleBookmark={handleToggleBookmark}
+              onAddSolution={handleAddSolution}
+              onUpdateSolution={handleUpdateSolution}
+              onDeleteSolution={handleDeleteSolution}
+              onDeleteQuestion={handleDeleteQuestion}
+              onBackToDashboard={() => {
+                setActiveQuestion(null);
+                setCurrentView('home');
+              }}
+            />
+          )}
+
+          {currentView === 'bookmarks' && (
+            <BookmarksView
+              questions={bookmarkedQuestions}
+              onSelectQuestion={handleSelectQuestion}
+              onRemoveBookmark={handleToggleBookmark}
+            />
+          )}
+
+          {currentView === 'all-questions' && (
+            <AllQuestionsView
+              questions={questions}
+              onSelectQuestion={handleSelectQuestion}
+              onToggleBookmark={handleToggleBookmark}
+              onOpenNewQuestion={() => handleOpenNewQuestion()}
+              onRenameQuestion={handleRenameQuestion}
+              onMoveQuestion={handleMoveQuestion}
+              onDeleteQuestion={handleDeleteQuestion}
+              title="All Questions"
+              subtitle="Browse, filter, and track questions across your entire curriculum"
+              sortBy="updated"
+            />
+          )}
+
+          {currentView === 'recent' && (
+            <AllQuestionsView
+              questions={questions}
+              onSelectQuestion={handleSelectQuestion}
+              onToggleBookmark={handleToggleBookmark}
+              onOpenNewQuestion={() => handleOpenNewQuestion()}
+              onRenameQuestion={handleRenameQuestion}
+              onMoveQuestion={handleMoveQuestion}
+              onDeleteQuestion={handleDeleteQuestion}
+              title="Recently Updated"
+              subtitle="Questions sorted by most recently modified solutions and notes"
+              sortBy="updated"
+            />
+          )}
+
+          {currentView === 'revision' && (
+            <AllQuestionsView
+              questions={questions}
+              onSelectQuestion={handleSelectQuestion}
+              onToggleBookmark={handleToggleBookmark}
+              onOpenNewQuestion={() => handleOpenNewQuestion()}
+              onRenameQuestion={handleRenameQuestion}
+              onMoveQuestion={handleMoveQuestion}
+              onDeleteQuestion={handleDeleteQuestion}
+              title="Needs Revision"
+              subtitle="Priority questions flagged for quick review before interviews"
+              initialStatus="Needs Revision"
+              sortBy="updated"
+            />
+          )}
+
+          {currentView === 'patterns' && (
+            <MyPatternsView
+              folders={folders}
+              questions={questions}
+              onSelectQuestion={handleSelectQuestion}
+              onCreateFolder={handleCreateFolder}
+              onEditFolder={(folder) => setEditFolderData(folder)}
+              onDeleteFolder={handleDeleteFolder}
+              onOpenAddItem={(type, folderId) => handleOpenAddItem(type, folderId)}
+              onToggleBookmark={handleToggleBookmark}
+              onDeleteQuestion={handleDeleteQuestion}
+            />
+          )}
+
+          {currentView === 'progress' && (
+            <ProgressView
+              summary={summary}
+              folders={folders}
+              title="Progress Overview"
+            />
+          )}
+        </main>
+      </div>
+
+      {/* Global Modals */}
+      <GlobalSearchModal
+        isOpen={isSearchOpen}
+        onClose={() => setIsSearchOpen(false)}
+        onSelectQuestion={handleSelectQuestion}
+      />
+
+      <AddItemModal
+        isOpen={isAddItemModalOpen}
+        onClose={() => setIsAddItemModalOpen(false)}
+        initialType={addItemInitialType}
+        initialFolderId={addItemFolderId}
+        folders={folders}
+        onCreateFolder={handleCreateFolder}
+        onCreateQuestion={handleCreateQuestion}
+      />
+
+      {editFolderData && (
+        <EditTopicModal
+          isOpen={true}
+          onClose={() => setEditFolderData(null)}
+          folder={editFolderData}
+          allFolders={folders}
+          onUpdate={handleUpdateFolder}
+        />
+      )}
+
+      <ImportLeetCodeModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        folders={folders}
+        onImport={handleCreateQuestion}
+      />
+
+      {moveData && (
+        <MoveModal
+          isOpen={true}
+          onClose={() => setMoveData(null)}
+          type={moveData.type}
+          itemId={moveData.id}
+          itemTitle={moveData.title}
+          folders={folders}
+          onSubmit={handleExecuteMove}
+        />
+      )}
+
+      {deleteData && (
+        <ConfirmDeleteModal
+          isOpen={true}
+          onClose={() => setDeleteData(null)}
+          title={deleteData.title}
+          message={deleteData.message}
+          itemType={deleteData.itemType}
+          onConfirm={deleteData.onConfirm}
+        />
+      )}
+
+      {renameData && (
+        <RenameModal
+          isOpen={true}
+          onClose={() => setRenameData(null)}
+          title={renameData.title}
+          initialValue={renameData.initialValue}
+          onSubmit={renameData.onSubmit}
+        />
+      )}
+    </div>
+  );
+}
+
+export default App;
