@@ -25,8 +25,7 @@ export const ComplexityTab: React.FC<ComplexityTabProps> = ({ solutions }) => {
           {solutions.map((sol, idx) => {
             const isOptimal =
               sol.title.toLowerCase().includes('optimal') ||
-              sol.time_complexity.includes('O(1)') ||
-              sol.time_complexity.includes('O(n)') ||
+              (sol.time_complexity && (sol.time_complexity.includes('O(1)') || sol.time_complexity.includes('O(n)'))) ||
               idx === 0;
 
             return (
@@ -56,7 +55,9 @@ export const ComplexityTab: React.FC<ComplexityTabProps> = ({ solutions }) => {
                         <Clock className="w-3.5 h-3.5 text-amber-400" />
                         <span>Time:</span>
                       </div>
-                      <span className="font-bold text-amber-300">{sol.time_complexity || 'O(n)'}</span>
+                      <span className="font-bold text-amber-300">
+                        {sol.time_complexity || <span className="text-slate-500 font-normal italic font-sans">Not set</span>}
+                      </span>
                     </div>
 
                     {/* Space Complexity */}

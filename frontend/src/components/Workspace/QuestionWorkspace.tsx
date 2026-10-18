@@ -15,6 +15,7 @@ import {
   Trash2,
   Edit2,
   ChevronRight,
+  X,
 } from 'lucide-react';
 import { NotesEditor } from './NotesEditor';
 import { MonacoCodeEditor } from './MonacoCodeEditor';
@@ -64,6 +65,8 @@ export const QuestionWorkspace: React.FC<QuestionWorkspaceProps> = ({
   const [solutions, setSolutions] = useState<Solution[]>(question.solutions || []);
   const [testCases, setTestCases] = useState<TestCase[]>(question.test_cases || []);
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved');
+  const [isUrlModalOpen, setIsUrlModalOpen] = useState(false);
+  const [tempUrl, setTempUrl] = useState(question.problem_url || '');
 
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -71,6 +74,7 @@ export const QuestionWorkspace: React.FC<QuestionWorkspaceProps> = ({
   useEffect(() => {
     setTitle(question.title);
     setProblemUrl(question.problem_url || '');
+    setTempUrl(question.problem_url || '');
     setDifficulty(question.difficulty);
     setStatus(question.status);
     setProblemStatement(question.problem_statement || '');
@@ -282,11 +286,10 @@ export const QuestionWorkspace: React.FC<QuestionWorkspaceProps> = ({
               </a>
             ) : (
               <button
+                type="button"
                 onClick={() => {
-                  const url = prompt('Enter question URL (e.g. LeetCode / GFG link):', problemUrl);
-                  if (url !== null) {
-                    handleProblemUrlChange(url);
-                  }
+                  setTempUrl(problemUrl);
+                  setIsUrlModalOpen(true);
                 }}
                 className="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-blue-300 border border-slate-700 text-xs transition"
                 title="Add problem link"
@@ -379,11 +382,10 @@ export const QuestionWorkspace: React.FC<QuestionWorkspaceProps> = ({
 
           {problemUrl && (
             <button
+              type="button"
               onClick={() => {
-                const url = prompt('Edit question URL:', problemUrl);
-                if (url !== null) {
-                  handleProblemUrlChange(url);
-                }
+                setTempUrl(problemUrl);
+                setIsUrlModalOpen(true);
               }}
               className="text-[11px] text-slate-500 hover:text-slate-300 flex items-center space-x-1"
             >
@@ -476,6 +478,92 @@ export const QuestionWorkspace: React.FC<QuestionWorkspaceProps> = ({
 
       {activeTab === 'complexity' && (
         <ComplexityTab solutions={solutions} />
+      )}
+
+      {/* Custom Edit URL Modal - replaces native browser prompt/alert */}
+      {isUrlModalOpen && (
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#0D1527] border border-slate-700 rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl animate-fade-in">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center space-x-2.5">
+                <div className="p-2 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400">
+                  <Link2 className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-white text-sm">
+                    {problemUrl ? 'Edit Question URL' : 'Add Question URL'}
+                  </h3>
+                  <p className="text-xs text-slate-400">Direct link to LeetCode, GFG, or Codeforces</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsUrlModalOpen(false)}
+                className="p-1 rounded-lg text-slate-500 hover:text-white hover:bg-slate-800 transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-slate-300">
+                Problem Link
+              </label>
+              <input
+                type="url"
+                autoFocus
+                value={tempUrl}
+                onChange={(e) => setTempUrl(e.target.value)}
+                placeholder="https://leetcode.com/problems/..."
+                className="w-full bg-[#080C14] border border-slate-700 focus:border-blue-500 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleProblemUrlChange(tempUrl.trim());
+                    setIsUrlModalOpen(false);
+                  }
+                }}
+              />
+            </div>
+
+            <div className="flex items-center justify-between pt-2">
+              {problemUrl ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleProblemUrlChange('');
+                    setIsUrlModalOpen(false);
+                  }}
+                  className="text-xs text-rose-400 hover:text-rose-300 hover:underline"
+                >
+                  Remove Link
+                </button>
+              ) : (
+                <div />
+              )}
+
+              <div className="flex items-center space-x-2">
+                <button
+                  type="button"
+                  onClick={() => setIsUrlModalOpen(false)}
+                  className="px-3.5 py-1.5 rounded-xl border border-slate-700 hover:bg-slate-800 text-xs text-slate-300 font-medium transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleProblemUrlChange(tempUrl.trim());
+                    setIsUrlModalOpen(false);
+                  }}
+                  className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-95 text-xs text-white font-semibold shadow-lg shadow-blue-600/30 transition"
+                >
+                  Save Link
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

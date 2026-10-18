@@ -76,8 +76,8 @@ def create_solution(
     est_time = analysis["time_complexity"]
     est_space = analysis["space_complexity"]
 
-    # Effective complexity: manual if explicitly given, else estimate
-    eff_time = sol_in.manual_time_complexity or sol_in.time_complexity or est_time
+    # Time complexity is left empty for user to provide themselves
+    eff_time = sol_in.manual_time_complexity or sol_in.time_complexity or ""
     eff_space = sol_in.manual_space_complexity or sol_in.space_complexity or est_space
 
     sol = Solution(
@@ -151,7 +151,7 @@ def update_solution(
     if sol_in.time_complexity is not None:
         sol.time_complexity = sol_in.time_complexity
     else:
-        sol.time_complexity = sol.manual_time_complexity or sol.time_complexity_estimate or "O(n)"
+        sol.time_complexity = sol.manual_time_complexity or sol.time_complexity or ""
 
     if sol_in.space_complexity is not None:
         sol.space_complexity = sol_in.space_complexity
@@ -185,9 +185,7 @@ def trigger_solution_analysis(
     sol.analysis_status = analysis["status"]
     sol.analyzed_code_hash = analysis["code_hash"]
 
-    # If not manually overridden, update effective complexities
-    if not sol.manual_time_complexity:
-        sol.time_complexity = analysis["time_complexity"]
+    # Space complexity can update if not manually set, time complexity is left for user
     if not sol.manual_space_complexity:
         sol.space_complexity = analysis["space_complexity"]
 

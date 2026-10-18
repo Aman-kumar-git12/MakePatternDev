@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Editor from '@monaco-editor/react';
 import {
   Copy,
@@ -116,9 +116,14 @@ export const MonacoCodeEditor: React.FC<MonacoCodeEditorProps> = ({
   const [manualSpace, setManualSpace] = useState(activeSolution?.manual_space_complexity || activeSolution?.space_complexity || '');
   const [customRationale, setCustomRationale] = useState(activeSolution?.analysis_explanation || '');
 
+  const saveDebounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // Keep local state in sync when active solution changes
   useEffect(() => {
     if (activeSolution) {
+      if (saveDebounceTimerRef.current) {
+        clearTimeout(saveDebounceTimerRef.current);
+      }
       setActiveSolutionId(activeSolution.id);
       setCode(activeSolution.code || '');
       setExplanation(activeSolution.explanation || '');
@@ -154,18 +159,14 @@ export const MonacoCodeEditor: React.FC<MonacoCodeEditorProps> = ({
         analyzed_code_hash: result.code_hash,
       };
 
-      // If manual overrides are not set, update effective complexity
-      if (!activeSolution.manual_time_complexity) {
-        updates.time_complexity = result.time_complexity;
-        setManualTime(result.time_complexity);
-      }
+      // Space complexity can update if not manually set; time complexity is left for user
       if (!activeSolution.manual_space_complexity) {
         updates.space_complexity = result.space_complexity;
         setManualSpace(result.space_complexity);
       }
       setCustomRationale(result.explanation);
 
-      onUpdateSolution(activeSolution.id, updates);
+      await onUpdateSolution(activeSolution.id, updates);
     } catch (err) {
       console.error('Complexity analysis failed:', err);
     } finally {
@@ -174,41 +175,49 @@ export const MonacoCodeEditor: React.FC<MonacoCodeEditorProps> = ({
   };
 
   const handleCodeChange = (newCode: string | undefined) => {
-    const val = newCode || '';
+    const val = newCode ?? '';
     setCode(val);
     setIsSaved(false);
 
-    // Save code to solution
-    if (activeSolution) {
-      onUpdateSolution(activeSolution.id, { code: val });
+    if (saveDebounceTimerRef.current) {
+      clearTimeout(saveDebounceTimerRef.current);
     }
+
+    // Auto-save debounced to database
+    saveDebounceTimerRef.current = setTimeout(async () => {
+      if (activeSolution) {
+        try {
+          await onUpdateSolution(activeSolution.id, { code: val });
+          setIsSaved(true);
+        } catch (e) {
+          console.error('Failed to auto-save code:', e);
+        }
+      }
+    }, 700);
   };
 
   const handleSaveAll = async () => {
     if (!activeSolution) return;
+    if (saveDebounceTimerRef.current) {
+      clearTimeout(saveDebounceTimerRef.current);
+    }
     setIsAnalyzing(true);
     try {
-      // Run complexity analysis on save
-      const result = await api.analyzeComplexity(code, activeSolution.language);
+      const effTime = manualTime.trim(); // User adds it itself, empty if blank
+      const effSpace = manualSpace.trim() || activeSolution.space_complexity || 'O(1)';
 
-      const effTime = manualTime.trim() ? manualTime.trim() : result.time_complexity;
-      const effSpace = manualSpace.trim() ? manualSpace.trim() : result.space_complexity;
-
-      onUpdateSolution(activeSolution.id, {
+      await onUpdateSolution(activeSolution.id, {
         code,
         explanation,
-        manual_time_complexity: manualTime.trim() || null,
+        manual_time_complexity: effTime || null,
         manual_space_complexity: manualSpace.trim() || null,
         time_complexity: effTime,
         space_complexity: effSpace,
-        time_complexity_estimate: result.time_complexity,
-        space_complexity_estimate: result.space_complexity,
-        analysis_explanation: customRationale.trim() || result.explanation,
-        analysis_status: result.status,
-        analyzed_code_hash: result.code_hash,
       });
 
       setIsSaved(true);
+      setComplexitySavedToast(true);
+      setTimeout(() => setComplexitySavedToast(false), 2000);
     } catch (err) {
       console.error('Error saving solution:', err);
     } finally {
@@ -217,13 +226,13 @@ export const MonacoCodeEditor: React.FC<MonacoCodeEditorProps> = ({
   };
 
   // Immediate Save Complexity Override
-  const handleSaveComplexityOverride = () => {
+  const handleSaveComplexityOverride = async () => {
     if (!activeSolution) return;
-    const finalTime = manualTime.trim() || activeSolution.time_complexity_estimate || 'O(n)';
-    const finalSpace = manualSpace.trim() || activeSolution.space_complexity_estimate || 'O(1)';
+    const finalTime = manualTime.trim(); // User adds it itself, empty if blank
+    const finalSpace = manualSpace.trim() || activeSolution.space_complexity || 'O(1)';
 
-    onUpdateSolution(activeSolution.id, {
-      manual_time_complexity: manualTime.trim() || null,
+    await onUpdateSolution(activeSolution.id, {
+      manual_time_complexity: finalTime || null,
       manual_space_complexity: manualSpace.trim() || null,
       time_complexity: finalTime,
       space_complexity: finalSpace,
@@ -272,20 +281,16 @@ export const MonacoCodeEditor: React.FC<MonacoCodeEditorProps> = ({
     if (solutions.length >= 3) return;
 
     const defaultLang: SupportedLanguage = activeSolution ? activeSolution.language : 'python';
-    const complexityDefaults: Record<string, { time: string; space: string }> = {
-      'Brute Force': { time: 'O(n²)', space: 'O(1)' },
-      'Better Approach': { time: 'O(n log n)', space: 'O(n)' },
-      'Optimized Approach': { time: 'O(n)', space: 'O(1)' },
-    };
 
+    // In every case, new solution code starts empty, and time complexity starts empty
     onAddSolution(
       approachType,
       defaultLang,
-      complexityDefaults[approachType].time,
-      complexityDefaults[approachType].space,
-      STARTER_CODES[defaultLang],
+      '', // Time complexity starts empty
+      'O(1)',
+      '', // Code starts completely empty
       approachType,
-      `Step-by-step reasoning for ${approachType}...`
+      ''
     );
   };
 
@@ -420,8 +425,14 @@ export const MonacoCodeEditor: React.FC<MonacoCodeEditorProps> = ({
               value={activeSolution.language}
               onChange={(e) => {
                 const newLang = e.target.value as SupportedLanguage;
-                onUpdateSolution(activeSolution.id, { language: newLang });
-                handleAnalyzeComplexity(code, newLang);
+                // Automatically switch boilerplate to new language template
+                const newBoilerplate = STARTER_CODES[newLang] || '';
+                setCode(newBoilerplate);
+                setIsSaved(false);
+                onUpdateSolution(activeSolution.id, {
+                  language: newLang,
+                  code: newBoilerplate,
+                });
               }}
               className="bg-[#0A0F1D] text-slate-200 border border-slate-700 rounded-lg px-2.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer font-mono"
             >
@@ -430,6 +441,20 @@ export const MonacoCodeEditor: React.FC<MonacoCodeEditorProps> = ({
               <option value="java">Java</option>
               <option value="javascript">JavaScript</option>
             </select>
+
+            {/* Clear Code Button */}
+            <button
+              type="button"
+              onClick={() => {
+                setCode('');
+                setIsSaved(false);
+                onUpdateSolution(activeSolution.id, { code: '' });
+              }}
+              className="px-2 py-1 rounded-lg border border-slate-700 hover:border-slate-600 bg-slate-900/60 text-slate-400 hover:text-slate-200 text-xs transition"
+              title="Clear editor code"
+            >
+              Clear
+            </button>
 
             {/* Copy Button */}
             <button
@@ -556,13 +581,17 @@ export const MonacoCodeEditor: React.FC<MonacoCodeEditorProps> = ({
                       <Edit3 className="w-3 h-3 text-slate-500 group-hover:text-blue-400 transition" />
                     </div>
                     <div className="text-lg font-bold font-mono text-blue-300">
-                      {activeSolution.time_complexity || 'O(n)'}
+                      {activeSolution.time_complexity ? (
+                        activeSolution.time_complexity
+                      ) : (
+                        <span className="text-slate-500 text-xs font-normal italic">Empty (Click to add)</span>
+                      )}
                     </div>
                     <span className="text-[9px] font-sans block mt-0.5">
-                      {activeSolution.manual_time_complexity ? (
-                        <span className="text-amber-400 font-semibold">(Manual Override)</span>
+                      {activeSolution.time_complexity ? (
+                        <span className="text-emerald-400 font-semibold">User Defined</span>
                       ) : (
-                        <span className="text-slate-500">(Auto Estimated)</span>
+                        <span className="text-slate-500">Not set</span>
                       )}
                     </span>
                   </div>
@@ -653,7 +682,19 @@ export const MonacoCodeEditor: React.FC<MonacoCodeEditorProps> = ({
                           className="w-full bg-[#080C14] border border-slate-700 focus:border-blue-500 rounded-lg px-2.5 py-1 text-xs text-white font-mono"
                         />
                         {/* Quick Presets */}
-                        <div className="flex flex-wrap gap-1 pt-0.5">
+                        <div className="flex flex-wrap gap-1 pt-0.5 items-center">
+                          <button
+                            type="button"
+                            onClick={() => setManualTime('')}
+                            className={`text-[10px] px-1.5 py-0.5 rounded-md font-mono border transition ${
+                              !manualTime
+                                ? 'bg-slate-700 text-white border-slate-600'
+                                : 'bg-slate-800/80 text-slate-400 border-slate-700 hover:text-rose-400'
+                            }`}
+                            title="Clear to empty"
+                          >
+                            Empty
+                          </button>
                           {TIME_COMPLEXITY_PRESETS.map((p) => (
                             <button
                               key={p}

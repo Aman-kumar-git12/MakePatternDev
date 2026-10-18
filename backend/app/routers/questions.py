@@ -45,7 +45,7 @@ def format_question_response(db: Session, q: Question, user_id: str) -> Question
             language=s.language,
             code=s.code,
             explanation=getattr(s, 'explanation', '') or '',
-            time_complexity_estimate=getattr(s, 'time_complexity_estimate', 'O(n)') or 'O(n)',
+            time_complexity_estimate=getattr(s, 'time_complexity_estimate', '') or '',
             space_complexity_estimate=getattr(s, 'space_complexity_estimate', 'O(1)') or 'O(1)',
             manual_time_complexity=getattr(s, 'manual_time_complexity', None),
             manual_space_complexity=getattr(s, 'manual_space_complexity', None),

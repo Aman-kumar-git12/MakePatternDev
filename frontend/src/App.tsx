@@ -393,7 +393,7 @@ function MainAppShell() {
     questionId: string,
     title: string,
     language: SupportedLanguage,
-    timeComplexity: string = 'O(n)',
+    timeComplexity: string = '',
     spaceComplexity: string = 'O(1)',
     code: string = '',
     solutionType?: string,

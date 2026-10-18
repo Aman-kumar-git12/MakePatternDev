@@ -8,11 +8,11 @@ class SolutionBase(BaseModel):
     language: str = "python"
     code: str = ""
     explanation: Optional[str] = ""
-    time_complexity_estimate: Optional[str] = "O(n)"
+    time_complexity_estimate: Optional[str] = ""
     space_complexity_estimate: Optional[str] = "O(1)"
     manual_time_complexity: Optional[str] = None
     manual_space_complexity: Optional[str] = None
-    time_complexity: str = "O(n)"
+    time_complexity: str = ""
     space_complexity: str = "O(1)"
     analysis_explanation: Optional[str] = ""
     analysis_status: Optional[str] = "Completed"
