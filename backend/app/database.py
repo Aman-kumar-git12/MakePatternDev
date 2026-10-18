@@ -12,14 +12,17 @@ try:
     if "postgresql" in db_url:
         # Test postgresql connection
         engine = create_engine(db_url, pool_pre_ping=True)
-        # Attempt connection test
         with engine.connect() as conn:
             logger.info("Successfully connected to PostgreSQL database.")
+    elif "sqlite" in db_url:
+        engine = create_engine(db_url, connect_args={"check_same_thread": False})
     else:
-        engine = create_engine(db_url, connect_args={"check_same_thread": False} if "sqlite" in db_url else {})
+        logger.info("Database URL is not PostgreSQL or SQLite; using local SQLite database.")
+        db_url = "sqlite:///./dsa_tracker.db"
+        engine = create_engine(db_url, connect_args={"check_same_thread": False})
 except Exception as e:
     if settings.SQLITE_FALLBACK:
-        logger.warning(f"Could not connect to PostgreSQL ({e}). Falling back to local SQLite database.")
+        logger.warning(f"Could not connect to database ({e}). Falling back to local SQLite database.")
         db_url = "sqlite:///./dsa_tracker.db"
         engine = create_engine(db_url, connect_args={"check_same_thread": False})
     else:

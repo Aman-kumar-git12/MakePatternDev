@@ -54,6 +54,21 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
     return init;
   });
 
+  // Keep newly added or loaded root topics expanded by default
+  React.useEffect(() => {
+    setExpandedNodes((prev) => {
+      const next = { ...prev };
+      let hasChanges = false;
+      for (const f of folders) {
+        if (next[f.id] === undefined) {
+          next[f.id] = true;
+          hasChanges = true;
+        }
+      }
+      return hasChanges ? next : prev;
+    });
+  }, [folders]);
+
   const toggleNode = (nodeId: string) => {
     setExpandedNodes((prev) => ({
       ...prev,
@@ -312,21 +327,12 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
 
           <div className="flex items-center space-x-2">
             <button
-              onClick={() => onOpenAddItem('subtopic')}
-              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition"
-              title="Add a new subtopic under any topic"
-            >
-              <FolderTree className="w-3.5 h-3.5 text-blue-400" />
-              <span>+ Add Subtopic</span>
-            </button>
-
-            <button
-              onClick={() => onOpenAddItem('file')}
-              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-md shadow-blue-600/30 transition"
-              title="Add a new question file"
+              onClick={() => onOpenAddItem('topic')}
+              className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-md shadow-blue-600/30 transition"
+              title="Create a new top-level DSA topic"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>+ Add Question</span>
+              <span>+ Add Topic</span>
             </button>
           </div>
         </div>

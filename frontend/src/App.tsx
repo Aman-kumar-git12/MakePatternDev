@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Routes, Route, Navigate, useNavigate, useLocation, useParams } from 'react-router-dom';
 import { Sidebar } from './components/Sidebar/Sidebar';
 import { Header } from './components/Header/Header';
 import { Dashboard } from './components/Dashboard/Dashboard';
@@ -15,6 +16,12 @@ import { ConfirmDeleteModal } from './components/Modals/ConfirmDeleteModal';
 import { RenameModal } from './components/Modals/RenameModal';
 import { ImportLeetCodeModal } from './components/Modals/ImportLeetCodeModal';
 
+import { LoginPage } from './pages/LoginPage';
+import { RegisterPage } from './pages/RegisterPage';
+import { ProtectedRoute } from './components/Auth/ProtectedRoute';
+import { PublicRoute } from './components/Auth/PublicRoute';
+import { useAuth } from './context/AuthContext';
+
 import { api } from './services/api';
 import type {
   Folder,
@@ -28,8 +35,12 @@ import type {
   Solution,
 } from './types/dsa';
 
-function App() {
-  const [currentView, setCurrentView] = useState<ViewMode>('home');
+function MainAppShell() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const params = useParams<{ questionId?: string }>();
+  const { user, logout } = useAuth();
+
   const [folders, setFolders] = useState<Folder[]>([]);
   const [questions, setQuestions] = useState<QuestionListItem[]>([]);
   const [summary, setSummary] = useState<ProgressSummary | null>(null);
@@ -65,6 +76,19 @@ function App() {
   const [addItemInitialType, setAddItemInitialType] = useState<'topic' | 'subtopic' | 'file'>('file');
   const [addItemFolderId, setAddItemFolderId] = useState<string | undefined>(undefined);
 
+  // Derive active view mode from pathname
+  const currentView = useMemo<ViewMode>(() => {
+    const path = location.pathname;
+    if (path.startsWith('/question/')) return 'workspace';
+    if (path === '/patterns') return 'patterns';
+    if (path === '/questions') return 'all-questions';
+    if (path === '/bookmarks') return 'bookmarks';
+    if (path === '/recent') return 'recent';
+    if (path === '/revision') return 'revision';
+    if (path === '/progress') return 'progress';
+    return 'home';
+  }, [location.pathname]);
+
   const handleOpenAddItem = (type: 'topic' | 'subtopic' | 'file' = 'file', folderId?: string) => {
     setAddItemInitialType(type);
     setAddItemFolderId(folderId);
@@ -92,13 +116,32 @@ function App() {
       setSummary(summaryData);
       setQuestions(listData);
     } catch (err) {
-      console.error('Failed to load initial data:', err);
+      console.error('Failed to load initial curriculum data:', err);
     }
   }, []);
 
   useEffect(() => {
     loadInitialData();
   }, [loadInitialData]);
+
+  // Deep link sync for /question/:questionId
+  useEffect(() => {
+    const routeQuestionId = params.questionId;
+    if (routeQuestionId) {
+      if (!activeQuestion || activeQuestion.id !== routeQuestionId) {
+        api.getQuestion(routeQuestionId)
+          .then((q) => setActiveQuestion(q))
+          .catch((err) => {
+            console.error('Failed to resolve route question:', err);
+            navigate('/', { replace: true });
+          });
+      }
+    } else {
+      if (activeQuestion && !location.pathname.startsWith('/question/')) {
+        setActiveQuestion(null);
+      }
+    }
+  }, [params.questionId, location.pathname, activeQuestion, navigate]);
 
   // Keyboard shortcut Ctrl/Cmd + K for global search
   useEffect(() => {
@@ -112,14 +155,43 @@ function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Select Question & Open Workspace
+  // Select Question & Navigate to Workspace Route
   const handleSelectQuestion = async (questionId: string) => {
     try {
       const q = await api.getQuestion(questionId);
       setActiveQuestion(q);
-      setCurrentView('workspace');
+      navigate(`/question/${questionId}`);
     } catch (err) {
       console.error('Failed to open question:', err);
+    }
+  };
+
+  // Navigation from Sidebar
+  const handleSelectNavView = (view: ViewMode) => {
+    switch (view) {
+      case 'home':
+        navigate('/');
+        break;
+      case 'patterns':
+        navigate('/patterns');
+        break;
+      case 'all-questions':
+        navigate('/questions');
+        break;
+      case 'bookmarks':
+        navigate('/bookmarks');
+        break;
+      case 'recent':
+        navigate('/recent');
+        break;
+      case 'revision':
+        navigate('/revision');
+        break;
+      case 'progress':
+        navigate('/progress');
+        break;
+      default:
+        navigate('/');
     }
   };
 
@@ -207,13 +279,12 @@ function App() {
     setSummary(updatedSummary);
     setQuestions(updatedQuestions);
 
-    // Open newly created question workspace immediately
     if (created && created.id) {
       const fullQ = await api.getQuestion(created.id);
       setActiveQuestion(fullQ);
-      setCurrentView('workspace');
-    } else if (currentView !== 'patterns') {
-      setCurrentView('all-questions');
+      navigate(`/question/${created.id}`);
+    } else {
+      navigate('/questions');
     }
   };
 
@@ -282,7 +353,7 @@ function App() {
         setQuestions(updatedQuestions);
         if (activeQuestion && activeQuestion.id === questionId) {
           setActiveQuestion(null);
-          setCurrentView('home');
+          navigate('/');
         }
       },
     });
@@ -366,16 +437,15 @@ function App() {
 
   return (
     <div className="flex h-screen w-full bg-[#080C14] text-slate-100 overflow-hidden font-sans">
-      {/* 1. Left Sidebar - exactly 4 items: Home, My Patterns, All Questions, Bookmarks */}
+      {/* 1. Left Sidebar */}
       <Sidebar
         currentView={currentView}
-        onSelectView={(v) => {
-          setCurrentView(v);
-          if (v !== 'workspace') setActiveQuestion(null);
-        }}
+        onSelectView={handleSelectNavView}
         bookmarkCount={bookmarkedQuestions.length}
         isMobileOpen={isMobileMenuOpen}
         onCloseMobile={() => setIsMobileMenuOpen(false)}
+        user={user}
+        onLogout={logout}
       />
 
       {/* 2. Main Content Area */}
@@ -385,10 +455,11 @@ function App() {
           onOpenSearch={() => setIsSearchOpen(true)}
           onOpenNewQuestion={() => handleOpenNewQuestion()}
           onToggleMobileMenu={() => setIsMobileMenuOpen((prev) => !prev)}
-          userName="Aman Kumar"
+          user={user}
+          onLogout={logout}
         />
 
-        {/* View Switcher */}
+        {/* View Switcher based on current URL */}
         <main className="flex-1 overflow-y-auto custom-scrollbar">
           {currentView === 'home' && (
             <Dashboard
@@ -400,7 +471,7 @@ function App() {
               onOpenNewQuestion={(folderId) => handleOpenNewQuestion(folderId)}
               onDeleteFolder={handleDeleteFolder}
               onOpenImportLeetCode={() => setIsImportModalOpen(true)}
-              onSelectView={setCurrentView}
+              onSelectView={handleSelectNavView}
               onToggleBookmark={handleToggleBookmark}
             />
           )}
@@ -416,7 +487,7 @@ function App() {
               onDeleteQuestion={handleDeleteQuestion}
               onBackToDashboard={() => {
                 setActiveQuestion(null);
-                setCurrentView('home');
+                navigate('/');
               }}
             />
           )}
@@ -566,6 +637,99 @@ function App() {
         />
       )}
     </div>
+  );
+}
+
+export function App() {
+  return (
+    <Routes>
+      {/* Public Guest Routes */}
+      <Route
+        path="/login"
+        element={
+          <PublicRoute>
+            <LoginPage />
+          </PublicRoute>
+        }
+      />
+      <Route
+        path="/register"
+        element={
+          <PublicRoute>
+            <RegisterPage />
+          </PublicRoute>
+        }
+      />
+
+      {/* Protected Application Routes */}
+      <Route
+        path="/"
+        element={
+          <ProtectedRoute>
+            <MainAppShell />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/patterns"
+        element={
+          <ProtectedRoute>
+            <MainAppShell />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/questions"
+        element={
+          <ProtectedRoute>
+            <MainAppShell />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/bookmarks"
+        element={
+          <ProtectedRoute>
+            <MainAppShell />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/recent"
+        element={
+          <ProtectedRoute>
+            <MainAppShell />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/revision"
+        element={
+          <ProtectedRoute>
+            <MainAppShell />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/progress"
+        element={
+          <ProtectedRoute>
+            <MainAppShell />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/question/:questionId"
+        element={
+          <ProtectedRoute>
+            <MainAppShell />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Fallback */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 }
 

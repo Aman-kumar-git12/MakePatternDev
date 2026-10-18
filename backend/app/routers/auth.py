@@ -20,17 +20,35 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, settings.JWT_SECRET, algorithm=settings.ALGORITHM)
 
+def get_authenticated_user(token: Optional[str] = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    try:
+        payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.ALGORITHM])
+        user_id: str = payload.get("sub")
+        if not user_id:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload")
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+        return user
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
 def get_current_user(token: Optional[str] = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
     # If token is provided, verify it
     if token:
         try:
-            payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.ALGORITHM])
-            user_id: str = payload.get("sub")
-            if user_id:
-                user = db.query(User).filter(User.id == user_id).first()
-                if user:
-                    return user
-        except JWTError:
+            return get_authenticated_user(token=token, db=db)
+        except HTTPException:
             pass
 
     # Seamless development fallback: return the primary seeded demo user
@@ -60,6 +78,12 @@ def register(user_in: UserCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(user)
 
+    try:
+        from app.services.seed_service import seed_demo_data
+        seed_demo_data(db, user)
+    except Exception as err:
+        print(f"Seed error on user registration: {err}")
+
     token = create_access_token({"sub": user.id})
     return Token(access_token=token, token_type="bearer", user=UserResponse.model_validate(user))
 
@@ -73,5 +97,5 @@ def login(credentials: UserLogin, db: Session = Depends(get_db)):
     return Token(access_token=token, token_type="bearer", user=UserResponse.model_validate(user))
 
 @router.get("/me", response_model=UserResponse)
-def get_me(current_user: User = Depends(get_current_user)):
+def get_me(current_user: User = Depends(get_authenticated_user)):
     return UserResponse.model_validate(current_user)

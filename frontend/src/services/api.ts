@@ -9,7 +9,9 @@ import type {
   Difficulty,
   QuestionStatus,
   SupportedLanguage,
-  ComplexityAnalysisResult
+  ComplexityAnalysisResult,
+  User,
+  AuthResponse
 } from '../types/dsa';
 
 const API_BASE_URL = 'http://localhost:8000/api';
@@ -17,8 +19,43 @@ const API_BASE_URL = 'http://localhost:8000/api';
 class ApiService {
   private token: string | null = null;
 
-  setToken(token: string) {
+  setToken(token: string | null) {
     this.token = token;
+  }
+
+  getToken(): string | null {
+    return this.token;
+  }
+
+  clearToken() {
+    this.token = null;
+  }
+
+  // Auth API
+  async login(email: string, password: string): Promise<AuthResponse> {
+    const data = await this.request<AuthResponse>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    });
+    if (data.access_token) {
+      this.setToken(data.access_token);
+    }
+    return data;
+  }
+
+  async register(email: string, password: string, fullName: string): Promise<AuthResponse> {
+    const data = await this.request<AuthResponse>('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({ email, password, full_name: fullName }),
+    });
+    if (data.access_token) {
+      this.setToken(data.access_token);
+    }
+    return data;
+  }
+
+  async getMe(): Promise<User> {
+    return this.request<User>('/auth/me');
   }
 
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {

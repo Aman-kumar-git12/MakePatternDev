@@ -7,22 +7,27 @@ from app.models.solution import Solution
 from app.models.bookmark import Bookmark
 from app.services.security import hash_password
 
-def seed_demo_data(db: Session) -> User:
-    # Check if demo user already exists
-    demo_email = "aman@makepattern.dev"
-    existing_user = db.query(User).filter(User.email == demo_email).first()
-    if existing_user:
-        return existing_user
+from typing import Optional
 
-    # Create user
-    user = User(
-        email=demo_email,
-        full_name="Aman Kumar",
-        hashed_password=hash_password("password123")
-    )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
+def seed_demo_data(db: Session, target_user: Optional[User] = None) -> User:
+    if target_user:
+        user = target_user
+    else:
+        # Check if demo user already exists
+        demo_email = "aman@makepattern.dev"
+        existing_user = db.query(User).filter(User.email == demo_email).first()
+        if existing_user:
+            return existing_user
+
+        # Create user
+        user = User(
+            email=demo_email,
+            full_name="Aman Kumar",
+            hashed_password=hash_password("password123")
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
 
     # 1. Root Folder: Beginner Problems & DSA
     beginner_root = Folder(user_id=user.id, name="Beginner Problems", parent_id=None, position=0)

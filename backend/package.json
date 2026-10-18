@@ -5,9 +5,9 @@
   "main": "dist/server.js",
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/server.ts",
-    "build": "tsc",
-    "start": "node dist/server.js"
+    "dev": "./venv/bin/python run.py",
+    "start": "./venv/bin/python run.py",
+    "test": "./venv/bin/pytest"
   },
   "dependencies": {
     "cors": "^2.8.5",
