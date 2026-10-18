@@ -1,7 +1,6 @@
 import React from 'react';
 import { CompletionHeader } from './CompletionHeader';
 import { PatternTreeView } from './PatternTreeView';
-import { useTheme } from '../../context/ThemeContext';
 import { ArrowRight, Layers } from 'lucide-react';
 import type { ProgressSummary, Folder, QuestionListItem, ViewMode } from '../../types/dsa';
 
@@ -28,8 +27,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onToggleBookmark,
   onSelectView,
 }) => {
-  const { isDark } = useTheme();
-
   return (
     <div className="p-4 max-w-6xl mx-auto space-y-4 animate-fade-in">
       {/* Hero Banner */}
@@ -64,15 +61,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </span>
           </div>
 
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mb-2 text-white">
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mb-2" style={{ color: '#ffffff' }}>
             Algorithm Today,
             <br />
-            <span className="text-[#fef08a]">
+            <span style={{ color: '#fef08a' }}>
               Efficiency Tomorrow.
             </span>
           </h1>
 
-          <p className="text-sm max-w-md mb-4 text-zinc-300">
+          <p className="text-sm max-w-md mb-4" style={{ color: '#d4d4d8' }}>
             Decode the patterns of complex systems. Master DSA and engineer your potential.
           </p>
 
