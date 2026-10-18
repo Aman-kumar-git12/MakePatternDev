@@ -394,8 +394,6 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
             const hasChildren = subfolders.length > 0 || patternQuestions.length > 0;
 
             const totalQ = pattern.question_count || 0;
-            const solvedQ = pattern.solved_count || 0;
-            const progressPct = pattern.progress_percentage || 0;
 
             return (
               <div
@@ -483,25 +481,6 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
                     </button>
                   </div>
                 </div>
-
-                {/* Progress bar indicator */}
-                <div className="pt-2 pb-1">
-                  <div className="flex items-center justify-between text-[11px] text-slate-400 mb-1">
-                    <span className="font-mono text-slate-400">
-                      Progress: {solvedQ} / {totalQ} Solved
-                    </span>
-                    <span className="font-mono font-semibold text-slate-300">
-                      {progressPct}%
-                    </span>
-                  </div>
-                  <div className="w-full bg-[#080C14] h-1.5 rounded-full overflow-hidden border border-slate-800">
-                    <div
-                      className="bg-gradient-to-r from-blue-500 to-emerald-400 h-full rounded-full transition-all duration-500"
-                      style={{ width: `${progressPct}%` }}
-                    />
-                  </div>
-                </div>
-
                 {/* Expanded Tree Structure inside this topic */}
                 {isExpanded && (
                   <div className="pt-2 pl-2">
