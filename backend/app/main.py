@@ -73,13 +73,40 @@ app.include_router(search.router, prefix="/api")
 app.include_router(test_cases.router, prefix="/api")
 app.include_router(shared.router, prefix="/api")
 
+# Also include auth directly so requests to /auth/register and /auth/login work even if /api prefix is omitted
+app.include_router(auth.router)
+
 
 @app.get("/api/health")
 def health_check():
+    from app.mongodb import get_mongo_db, _CA_FILE, get_last_mongo_error
+    mongo_status = "disconnected"
+    mongo_err = None
+    mongo_counts = {}
+    try:
+        mdb = get_mongo_db()
+        if mdb is not None:
+            mongo_status = "connected"
+            mongo_counts = {
+                "users": mdb.users.count_documents({}),
+                "folders": mdb.folders.count_documents({}),
+                "questions": mdb.questions.count_documents({})
+            }
+        else:
+            mongo_status = "none"
+            mongo_err = get_last_mongo_error()
+    except Exception as e:
+        mongo_status = "error"
+        mongo_err = str(e)
+
     return {
         "status": "healthy",
         "app": "DSA Learning Tracker API",
         "database": str(engine.url.database or engine.url),
+        "mongo_status": mongo_status,
+        "mongo_counts": mongo_counts,
+        "mongo_error": mongo_err,
+        "ca_file": _CA_FILE,
         "version": "1.0.0"
     }
 

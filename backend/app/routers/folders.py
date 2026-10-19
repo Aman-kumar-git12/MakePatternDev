@@ -13,8 +13,10 @@ from app.schemas.folder import (
 from app.mongodb import (
     get_share_for_folder_mongo, create_or_get_share_mongo,
     update_share_status_mongo, revoke_share_mongo,
-    save_folder_mongo, bulk_save_folders_mongo, delete_folder_mongo
+    save_folder_mongo, bulk_save_folders_mongo, delete_folder_mongo,
+    update_share_snapshot_status_mongo, revoke_share_snapshot_mongo
 )
+from app.services.share_service import capture_and_save_share_snapshot
 from app.routers.auth import get_current_user
 from app.services.folder_service import (
     build_tree_for_user,
@@ -29,7 +31,12 @@ def get_folder_tree(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    return build_tree_for_user(db, current_user.id)
+    tree = build_tree_for_user(db, current_user.id)
+    if not tree:
+        from app.mongodb import restore_user_data_from_mongo_to_sqlite
+        restore_user_data_from_mongo_to_sqlite(db, current_user.id)
+        tree = build_tree_for_user(db, current_user.id)
+    return tree
 
 @router.post("/", response_model=FolderTreeResponse, status_code=status.HTTP_201_CREATED)
 def create_folder(
@@ -277,6 +284,10 @@ def enable_or_create_folder_share(
         full_name=current_user.full_name or "",
         hashed_password=current_user.hashed_password or ""
     )
+
+    # Capture and freeze an immutable snapshot of this pattern hierarchy, questions & solutions (never overwrites if already existing)
+    capture_and_save_share_snapshot(db, current_user, folder_id, folder_name, share["share_id"], force_overwrite=False)
+
     return ShareResponse(
         share_id=share["share_id"],
         folder_id=share["folder_id"],
@@ -299,6 +310,8 @@ def toggle_folder_share_status(
     if not share:
         raise HTTPException(status_code=404, detail="Share settings not found")
 
+    update_share_snapshot_status_mongo(current_user.id, folder_id, update_data.is_active)
+
     return ShareResponse(
         share_id=share["share_id"],
         folder_id=share["folder_id"],
@@ -320,6 +333,9 @@ def revoke_and_regenerate_folder_share(
     if not share:
         raise HTTPException(status_code=404, detail="Failed to revoke share link")
 
+    # Capture a fresh snapshot for the new share link
+    capture_and_save_share_snapshot(db, current_user, folder_id, folder_name, share["share_id"], force_overwrite=True)
+
     return ShareResponse(
         share_id=share["share_id"],
         folder_id=share["folder_id"],
@@ -338,6 +354,7 @@ def disable_folder_share(
 ):
     _resolve_folder_name(folder_id, db, current_user)
     revoke_share_mongo(current_user.id, folder_id, regenerate_new=False)
+    revoke_share_snapshot_mongo(current_user.id, folder_id)
     return {"message": "Sharing disabled successfully for this pattern"}
 
 
