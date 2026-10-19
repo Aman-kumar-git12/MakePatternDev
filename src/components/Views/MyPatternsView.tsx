@@ -16,7 +16,9 @@ import {
   FolderTree,
   ExternalLink,
   GripVertical,
+  Share2,
 } from 'lucide-react';
+import { SharePatternModal } from '../Modals/SharePatternModal';
 import type { Folder, QuestionListItem, Difficulty, QuestionStatus } from '../../types/dsa';
 
 interface MyPatternsViewProps {
@@ -93,6 +95,7 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
   const [newTopicName, setNewTopicName] = useState('');
   const [isAddingTopic, setIsAddingTopic] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [sharingFolder, setSharingFolder] = useState<Folder | null>(null);
 
   // Drag and Drop state
   const [dragState, setDragState] = useState<DragState | null>(null);
@@ -439,6 +442,18 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
               <span>Problem</span>
             </button>
 
+            {/* Share Subtopic */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setSharingFolder(node);
+              }}
+              className="opacity-0 group-hover:opacity-100 p-1 rounded-md text-slate-500 hover:text-purple-400 hover:bg-purple-500/10 transition"
+              title={`Share "${node.name}"`}
+            >
+              <Share2 className="w-3 h-3" />
+            </button>
+
             {/* Edit Subtopic */}
             <button
               onClick={(e) => {
@@ -620,6 +635,41 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
     );
   };
 
+  // Compute aggregate statistics across topics & questions
+  const stats = useMemo(() => {
+    let topicCount = 0;
+    const seenFolders = new Set<string>();
+    const countFolders = (list: Folder[]) => {
+      for (const f of list) {
+        if (!seenFolders.has(f.id)) {
+          seenFolders.add(f.id);
+          topicCount++;
+        }
+        if (f.subfolders && f.subfolders.length > 0) {
+          countFolders(f.subfolders);
+        }
+      }
+    };
+    countFolders(folders);
+
+    let easyCount = 0;
+    let medCount = 0;
+    let hardCount = 0;
+    for (const q of questions) {
+      if (q.difficulty === 'Easy') easyCount++;
+      else if (q.difficulty === 'Medium') medCount++;
+      else if (q.difficulty === 'Hard') hardCount++;
+    }
+
+    return {
+      totalTopics: topicCount,
+      totalQuestions: questions.length,
+      easyCount,
+      medCount,
+      hardCount,
+    };
+  }, [folders, questions]);
+
   return (
     <div className="p-4 max-w-6xl mx-auto space-y-4 animate-fade-in font-sans">
       {/* Top Header Card */}
@@ -639,6 +689,15 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
 
           <div className="flex items-center space-x-2">
             <button
+              onClick={() => setSharingFolder({ id: 'all', name: 'All Patterns & Topics' } as Folder)}
+              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-purple-600/20 hover:bg-purple-600 text-purple-300 hover:text-white border border-purple-500/30 text-xs font-semibold shadow-md transition"
+              title="Share the whole list of topics & patterns"
+            >
+              <Share2 className="w-3.5 h-3.5" />
+              <span>Share All Patterns</span>
+            </button>
+
+            <button
               onClick={onOpenCreateTopic}
               className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-[#fef08a] hover:bg-[#fef9c3] text-[#18181b] text-xs font-semibold shadow-md shadow-yellow-200/30 transition"
               title="Create a new top-level DSA topic"
@@ -646,6 +705,30 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
               <Plus className="w-3.5 h-3.5" />
               <span>+ Add Topic</span>
             </button>
+          </div>
+        </div>
+
+        {/* Quick Stats: Total Topics, Total Questions, Easy, Med, Hard */}
+        <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-800/80">
+          <div className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-[#090E1A] border border-slate-800 text-xs">
+            <span className="text-slate-400">Total Topics:</span>
+            <span className="font-bold text-white">{stats.totalTopics}</span>
+          </div>
+          <div className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-[#090E1A] border border-slate-800 text-xs">
+            <span className="text-slate-400">Total Questions:</span>
+            <span className="font-bold text-white">{stats.totalQuestions}</span>
+          </div>
+          <div className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/25 text-xs">
+            <span className="text-emerald-400 font-medium">Easy:</span>
+            <span className="font-bold text-emerald-300">{stats.easyCount}</span>
+          </div>
+          <div className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/25 text-xs">
+            <span className="text-amber-400 font-medium">Med:</span>
+            <span className="font-bold text-amber-300">{stats.medCount}</span>
+          </div>
+          <div className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/25 text-xs">
+            <span className="text-rose-400 font-medium">Hard:</span>
+            <span className="font-bold text-rose-300">{stats.hardCount}</span>
           </div>
         </div>
 
@@ -822,6 +905,19 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
                     >
                       <FileCode className="w-3.5 h-3.5" />
                       <span>Add Question</span>
+                    </button>
+
+                    {/* Share Topic */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSharingFolder(pattern);
+                      }}
+                      className="flex items-center space-x-1 px-2.5 py-1 rounded-lg text-xs bg-purple-600/20 hover:bg-purple-600 text-purple-300 hover:text-white border border-purple-500/30 transition shadow-sm font-medium"
+                      title={`Share pattern "${pattern.name}"`}
+                    >
+                      <Share2 className="w-3.5 h-3.5" />
+                      <span>Share</span>
                     </button>
 
                     {/* Edit Topic */}
@@ -1019,6 +1115,13 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
           })
         )}
       </div>
+
+      {/* Share Modal */}
+      <SharePatternModal
+        isOpen={Boolean(sharingFolder)}
+        folder={sharingFolder}
+        onClose={() => setSharingFolder(null)}
+      />
     </div>
   );
 };

@@ -8,6 +8,7 @@ import { BookmarksView } from './components/Views/BookmarksView';
 import { AllQuestionsView } from './components/Views/AllQuestionsView';
 import { ProgressView } from './components/Views/ProgressView';
 import { MyPatternsView } from './components/Views/MyPatternsView';
+import { SharedPatternView } from './components/Views/SharedPatternView';
 import { GlobalSearchModal } from './components/Header/GlobalSearchModal';
 import { CreateTopicModal } from './components/Modals/CreateTopicModal';
 import { CreateSubtopicModal } from './components/Modals/CreateSubtopicModal';
@@ -701,7 +702,7 @@ function MainAppShell() {
   );
 }
 
-export function App() {
+function App() {
   return (
     <Routes>
       {/* Public Guest Routes */}
@@ -721,6 +722,9 @@ export function App() {
           </PublicRoute>
         }
       />
+
+      {/* Public Read-Only Shared Pattern Route */}
+      <Route path="/shared/:shareId" element={<SharedPatternView />} />
 
       {/* Protected Application Routes */}
       <Route
