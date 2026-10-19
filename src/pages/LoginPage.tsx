@@ -94,12 +94,15 @@ export const LoginPage: React.FC = () => {
       let type: 'auth_failed' | 'server_error' | 'validation' | 'general' = 'general';
 
       if (err instanceof ApiError) {
-        message = err.message;
+        message = err.message || 'Authentication failed. Please verify your credentials.';
         if (err.status === 401) {
           type = 'auth_failed';
-          message = 'Invalid email or password. Please verify your credentials.';
-          newFieldErrors.email = 'Check this email';
-          newFieldErrors.password = 'Check this password';
+          message = err.message || 'Incorrect password. Please verify your credentials.';
+          if (/password/i.test(message)) {
+            newFieldErrors.password = 'Incorrect password';
+          } else {
+            newFieldErrors.email = 'Check this email';
+          }
         } else if (err.status >= 500 || err.status === 0 || /server error|connection failed|backend server/i.test(message)) {
           type = 'server_error';
         } else if (err.status === 422) {
@@ -111,8 +114,12 @@ export const LoginPage: React.FC = () => {
         }
       } else if (err instanceof Error) {
         message = err.message;
-        if (/invalid email or password|credentials/i.test(message)) {
+        if (/password/i.test(message)) {
           type = 'auth_failed';
+          newFieldErrors.password = 'Incorrect password';
+        } else if (/invalid email|not found|credentials/i.test(message)) {
+          type = 'auth_failed';
+          newFieldErrors.email = 'Check this email';
         } else if (/server error|connect|fetch|500/i.test(message)) {
           type = 'server_error';
         }

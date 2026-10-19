@@ -817,6 +817,11 @@ function MainAppShell() {
 }
 
 function App() {
+  useEffect(() => {
+    // Pre-warm the backend immediately so login/register requests respond instantly
+    api.warmup();
+  }, []);
+
   return (
     <Routes>
       {/* Public Guest Routes */}

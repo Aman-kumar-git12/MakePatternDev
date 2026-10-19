@@ -446,6 +446,15 @@ class ApiService {
   async getSharedQuestion(shareId: string, questionId: string): Promise<Question> {
     return this.request<Question>(`/shared/${shareId}/questions/${questionId}`);
   }
+
+  // Pre-warm background backend to eliminate cold-start lag
+  async warmup(): Promise<void> {
+    try {
+      fetch(`${API_BASE_URL}/health`, { method: 'GET' }).catch(() => {});
+    } catch {
+      // ignore
+    }
+  }
 }
 
 export const api = new ApiService();
