@@ -101,6 +101,103 @@ export const PatternTreeView: React.FC<PatternTreeViewProps> = ({
     const subfolders = sortFolders(folder.subfolders || []);
     const hasChildren = subfolders.length > 0 || folderQuestions.length > 0;
 
+    type UnifiedTreeChild =
+      | { kind: 'subfolder'; id: string; position: number; data: Folder }
+      | { kind: 'question'; id: string; position: number; data: QuestionListItem };
+
+    const unifiedChildren: UnifiedTreeChild[] = [
+      ...subfolders.map((sf, idx) => ({
+        kind: 'subfolder' as const,
+        id: sf.id,
+        position: sf.position ?? idx,
+        data: sf,
+      })),
+      ...folderQuestions.map((q, idx) => ({
+        kind: 'question' as const,
+        id: q.id,
+        position: q.position ?? idx,
+        data: q,
+      })),
+    ].sort((a, b) => {
+      if (a.position !== b.position) return a.position - b.position;
+      if (a.kind === 'subfolder' && b.kind === 'question') return -1;
+      if (a.kind === 'question' && b.kind === 'subfolder') return 1;
+      return 0;
+    });
+
+    const renderQuestionItem = (q: QuestionListItem) => {
+      const isActive = activeQuestionId === q.id;
+      return (
+        <div
+          key={q.id}
+          onClick={() => onSelectQuestion(q.id)}
+          className={`flex items-center justify-between py-2 px-3 rounded-lg cursor-pointer transition group relative ${
+            isActive
+              ? 'bg-yellow-400/15 border-l-4 border-l-yellow-400 border border-yellow-400/35 text-yellow-200 shadow-sm shadow-yellow-400/10'
+              : 'border border-transparent'
+          }`}
+          style={isActive ? undefined : { color: 'var(--text-secondary)' }}
+          onMouseEnter={(e) => {
+            if (!isActive) {
+              e.currentTarget.style.backgroundColor = 'rgba(254, 240, 138, 0.08)';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!isActive) {
+              e.currentTarget.style.backgroundColor = '';
+            }
+          }}
+        >
+          <div className="flex items-center space-x-2.5 min-w-0">
+            {isActive ? (
+              <span className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse flex-shrink-0" />
+            ) : (
+              <div className="flex-shrink-0">{renderStatusIcon(q.status)}</div>
+            )}
+            <span
+              className={`text-xs transition truncate ${
+                isActive
+                  ? 'font-bold text-yellow-200'
+                  : 'font-medium group-hover:text-yellow-200'
+              }`}
+              style={isActive ? undefined : { color: 'var(--text-primary)' }}
+            >
+              {q.title}
+            </span>
+          </div>
+
+          <div className="flex items-center space-x-2 flex-shrink-0">
+            <span
+              className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+                difficultyColors[q.difficulty] || ''
+              }`}
+              style={!difficultyColors[q.difficulty] ? { color: 'var(--text-tertiary)' } : undefined}
+            >
+              {q.difficulty}
+            </span>
+
+            {onToggleBookmark && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleBookmark(q.id);
+                }}
+                className="p-1 hover:text-yellow-300 transition"
+                style={{ color: 'var(--text-muted)' }}
+                title="Bookmark"
+              >
+                <Star
+                  className={`w-3.5 h-3.5 ${
+                    q.is_bookmarked ? 'fill-[#fef08a] text-yellow-300' : ''
+                  }`}
+                />
+              </button>
+            )}
+          </div>
+        </div>
+      );
+    };
+
     return (
       <div key={folder.id} className="relative select-none">
         {/* Row Header */}
@@ -184,84 +281,11 @@ export const PatternTreeView: React.FC<PatternTreeViewProps> = ({
             className="relative pl-6 ml-3.5 space-y-0.5 mt-0.5 mb-1.5"
             style={{ borderLeft: '1px solid var(--border-subtle)' }}
           >
-            {/* 1. Subfolders */}
-            {subfolders.map((sub) =>
-              renderFolderNode(sub, false)
+            {unifiedChildren.map((item) =>
+              item.kind === 'subfolder'
+                ? renderFolderNode(item.data, false)
+                : renderQuestionItem(item.data)
             )}
-
-            {/* 2. Questions directly under this folder */}
-            {folderQuestions.map((q) => {
-              const isActive = activeQuestionId === q.id;
-              return (
-                <div
-                  key={q.id}
-                  onClick={() => onSelectQuestion(q.id)}
-                  className={`flex items-center justify-between py-2 px-3 rounded-lg cursor-pointer transition group relative ${
-                    isActive
-                      ? 'bg-yellow-400/15 border-l-4 border-l-yellow-400 border border-yellow-400/35 text-yellow-200 shadow-sm shadow-yellow-400/10'
-                      : 'border border-transparent'
-                  }`}
-                  style={isActive ? undefined : { color: 'var(--text-secondary)' }}
-                  onMouseEnter={(e) => {
-                    if (!isActive) {
-                      e.currentTarget.style.backgroundColor = 'rgba(254, 240, 138, 0.08)';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isActive) {
-                      e.currentTarget.style.backgroundColor = '';
-                    }
-                  }}
-                >
-                  <div className="flex items-center space-x-2.5 min-w-0">
-                    {isActive ? (
-                      <span className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse flex-shrink-0" />
-                    ) : (
-                      <div className="flex-shrink-0">{renderStatusIcon(q.status)}</div>
-                    )}
-                    <span
-                      className={`text-xs transition truncate ${
-                        isActive
-                          ? 'font-bold text-yellow-200'
-                          : 'font-medium group-hover:text-yellow-200'
-                      }`}
-                      style={isActive ? undefined : { color: 'var(--text-primary)' }}
-                    >
-                      {q.title}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center space-x-2 flex-shrink-0">
-                    <span
-                      className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
-                        difficultyColors[q.difficulty] || ''
-                      }`}
-                      style={!difficultyColors[q.difficulty] ? { color: 'var(--text-tertiary)' } : undefined}
-                    >
-                      {q.difficulty}
-                    </span>
-
-                    {onToggleBookmark && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onToggleBookmark(q.id);
-                        }}
-                        className="p-1 hover:text-yellow-300 transition"
-                        style={{ color: 'var(--text-muted)' }}
-                        title="Bookmark"
-                      >
-                        <Star
-                          className={`w-3.5 h-3.5 ${
-                            q.is_bookmarked ? 'fill-[#fef08a] text-yellow-300' : ''
-                          }`}
-                        />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
 
             {/* If folder is empty and has no subfolders, show friendly add prompt */}
             {!hasChildren && (

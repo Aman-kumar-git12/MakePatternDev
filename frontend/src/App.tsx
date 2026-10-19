@@ -343,6 +343,61 @@ function MainAppShell() {
     }
   };
 
+  const handleReorderChildren = async (
+    parentId: string,
+    reorderedFolders: Folder[],
+    reorderedQuestions: QuestionListItem[]
+  ) => {
+    const updateFolderInTree = (nodes: Folder[]): Folder[] => {
+      return nodes.map((node) => {
+        if (node.id === parentId) {
+          return {
+            ...node,
+            subfolders: reorderedFolders,
+          };
+        }
+        if (node.subfolders && node.subfolders.length > 0) {
+          return {
+            ...node,
+            subfolders: updateFolderInTree(node.subfolders),
+          };
+        }
+        return node;
+      });
+    };
+
+    setFolders((prev) => updateFolderInTree(prev));
+    setQuestions((prev) => {
+      const otherQuestions = prev.filter((q) => q.folder_id !== parentId);
+      return [...otherQuestions, ...reorderedQuestions];
+    });
+
+    try {
+      const folderPayload = reorderedFolders.map((f, idx) => ({ id: f.id, position: f.position ?? idx }));
+      const questionPayload = reorderedQuestions.map((q, idx) => ({ id: q.id, position: q.position ?? idx }));
+      await Promise.all([
+        folderPayload.length > 0 ? api.reorderFolders(folderPayload) : Promise.resolve(),
+        questionPayload.length > 0 ? api.reorderQuestions(questionPayload) : Promise.resolve(),
+      ]);
+    } catch (err) {
+      console.error('Failed to persist interleaved children reordering:', err);
+    }
+  };
+
+  const handleMoveQuestionDirect = async (questionId: string, targetFolderId: string) => {
+    try {
+      await api.moveQuestion(questionId, targetFolderId);
+      const [updatedTree, updatedQuestions] = await Promise.all([
+        api.getFolderTree(),
+        api.listQuestions(),
+      ]);
+      setFolders(updatedTree);
+      setQuestions(updatedQuestions);
+    } catch (err) {
+      console.error('Failed to move question directly:', err);
+    }
+  };
+
   // Question Operations
   const handleCreateQuestion = async (data: {
     folder_id?: string | null;
@@ -533,6 +588,7 @@ function MainAppShell() {
         onCloseMobile={() => setIsMobileMenuOpen(false)}
         user={user}
         onLogout={logout}
+        activeQuestion={activeQuestion}
       />
 
       {/* 2. Main Content Area */}
@@ -560,6 +616,7 @@ function MainAppShell() {
               onOpenImportLeetCode={() => setIsImportModalOpen(true)}
               onSelectView={handleSelectNavView}
               onToggleBookmark={handleToggleBookmark}
+              activeQuestionId={activeQuestion?.id}
             />
           )}
 
@@ -641,6 +698,9 @@ function MainAppShell() {
               onDeleteQuestion={handleDeleteQuestion}
               onReorderFolders={handleReorderFolders}
               onReorderQuestions={handleReorderQuestions}
+              onReorderChildren={handleReorderChildren}
+              onMoveQuestion={handleMoveQuestionDirect}
+              activeQuestionId={activeQuestion?.id}
             />
           )}
 
