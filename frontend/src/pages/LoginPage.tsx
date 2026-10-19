@@ -12,7 +12,6 @@ import {
   Sparkles,
   AlertCircle,
   Loader2,
-  CheckCircle2,
   Code2,
   Cpu,
 } from 'lucide-react';
@@ -30,12 +29,6 @@ export const LoginPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/';
-
-  const handleDemoFill = () => {
-    setEmail('aman@makepattern.dev');
-    setPassword('password123');
-    setError(null);
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -136,32 +129,6 @@ export const LoginPage: React.FC = () => {
                 <span className="leading-relaxed">{error}</span>
               </div>
             )}
-
-            {/* Quick Demo Credentials Pill */}
-            <div
-              className="mb-6 p-3 rounded-2xl flex items-center justify-between text-xs"
-              style={{
-                backgroundColor: 'var(--bg-surface)',
-                border: '1px solid var(--border-primary)',
-              }}
-            >
-              <div className="flex items-center space-x-2.5">
-                <div className="w-6 h-6 rounded-lg bg-yellow-400/20 flex items-center justify-center text-yellow-300">
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                </div>
-                <div>
-                  <div className="font-semibold" style={{ color: 'var(--text-primary)' }}>Demo Account</div>
-                  <div className="text-[11px] font-mono" style={{ color: 'var(--text-tertiary)' }}>aman@makepattern.dev</div>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={handleDemoFill}
-                className="px-2.5 py-1 rounded-lg bg-yellow-400/20 hover:bg-yellow-400/30 border border-yellow-400/30 text-yellow-300 hover:text-white text-[11px] font-semibold transition"
-              >
-                Auto Fill
-              </button>
-            </div>
 
             {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-4">

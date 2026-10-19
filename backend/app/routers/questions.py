@@ -183,7 +183,7 @@ def create_question(
 
     tags_str = json.dumps(q_in.tags or [])
 
-    if q_in.position is not None:
+    if q_in.position is not None and q_in.position > 0:
         q_pos = q_in.position
     else:
         max_pos = db.query(func.max(Question.position)).filter(

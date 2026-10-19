@@ -8,7 +8,7 @@ class FolderBase(BaseModel):
     parent_id: Optional[str] = None
     description: Optional[str] = ""
     tags: Optional[List[str]] = []
-    position: Optional[int] = 0
+    position: Optional[int] = None
 
 class FolderCreate(FolderBase):
     pass

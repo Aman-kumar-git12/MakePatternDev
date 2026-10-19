@@ -29,6 +29,15 @@ export const RegisterPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const handleAutofill = () => {
+    const num = Math.floor(1000 + Math.random() * 9000);
+    setFullName(`user(${num})`);
+    setEmail(`user(${num})@gmail.com`);
+    setPassword(`password@${num}`);
+    setConfirmPassword(`password@${num}`);
+    setError(null);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -147,6 +156,24 @@ export const RegisterPage: React.FC = () => {
                 <span className="leading-relaxed">{error}</span>
               </div>
             )}
+
+            {/* Autofill Button (Registration Page Only) */}
+            <div className="mb-4">
+              <button
+                type="button"
+                onClick={handleAutofill}
+                id="btn-autofill-register"
+                className="w-full py-2 px-3 rounded-xl text-xs font-semibold flex items-center justify-center space-x-2 transition duration-200 active:scale-[0.99] border shadow-sm hover:brightness-110"
+                style={{
+                  backgroundColor: 'var(--bg-base)',
+                  borderColor: 'rgba(254, 240, 138, 0.35)',
+                  color: '#fef08a',
+                }}
+              >
+                <Sparkles className="w-3.5 h-3.5 text-[#fef08a]" />
+                <span>Autofill Demo Credentials</span>
+              </button>
+            </div>
 
             {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-3.5">

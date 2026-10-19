@@ -26,7 +26,7 @@ interface AllQuestionsViewProps {
   title?: string;
   subtitle?: string;
   initialStatus?: string;
-  sortBy?: 'updated' | 'title' | 'difficulty';
+  sortBy?: 'order' | 'updated' | 'title' | 'difficulty';
   onRenameQuestion?: (questionId: string, currentTitle: string) => void;
   onMoveQuestion?: (questionId: string, questionTitle: string) => void;
   onDeleteQuestion?: (questionId: string, questionTitle: string) => void;
@@ -46,7 +46,7 @@ export const AllQuestionsView: React.FC<AllQuestionsViewProps> = ({
   const [search, setSearch] = useState('');
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>(initialStatus);
-  const [sortOption, setSortOption] = useState<'updated' | 'title' | 'difficulty'>(sortBy);
+  const [sortOption, setSortOption] = useState<'order' | 'updated' | 'title' | 'difficulty'>(sortBy as any);
   // Default to list view as requested
   const [viewMode, setViewMode] = useState<'list' | 'card'>('list');
 
@@ -71,6 +71,14 @@ export const AllQuestionsView: React.FC<AllQuestionsViewProps> = ({
         return matchesSearch && matchesDifficulty && matchesStatus;
       })
       .sort((a, b) => {
+        if (sortOption === 'order') {
+          const posA = a.position ?? 0;
+          const posB = b.position ?? 0;
+          if (posA !== posB) return posA - posB;
+          const dateA = new Date(a.created_at || a.updated_at || '').getTime();
+          const dateB = new Date(b.created_at || b.updated_at || '').getTime();
+          return dateA - dateB;
+        }
         if (sortOption === 'title') {
           return a.title.localeCompare(b.title);
         }
@@ -174,6 +182,7 @@ export const AllQuestionsView: React.FC<AllQuestionsViewProps> = ({
               onChange={(e) => setSortOption(e.target.value as any)}
               className="bg-transparent text-xs text-slate-200 focus:outline-none cursor-pointer"
             >
+              <option value="order" className="bg-[#0A0F1D]">Order (First Added First)</option>
               <option value="updated" className="bg-[#0A0F1D]">Recently Updated</option>
               <option value="title" className="bg-[#0A0F1D]">Title (A-Z)</option>
               <option value="difficulty" className="bg-[#0A0F1D]">Difficulty</option>

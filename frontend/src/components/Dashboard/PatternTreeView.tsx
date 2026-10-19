@@ -46,8 +46,32 @@ export const PatternTreeView: React.FC<PatternTreeViewProps> = ({
     }));
   };
 
+  const sortFolders = (list: Folder[]): Folder[] => {
+    return [...list].sort((a, b) => {
+      const posA = a.position ?? 0;
+      const posB = b.position ?? 0;
+      if (posA !== posB) return posA - posB;
+      if (a.created_at && b.created_at) {
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      }
+      return 0;
+    });
+  };
+
+  const sortQuestions = (list: QuestionListItem[]): QuestionListItem[] => {
+    return [...list].sort((a, b) => {
+      const posA = a.position ?? 0;
+      const posB = b.position ?? 0;
+      if (posA !== posB) return posA - posB;
+      if (a.created_at && b.created_at) {
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      }
+      return 0;
+    });
+  };
+
   const getQuestionsForFolder = (folderId: string): QuestionListItem[] => {
-    return questions.filter((q) => q.folder_id === folderId);
+    return sortQuestions(questions.filter((q) => q.folder_id === folderId));
   };
 
   const renderStatusIcon = (status: QuestionStatus) => {
@@ -73,7 +97,7 @@ export const PatternTreeView: React.FC<PatternTreeViewProps> = ({
   const renderFolderNode = (folder: Folder, isRoot = false) => {
     const isExpanded = !!expandedFolders[folder.id];
     const folderQuestions = getQuestionsForFolder(folder.id);
-    const subfolders = folder.subfolders || [];
+    const subfolders = sortFolders(folder.subfolders || []);
     const hasChildren = subfolders.length > 0 || folderQuestions.length > 0;
 
     return (
@@ -250,7 +274,7 @@ export const PatternTreeView: React.FC<PatternTreeViewProps> = ({
             No categories available. Click "New Question" above to start!
           </div>
         ) : (
-          folders.map((folder) =>
+          sortFolders(folders).map((folder) =>
             renderFolderNode(folder, true)
           )
         )}

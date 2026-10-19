@@ -13,7 +13,7 @@ class QuestionBase(BaseModel):
     difficulty: Optional[str] = "Medium"
     status: Optional[str] = "Not Started"
     tags: Optional[List[str]] = []
-    position: Optional[int] = 0
+    position: Optional[int] = None
 
 class QuestionCreate(QuestionBase):
     pass

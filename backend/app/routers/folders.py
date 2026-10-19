@@ -39,7 +39,7 @@ def create_folder(
 
     tags_json = json.dumps(folder_in.tags) if folder_in.tags else "[]"
 
-    if folder_in.position is not None:
+    if folder_in.position is not None and folder_in.position > 0:
         folder_pos = folder_in.position
     else:
         max_pos = db.query(func.max(Folder.position)).filter(
