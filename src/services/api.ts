@@ -160,9 +160,10 @@ class ApiService {
     return this.request<QuestionListItem[]>(`/questions/${qs}`);
   }
 
-  async getRandomQuestions(params?: { count?: number; only_revision?: boolean; status?: string; difficulty?: string }): Promise<QuestionListItem[]> {
+  async getRandomQuestions(params?: { count?: number; only_revision?: boolean; pool?: string; status?: string; difficulty?: string }): Promise<QuestionListItem[]> {
     const query = new URLSearchParams();
     if (params?.count) query.append('count', params.count.toString());
+    if (params?.pool) query.append('pool', params.pool);
     if (params?.only_revision !== undefined) query.append('only_revision', params.only_revision ? 'true' : 'false');
     if (params?.status) query.append('status', params.status);
     if (params?.difficulty) query.append('difficulty', params.difficulty);

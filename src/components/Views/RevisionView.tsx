@@ -37,7 +37,7 @@ export const RevisionView: React.FC<RevisionViewProps> = ({
   // Random Questions state
   const [isRandomModalOpen, setIsRandomModalOpen] = useState(false);
   const [randomCount, setRandomCount] = useState<number>(3);
-  const [randomSource, setRandomSource] = useState<'all' | 'revision'>('revision');
+  const [randomSource, setRandomSource] = useState<'all' | 'not_revised' | 'revision'>('all');
   const [isLoadingRandom, setIsLoadingRandom] = useState(false);
   const [randomQuestions, setRandomQuestions] = useState<QuestionListItem[] | null>(null);
   const [randomError, setRandomError] = useState<string | null>(null);
@@ -124,12 +124,15 @@ export const RevisionView: React.FC<RevisionViewProps> = ({
     try {
       const res = await api.getRandomQuestions({
         count: randomCount,
+        pool: randomSource,
         only_revision: randomSource === 'revision',
       });
       if (!res || res.length === 0) {
         setRandomError(
           randomSource === 'revision'
-            ? 'No questions flagged for revision yet. Try selecting "All Questions" or mark questions for revision first.'
+            ? 'No questions found in Revision Queue. Flag questions for revision first, or choose "All Questions".'
+            : randomSource === 'not_revised'
+            ? 'No unrevised questions found. All questions are currently in the Revision Queue.'
             : 'No questions available in the tracker.'
         );
         return;
@@ -208,8 +211,8 @@ export const RevisionView: React.FC<RevisionViewProps> = ({
         <div className="flex items-center space-x-3 shrink-0 relative z-10">
           <button
             onClick={() => {
-              setRandomCount(Math.min(5, Math.max(1, revisionCount > 0 ? Math.min(revisionCount, 5) : 3)));
-              setRandomSource(revisionCount > 0 ? 'revision' : 'all');
+              setRandomCount(Math.min(5, Math.max(1, totalCount > 0 ? Math.min(totalCount, 5) : 3)));
+              setRandomSource('all');
               setRandomError(null);
               setIsRandomModalOpen(true);
             }}
@@ -245,7 +248,11 @@ export const RevisionView: React.FC<RevisionViewProps> = ({
                   {randomQuestions.length} Questions
                 </span>
                 <span className="text-xs text-slate-400 font-normal">
-                  ({randomSource === 'revision' ? 'from Revision Queue' : 'from All Questions'})
+                  ({randomSource === 'all'
+                    ? 'from All Questions'
+                    : randomSource === 'not_revised'
+                    ? 'from Not Revised Questions'
+                    : 'from Revision Queue'})
                 </span>
               </div>
               <p className="text-xs text-amber-300/80 mt-0.5">
@@ -588,33 +595,50 @@ export const RevisionView: React.FC<RevisionViewProps> = ({
               </div>
             </div>
 
-            {/* Scope: Revision Queue vs All Questions */}
+            {/* Scope: Question Pool (All Questions on left by default) */}
             <div className="space-y-2 mb-6">
               <label className="text-xs font-semibold text-slate-300 block">Question Pool</label>
-              <div className="grid grid-cols-2 gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => setRandomSource('revision')}
-                  className={`p-3 rounded-xl border text-left transition cursor-pointer ${
-                    randomSource === 'revision'
-                      ? 'bg-amber-500/15 border-amber-500/50 text-amber-300'
-                      : 'bg-[#0A0F1D] border-slate-800 text-slate-400 hover:text-slate-300'
-                  }`}
-                >
-                  <div className="text-xs font-bold">Revision Queue</div>
-                  <div className="text-[11px] opacity-75 mt-0.5">{revisionCount} flagged questions</div>
-                </button>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {/* 1. All Questions (Default on the left) */}
                 <button
                   type="button"
                   onClick={() => setRandomSource('all')}
                   className={`p-3 rounded-xl border text-left transition cursor-pointer ${
                     randomSource === 'all'
-                      ? 'bg-blue-500/15 border-blue-500/50 text-blue-300'
+                      ? 'bg-amber-500/15 border-amber-500/50 text-amber-300 shadow-sm'
                       : 'bg-[#0A0F1D] border-slate-800 text-slate-400 hover:text-slate-300'
                   }`}
                 >
-                  <div className="text-xs font-bold">All Questions</div>
+                  <div className="text-xs font-bold truncate">All Questions</div>
                   <div className="text-[11px] opacity-75 mt-0.5">{totalCount} total tracked</div>
+                </button>
+
+                {/* 2. Not Revised Questions */}
+                <button
+                  type="button"
+                  onClick={() => setRandomSource('not_revised')}
+                  className={`p-3 rounded-xl border text-left transition cursor-pointer ${
+                    randomSource === 'not_revised'
+                      ? 'bg-amber-500/15 border-amber-500/50 text-amber-300 shadow-sm'
+                      : 'bg-[#0A0F1D] border-slate-800 text-slate-400 hover:text-slate-300'
+                  }`}
+                >
+                  <div className="text-xs font-bold truncate">Not Revised</div>
+                  <div className="text-[11px] opacity-75 mt-0.5">{unflaggedCount} questions</div>
+                </button>
+
+                {/* 3. Revision Queue */}
+                <button
+                  type="button"
+                  onClick={() => setRandomSource('revision')}
+                  className={`p-3 rounded-xl border text-left transition cursor-pointer ${
+                    randomSource === 'revision'
+                      ? 'bg-amber-500/15 border-amber-500/50 text-amber-300 shadow-sm'
+                      : 'bg-[#0A0F1D] border-slate-800 text-slate-400 hover:text-slate-300'
+                  }`}
+                >
+                  <div className="text-xs font-bold truncate">Revision Queue</div>
+                  <div className="text-[11px] opacity-75 mt-0.5">{revisionCount} flagged</div>
                 </button>
               </div>
             </div>
