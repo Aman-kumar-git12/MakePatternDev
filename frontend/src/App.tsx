@@ -758,8 +758,9 @@ function App() {
         }
       />
 
-      {/* Public Read-Only Shared Pattern Route */}
+      {/* Public Read-Only Shared Pattern Route (supports /shared/ and /share/) */}
       <Route path="/shared/:shareId" element={<SharedPatternView />} />
+      <Route path="/share/:shareId" element={<SharedPatternView />} />
 
       {/* Protected Application Routes */}
       <Route
