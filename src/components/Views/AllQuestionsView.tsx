@@ -194,11 +194,10 @@ export const AllQuestionsView: React.FC<AllQuestionsViewProps> = ({
             <button
               type="button"
               onClick={() => setViewMode('list')}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
-                viewMode === 'list'
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${viewMode === 'list'
                   ? 'bg-[#fef08a] text-[#18181b] shadow-md shadow-yellow-200/30'
                   : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-              }`}
+                }`}
               title="Switch to List View"
             >
               <List className="w-3.5 h-3.5" />
@@ -207,11 +206,10 @@ export const AllQuestionsView: React.FC<AllQuestionsViewProps> = ({
             <button
               type="button"
               onClick={() => setViewMode('card')}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
-                viewMode === 'card'
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${viewMode === 'card'
                   ? 'bg-[#fef08a] text-[#18181b] shadow-md shadow-yellow-200/30'
                   : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-              }`}
+                }`}
               title="Switch to Card View"
             >
               <LayoutGrid className="w-3.5 h-3.5" />
@@ -295,9 +293,8 @@ export const AllQuestionsView: React.FC<AllQuestionsViewProps> = ({
 
                   <div className="flex items-center space-x-3 flex-shrink-0">
                     <span
-                      className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full border ${
-                        difficultyColors[q.difficulty] || 'text-slate-400'
-                      }`}
+                      className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full border ${difficultyColors[q.difficulty] || 'text-slate-400'
+                        }`}
                     >
                       {q.difficulty}
                     </span>
@@ -315,9 +312,8 @@ export const AllQuestionsView: React.FC<AllQuestionsViewProps> = ({
                       title="Toggle bookmark"
                     >
                       <Star
-                        className={`w-4 h-4 ${
-                          q.is_bookmarked ? 'fill-[#fef08a] text-yellow-300' : ''
-                        }`}
+                        className={`w-4 h-4 ${q.is_bookmarked ? 'fill-[#fef08a] text-yellow-300' : ''
+                          }`}
                       />
                     </button>
 
@@ -358,9 +354,8 @@ export const AllQuestionsView: React.FC<AllQuestionsViewProps> = ({
                 <div>
                   <div className="flex items-center justify-between mb-3">
                     <span
-                      className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full border uppercase tracking-wider ${
-                        difficultyColors[q.difficulty] || 'text-slate-400'
-                      }`}
+                      className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full border uppercase tracking-wider ${difficultyColors[q.difficulty] || 'text-slate-400'
+                        }`}
                     >
                       {q.difficulty}
                     </span>
@@ -375,9 +370,8 @@ export const AllQuestionsView: React.FC<AllQuestionsViewProps> = ({
                         title="Toggle bookmark"
                       >
                         <Star
-                          className={`w-4 h-4 ${
-                            q.is_bookmarked ? 'fill-[#fef08a] text-yellow-300' : ''
-                          }`}
+                          className={`w-4 h-4 ${q.is_bookmarked ? 'fill-[#fef08a] text-yellow-300' : ''
+                            }`}
                         />
                       </button>
 

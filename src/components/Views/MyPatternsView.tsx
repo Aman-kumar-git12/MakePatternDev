@@ -453,6 +453,7 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
     const isFirst = index === 0;
     const isLast = index === totalCount - 1;
     const isActive = activeQuestionId === q.id;
+    const isAnyChildDragging = dragState?.parentId === parentId;
 
     return (
       <div
@@ -487,20 +488,32 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
           e.stopPropagation();
           handleChildDrop(parentId, q.id);
         }}
-        className={`flex items-center justify-between py-1.5 px-2.5 rounded-lg transition group relative select-none cursor-pointer before:content-[''] before:absolute before:-left-5 before:top-1/2 before:w-3.5 before:h-[1px] ${
-          isActive
+        className={`flex items-center justify-between py-1.5 px-2.5 rounded-lg transition-all group relative select-none cursor-pointer before:content-[''] before:absolute before:-left-5 before:top-1/2 before:w-3.5 before:h-[1px] ${
+          isDraggingQ
+            ? 'opacity-60 bg-amber-500/10 border border-dashed border-amber-400/80 ring-1 ring-amber-400/50 shadow-[0_0_12px_rgba(251,191,36,0.25)]'
+            : isTargetQ
+            ? 'bg-amber-500/20 ring-1 ring-amber-400/90 shadow-[0_0_16px_rgba(251,191,36,0.3)] border border-amber-400/80 text-amber-200'
+            : isActive
             ? 'bg-yellow-400/15 border-l-4 border-l-yellow-400 border border-yellow-400/35 text-yellow-200 shadow-sm shadow-yellow-400/10 before:bg-yellow-400/60'
+            : isAnyChildDragging
+            ? 'border border-transparent hover:bg-amber-400/10 hover:border-amber-400/30 text-slate-300 before:bg-slate-700/50'
             : 'border border-transparent hover:bg-yellow-400/5 hover:border-yellow-400/20 text-slate-300 before:bg-slate-700/50'
-        } ${
-          isDraggingQ ? 'opacity-40 border border-dashed border-yellow-400/50' : ''
-        } ${
-          isTargetQ && dropTarget?.position === 'before'
-            ? 'border-t-2 border-t-yellow-400'
-            : isTargetQ && dropTarget?.position === 'after'
-            ? 'border-b-2 border-b-yellow-400'
-            : ''
         }`}
       >
+        {/* Yellowish glowing drop line indicator for question */}
+        {isTargetQ && dropTarget?.position === 'before' && (
+          <div className="absolute -top-1 left-2 right-2 h-0.5 bg-amber-400 rounded-full shadow-[0_0_8px_rgba(251,191,36,1)] z-20 pointer-events-none flex items-center justify-between animate-pulse">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-300 -ml-0.5" />
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-300 -mr-0.5" />
+          </div>
+        )}
+        {isTargetQ && dropTarget?.position === 'after' && (
+          <div className="absolute -bottom-1 left-2 right-2 h-0.5 bg-amber-400 rounded-full shadow-[0_0_8px_rgba(251,191,36,1)] z-20 pointer-events-none flex items-center justify-between animate-pulse">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-300 -ml-0.5" />
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-300 -mr-0.5" />
+          </div>
+        )}
+
         <div className="flex items-center space-x-2 min-w-0">
           {/* Drag handle for question */}
           <div
@@ -520,7 +533,7 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
               setDropTarget(null);
             }}
             onClick={(e) => e.stopPropagation()}
-            className="cursor-grab active:cursor-grabbing p-0.5 text-slate-500 hover:text-yellow-300 transition"
+            className="cursor-grab active:cursor-grabbing p-0.5 text-slate-500 hover:text-amber-400 hover:bg-amber-400/10 rounded transition-all duration-150 active:scale-110 active:text-amber-300"
             title="Drag to rearrange problem"
           >
             <GripVertical className="w-3 h-3" />
@@ -670,12 +683,13 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
     const isTargetThis = dropTarget?.id === node.id;
     const isFirst = index !== undefined ? index === 0 : false;
     const isLast = index !== undefined && totalCount !== undefined ? index === totalCount - 1 : false;
+    const isAnyChildDragging = dragState?.parentId === node.parent_id;
 
     return (
       <div
         key={node.id}
         className={`text-xs space-y-1 rounded-lg transition-all ${
-          isDraggingThis ? 'opacity-40' : ''
+          isDraggingThis ? 'opacity-60' : ''
         }`}
       >
         {/* Node Row Header */}
@@ -721,16 +735,32 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
               handleChildDrop(node.parent_id, node.id);
             }
           }}
-          className={`flex items-center justify-between py-1.5 px-2.5 rounded-lg hover:bg-yellow-400/5 cursor-pointer transition select-none group ${
-            isTargetThis && dropTarget?.position === 'into'
-              ? 'border-2 border-yellow-400 bg-yellow-400/20 shadow-md shadow-yellow-400/20'
-              : isTargetThis && dropTarget?.position === 'before'
-              ? 'border-t-2 border-t-yellow-400'
-              : isTargetThis && dropTarget?.position === 'after'
-              ? 'border-b-2 border-b-yellow-400'
-              : ''
+          className={`flex items-center justify-between py-1.5 px-2.5 rounded-lg cursor-pointer transition-all select-none group relative ${
+            isDraggingThis
+              ? 'opacity-60 bg-amber-500/10 border border-dashed border-amber-400/80 ring-1 ring-amber-400/50 shadow-[0_0_15px_rgba(251,191,36,0.25)]'
+              : isTargetThis && dropTarget?.position === 'into'
+              ? 'border-2 border-amber-400 bg-amber-400/20 shadow-[0_0_20px_rgba(251,191,36,0.35)] ring-2 ring-amber-400/60'
+              : isTargetThis
+              ? 'bg-amber-500/15 ring-1 ring-amber-400/80 shadow-[0_0_15px_rgba(251,191,36,0.25)] border-amber-400/60'
+              : isAnyChildDragging
+              ? 'hover:bg-amber-400/10 hover:border-amber-400/40 border border-transparent'
+              : 'hover:bg-slate-800/60 border border-transparent'
           }`}
         >
+          {/* Yellowish glowing drop line indicator for subtopic */}
+          {isTargetThis && dropTarget?.position === 'before' && (
+            <div className="absolute -top-1 left-1 right-1 h-0.5 bg-amber-400 rounded-full shadow-[0_0_8px_rgba(251,191,36,1)] z-20 pointer-events-none flex items-center justify-between animate-pulse">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-300 -ml-0.5" />
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-300 -mr-0.5" />
+            </div>
+          )}
+          {isTargetThis && dropTarget?.position === 'after' && (
+            <div className="absolute -bottom-1 left-1 right-1 h-0.5 bg-amber-400 rounded-full shadow-[0_0_8px_rgba(251,191,36,1)] z-20 pointer-events-none flex items-center justify-between animate-pulse">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-300 -ml-0.5" />
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-300 -mr-0.5" />
+            </div>
+          )}
+
           <div className="flex items-center space-x-1.5 min-w-0">
             {/* Drag Handle for Subtopic */}
             <div
@@ -749,7 +779,7 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
                 setDropTarget(null);
               }}
               onClick={(e) => e.stopPropagation()}
-              className="cursor-grab active:cursor-grabbing p-0.5 text-slate-500 hover:text-yellow-300 transition"
+              className="cursor-grab active:cursor-grabbing p-0.5 text-slate-500 hover:text-amber-400 hover:bg-amber-400/10 rounded transition-all duration-150 active:scale-110 active:text-amber-300"
               title="Drag to rearrange subtopic"
             >
               <GripVertical className="w-3.5 h-3.5" />
@@ -1058,6 +1088,7 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
 
             const isDraggingTopic = dragState?.id === pattern.id;
             const isTargetTopic = dropTarget?.id === pattern.id;
+            const isAnyRootTopicDragging = dragState?.type === 'root-folder';
 
             return (
               <div
@@ -1083,16 +1114,30 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
                   e.preventDefault();
                   handleRootTopicDrop(pattern.id);
                 }}
-                className={`bg-[#0D1527] border border-slate-800/90 rounded-xl p-4 shadow-md transition hover:border-slate-700/90 ${
-                  isDraggingTopic ? 'opacity-40 border-dashed border-slate-600' : ''
-                } ${
-                  isTargetTopic && dropTarget?.position === 'before'
-                    ? 'border-t-2 border-t-yellow-400'
-                    : isTargetTopic && dropTarget?.position === 'after'
-                    ? 'border-b-2 border-b-yellow-400'
-                    : ''
+                className={`bg-[#0D1527] border rounded-xl p-4 shadow-md transition-all duration-200 relative ${
+                  isDraggingTopic
+                    ? 'opacity-70 border-2 border-dashed border-amber-400/80 bg-amber-500/10 shadow-[0_0_25px_rgba(251,191,36,0.25)] ring-2 ring-amber-400/50'
+                    : isTargetTopic
+                    ? 'bg-amber-500/10 ring-2 ring-amber-400/80 border-amber-400/80 shadow-[0_0_30px_rgba(251,191,36,0.35)]'
+                    : isAnyRootTopicDragging
+                    ? 'border-dashed border-amber-400/40 hover:border-amber-400/80 hover:bg-amber-500/5 shadow-sm'
+                    : 'border-slate-800/90 hover:border-slate-700/90'
                 }`}
               >
+                {/* Yellowish glowing drop position indicators */}
+                {isTargetTopic && dropTarget?.position === 'before' && (
+                  <div className="absolute -top-1.5 left-2 right-2 h-1 bg-amber-400 rounded-full shadow-[0_0_14px_rgba(251,191,36,1)] z-30 pointer-events-none flex items-center justify-between animate-pulse">
+                    <span className="w-2.5 h-2.5 rounded-full bg-amber-300 -ml-1 ring-2 ring-amber-500 shadow-[0_0_8px_rgba(251,191,36,1)]" />
+                    <span className="w-2.5 h-2.5 rounded-full bg-amber-300 -mr-1 ring-2 ring-amber-500 shadow-[0_0_8px_rgba(251,191,36,1)]" />
+                  </div>
+                )}
+                {isTargetTopic && dropTarget?.position === 'after' && (
+                  <div className="absolute -bottom-1.5 left-2 right-2 h-1 bg-amber-400 rounded-full shadow-[0_0_14px_rgba(251,191,36,1)] z-30 pointer-events-none flex items-center justify-between animate-pulse">
+                    <span className="w-2.5 h-2.5 rounded-full bg-amber-300 -ml-1 ring-2 ring-amber-500 shadow-[0_0_8px_rgba(251,191,36,1)]" />
+                    <span className="w-2.5 h-2.5 rounded-full bg-amber-300 -mr-1 ring-2 ring-amber-500 shadow-[0_0_8px_rgba(251,191,36,1)]" />
+                  </div>
+                )}
+
                 {/* Topic Header */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-slate-800/70">
                   <div className="flex items-center space-x-2 min-w-0">
@@ -1110,7 +1155,7 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
                         setDragState(null);
                         setDropTarget(null);
                       }}
-                      className="cursor-grab active:cursor-grabbing p-1 text-slate-500 hover:text-slate-300 transition"
+                      className="cursor-grab active:cursor-grabbing p-1 text-slate-500 hover:text-amber-400 hover:bg-amber-400/10 rounded-md transition-all duration-150 active:scale-110 active:text-amber-300"
                       title="Drag to rearrange topic order"
                     >
                       <GripVertical className="w-4 h-4" />
@@ -1251,6 +1296,14 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
           })
         )}
       </div>
+
+      {/* Floating Rearrange Indicator */}
+      {dragState && (
+        <div className="fixed bottom-6 right-6 z-50 bg-amber-400 text-slate-950 font-semibold text-xs px-4 py-2.5 rounded-full shadow-[0_0_25px_rgba(251,191,36,0.6)] flex items-center space-x-2 border border-amber-300 animate-bounce pointer-events-none">
+          <GripVertical className="w-4 h-4 text-slate-950" />
+          <span>Rearranging {dragState.type === 'root-folder' ? 'Topic' : dragState.type === 'subfolder' ? 'Subtopic' : 'Problem'} • Drop on glowing line to reorder</span>
+        </div>
+      )}
 
       {/* Share Modal */}
       <SharePatternModal
