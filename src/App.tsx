@@ -553,7 +553,7 @@ function MainAppShell() {
               onDeleteQuestion={handleDeleteQuestion}
               title="All Questions"
               subtitle="Browse, filter, and track questions across your entire curriculum"
-              sortBy="updated"
+              sortBy="order"
             />
           )}
 
