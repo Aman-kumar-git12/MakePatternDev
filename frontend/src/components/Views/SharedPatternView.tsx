@@ -297,26 +297,41 @@ export const SharedPatternView: React.FC = () => {
           )}
         </div>
 
+        {/* Controls: Left side tags and Right side link */}
         <div className="flex items-center space-x-3 shrink-0">
-          <span
-            className={`px-2 py-0.5 rounded-full text-xs font-medium border ${getDifficultyColor(
-              q.difficulty
-            )}`}
-          >
-            {q.difficulty}
-          </span>
-          {q.problem_url && (
-            <a
-              href={q.problem_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
-              className="text-slate-500 hover:text-blue-400 transition p-1"
-              title="Open problem link"
+          {/* Left side: Tags */}
+          <div className="flex items-center space-x-1.5">
+            <span
+              className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border ${getDifficultyColor(
+                q.difficulty
+              )}`}
             >
-              <ExternalLink className="w-3.5 h-3.5" />
-            </a>
-          )}
+              {q.difficulty}
+            </span>
+          </div>
+
+          {/* Right side: Link (Fixed slot ensures tags and links stay in perfect vertical sequence) */}
+          <div className="w-7 flex items-center justify-center shrink-0">
+            {q.problem_url && q.problem_url.trim() ? (
+              <a
+                href={q.problem_url.trim()}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 transition flex items-center justify-center"
+                title={`Open problem link: ${q.problem_url}`}
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            ) : (
+              <span
+                className="p-1.5 text-slate-700/50 cursor-not-allowed flex items-center justify-center"
+                title="No problem link provided"
+              >
+                <ExternalLink className="w-3.5 h-3.5 opacity-25" />
+              </span>
+            )}
+          </div>
         </div>
       </div>
     );

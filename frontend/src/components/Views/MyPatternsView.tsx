@@ -589,7 +589,9 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
           </span>
         </div>
 
+        {/* Controls: Left side tags and Right side link */}
         <div className="flex items-center space-x-2 flex-shrink-0">
+          {/* Left side: Tags */}
           <span
             className={`text-[9px] font-semibold px-2 py-0.5 rounded-full border ${
               difficultyColors[q.difficulty] || 'text-slate-400'
@@ -617,18 +619,28 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
             </button>
           )}
 
-          {q.problem_url && (
-            <a
-              href={q.problem_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
-              className="text-slate-500 hover:text-yellow-300 p-0.5 transition"
-              title="Open problem link"
-            >
-              <ExternalLink className="w-3 h-3" />
-            </a>
-          )}
+          {/* Right side: Link (Fixed slot ensures tags and links stay in sequence) */}
+          <div className="w-6 flex items-center justify-center shrink-0">
+            {q.problem_url && q.problem_url.trim() ? (
+              <a
+                href={q.problem_url.trim()}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="text-slate-500 hover:text-yellow-300 p-0.5 transition flex items-center justify-center"
+                title="Open problem link"
+              >
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            ) : (
+              <span
+                className="text-slate-700/40 p-0.5 cursor-not-allowed flex items-center justify-center"
+                title="No problem link"
+              >
+                <ExternalLink className="w-3 h-3 opacity-20" />
+              </span>
+            )}
+          </div>
 
           {onDeleteQuestion && (
             <button

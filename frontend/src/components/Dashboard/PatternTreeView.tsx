@@ -9,6 +9,7 @@ import {
   RotateCcw,
   Circle,
   Star,
+  ExternalLink,
 } from 'lucide-react';
 import type { Folder, QuestionListItem, Difficulty, QuestionStatus } from '../../types/dsa';
 
@@ -166,7 +167,9 @@ export const PatternTreeView: React.FC<PatternTreeViewProps> = ({
             </span>
           </div>
 
-          <div className="flex items-center space-x-2 flex-shrink-0">
+          {/* Controls: Left side tags and Right side link */}
+          <div className="flex items-center space-x-2.5 flex-shrink-0">
+            {/* Left side: Tags */}
             <span
               className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
                 difficultyColors[q.difficulty] || ''
@@ -193,6 +196,29 @@ export const PatternTreeView: React.FC<PatternTreeViewProps> = ({
                 />
               </button>
             )}
+
+            {/* Right side: Link (Fixed slot ensures tags and links stay in perfect vertical sequence) */}
+            <div className="w-6 flex items-center justify-center shrink-0">
+              {q.problem_url && q.problem_url.trim() ? (
+                <a
+                  href={q.problem_url.trim()}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="p-1 text-slate-500 hover:text-yellow-300 transition rounded flex items-center justify-center"
+                  title="Open problem link"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              ) : (
+                <span
+                  className="p-1 text-slate-600/30 cursor-not-allowed flex items-center justify-center"
+                  title="No problem link"
+                >
+                  <ExternalLink className="w-3.5 h-3.5 opacity-20" />
+                </span>
+              )}
+            </div>
           </div>
         </div>
       );
