@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
   Layers,
@@ -88,6 +88,63 @@ export const SharedPatternView: React.FC = () => {
       }
     };
   }, []);
+
+  const patternsList = useMemo(() => {
+    if (!data) return [];
+    return data.patterns && data.patterns.length > 0
+      ? data.patterns
+      : (data.pattern ? [data.pattern] : []);
+  }, [data]);
+
+  const isAllPatterns = useMemo(() => {
+    if (!data) return false;
+    return data.share_type === 'all' || (!data.pattern && Boolean(data.patterns));
+  }, [data]);
+
+  // Compute aggregate metrics: total topics, total questions, easy count, med count, hard count
+  const stats = useMemo(() => {
+    let topicCount = 0;
+    let questionCount = 0;
+    let easyCount = 0;
+    let medCount = 0;
+    let hardCount = 0;
+    let solvedCount = 0;
+
+    const seenQuestions = new Set<string>();
+
+    const traverse = (folder: Folder) => {
+      topicCount += 1;
+      if (folder.questions) {
+        for (const q of folder.questions) {
+          if (!seenQuestions.has(q.id)) {
+            seenQuestions.add(q.id);
+            questionCount += 1;
+            if (q.status === 'Solved') solvedCount += 1;
+            if (q.difficulty === 'Easy') easyCount += 1;
+            else if (q.difficulty === 'Medium') medCount += 1;
+            else if (q.difficulty === 'Hard') hardCount += 1;
+          }
+        }
+      }
+      if (folder.subfolders) {
+        for (const sf of folder.subfolders) {
+          traverse(sf);
+        }
+      }
+    };
+
+    patternsList.forEach(traverse);
+
+    return {
+      totalTopics: topicCount,
+      totalQuestions: questionCount,
+      easyCount,
+      medCount,
+      hardCount,
+      solvedCount,
+      overallProgress: questionCount > 0 ? Math.round((solvedCount / questionCount) * 100) : 0,
+    };
+  }, [patternsList]);
 
   useEffect(() => {
     if (shareId) {
@@ -358,56 +415,7 @@ export const SharedPatternView: React.FC = () => {
     );
   }
 
-  const { owner_name, share_type } = data;
-  const patternsList = data.patterns && data.patterns.length > 0
-    ? data.patterns
-    : (data.pattern ? [data.pattern] : []);
-  const isAllPatterns = share_type === 'all' || (!data.pattern && Boolean(data.patterns));
-
-  // Compute aggregate metrics: total topics, total questions, easy count, med count, hard count
-  const stats = React.useMemo(() => {
-    let topicCount = 0;
-    let questionCount = 0;
-    let easyCount = 0;
-    let medCount = 0;
-    let hardCount = 0;
-    let solvedCount = 0;
-
-    const seenQuestions = new Set<string>();
-
-    const traverse = (folder: Folder) => {
-      topicCount += 1;
-      if (folder.questions) {
-        for (const q of folder.questions) {
-          if (!seenQuestions.has(q.id)) {
-            seenQuestions.add(q.id);
-            questionCount += 1;
-            if (q.status === 'Solved') solvedCount += 1;
-            if (q.difficulty === 'Easy') easyCount += 1;
-            else if (q.difficulty === 'Medium') medCount += 1;
-            else if (q.difficulty === 'Hard') hardCount += 1;
-          }
-        }
-      }
-      if (folder.subfolders) {
-        for (const sf of folder.subfolders) {
-          traverse(sf);
-        }
-      }
-    };
-
-    patternsList.forEach(traverse);
-
-    return {
-      totalTopics: topicCount,
-      totalQuestions: questionCount,
-      easyCount,
-      medCount,
-      hardCount,
-      solvedCount,
-      overallProgress: questionCount > 0 ? Math.round((solvedCount / questionCount) * 100) : 0,
-    };
-  }, [patternsList]);
+  const { owner_name } = data;
 
   return (
     <div className="min-h-screen bg-[#070B14] text-slate-100 flex flex-col">

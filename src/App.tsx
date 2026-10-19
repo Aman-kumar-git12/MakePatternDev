@@ -9,6 +9,7 @@ import { AllQuestionsView } from './components/Views/AllQuestionsView';
 import { ProgressView } from './components/Views/ProgressView';
 import { MyPatternsView } from './components/Views/MyPatternsView';
 import { SharedPatternView } from './components/Views/SharedPatternView';
+import { RevisionView } from './components/Views/RevisionView';
 import { GlobalSearchModal } from './components/Header/GlobalSearchModal';
 import { CreateTopicModal } from './components/Modals/CreateTopicModal';
 import { CreateSubtopicModal } from './components/Modals/CreateSubtopicModal';
@@ -222,6 +223,45 @@ function MainAppShell() {
       setSummary(updatedSummary);
     } catch (err) {
       console.error('Failed to toggle bookmark:', err);
+    }
+  };
+
+  // Toggle Revision Status
+  const handleToggleRevision = async (questionId: string, isChecked: boolean) => {
+    const nextStatus: QuestionStatus = isChecked ? 'Needs Revision' : 'Solved';
+
+    // 1. Optimistic UI update for instantaneous live feedback
+    setQuestions((prev) =>
+      prev.map((q) => (q.id === questionId ? { ...q, status: nextStatus } : q))
+    );
+
+    if (activeQuestion && activeQuestion.id === questionId) {
+      setActiveQuestion({ ...activeQuestion, status: nextStatus });
+    }
+
+    setSummary((prev) => {
+      if (!prev) return prev;
+      const delta = isChecked ? 1 : -1;
+      return {
+        ...prev,
+        needs_revision_questions: Math.max(0, (prev.needs_revision_questions || 0) + delta),
+      };
+    });
+
+    try {
+      // 2. Persist update in backend
+      await api.updateQuestion(questionId, { status: nextStatus });
+
+      // 3. Sync full canonical summary and folder tree in background
+      const [updatedSummary, updatedTree] = await Promise.all([
+        api.getProgressSummary(),
+        api.getFolderTree(),
+      ]);
+      setSummary(updatedSummary);
+      setFolders(updatedTree);
+    } catch (err) {
+      console.error('Failed to toggle revision status:', err);
+      loadInitialData();
     }
   };
 
@@ -477,6 +517,7 @@ function MainAppShell() {
   };
 
   const bookmarkedQuestions = questions.filter((q) => q.is_bookmarked);
+  const revisionCount = questions.filter((q) => q.status === 'Needs Revision').length;
 
   return (
     <div className="flex h-screen w-full overflow-hidden font-sans" style={{ backgroundColor: 'var(--bg-app)', color: 'var(--text-primary)' }}>
@@ -485,6 +526,7 @@ function MainAppShell() {
         currentView={currentView}
         onSelectView={handleSelectNavView}
         bookmarkCount={bookmarkedQuestions.length}
+        revisionCount={revisionCount}
         isMobileOpen={isMobileMenuOpen}
         onCloseMobile={() => setIsMobileMenuOpen(false)}
         user={user}
@@ -574,18 +616,11 @@ function MainAppShell() {
           )}
 
           {currentView === 'revision' && (
-            <AllQuestionsView
+            <RevisionView
               questions={questions}
               onSelectQuestion={handleSelectQuestion}
+              onToggleRevision={handleToggleRevision}
               onToggleBookmark={handleToggleBookmark}
-              onOpenNewQuestion={() => handleOpenNewQuestion()}
-              onRenameQuestion={handleRenameQuestion}
-              onMoveQuestion={handleMoveQuestion}
-              onDeleteQuestion={handleDeleteQuestion}
-              title="Needs Revision"
-              subtitle="Priority questions flagged for quick review before interviews"
-              initialStatus="Needs Revision"
-              sortBy="updated"
             />
           )}
 
@@ -723,8 +758,9 @@ function App() {
         }
       />
 
-      {/* Public Read-Only Shared Pattern Route */}
+      {/* Public Read-Only Shared Pattern Route (supports /shared/ and /share/) */}
       <Route path="/shared/:shareId" element={<SharedPatternView />} />
+      <Route path="/share/:shareId" element={<SharedPatternView />} />
 
       {/* Protected Application Routes */}
       <Route
