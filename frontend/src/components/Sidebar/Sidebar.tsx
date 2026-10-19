@@ -143,18 +143,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   isCollapsed ? 'justify-center p-3' : 'justify-between px-3.5 py-2.5'
                 } ${
                   active
-                    ? 'bg-[#fef08a] text-[#18181b] shadow-md shadow-yellow-200/30'
+                    ? 'shadow-md shadow-yellow-400/20'
                     : ''
                 }`}
                 style={
                   active
-                    ? undefined
-                    : { color: 'var(--text-secondary)' }
+                    ? {
+                        backgroundColor: 'var(--bg-hover)',
+                        color: 'var(--text-primary)',
+                        border: '1px solid var(--border-hover)',
+                      }
+                    : {
+                        color: 'var(--text-secondary)',
+                      }
                 }
                 onMouseEnter={(e) => {
                   if (!active) {
-                    e.currentTarget.style.backgroundColor = 'rgba(254, 240, 138, 0.08)';
-                    e.currentTarget.style.color = '#fef08a';
+                    e.currentTarget.style.backgroundColor = 'var(--bg-hover)';
+                    e.currentTarget.style.color = 'var(--text-primary)';
                   }
                 }}
                 onMouseLeave={(e) => {
@@ -168,18 +174,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <div className="flex items-center space-x-3">
                   <Icon
                     className={`w-4 h-4 transition duration-200 ${
-                      active ? 'text-[#18181b]' : 'group-hover:text-yellow-300'
+                      active ? 'text-yellow-300' : 'text-slate-300 group-hover:text-yellow-300'
                     }`}
-                    style={active ? undefined : { color: 'var(--text-secondary)' }}
                   />
-                  {!isCollapsed && <span>{item.label}</span>}
+                  {!isCollapsed && (
+                    <span className="font-semibold text-xs" style={{ color: active ? 'var(--text-primary)' : 'inherit' }}>
+                      {item.label}
+                    </span>
+                  )}
                 </div>
 
                 {/* Badge if bookmark count > 0 */}
                 {!isCollapsed && item.badge !== undefined && (
                   <span
                     className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                      active ? 'bg-black/20 text-[#18181b]' : 'bg-[#fef08a]/25 text-yellow-300 border border-[#fef08a]/35'
+                      active ? 'bg-yellow-400/20 text-yellow-200 border border-yellow-400/40' : 'bg-white/10 text-white border border-white/20'
                     }`}
                   >
                     {item.badge}
@@ -188,7 +197,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
                 {/* Collapsed badge indicator dot */}
                 {isCollapsed && item.badge !== undefined && (
-                  <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-[#fef08a]" style={{ boxShadow: `0 0 0 2px var(--badge-ring)` }} />
+                  <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-yellow-300" style={{ boxShadow: `0 0 0 2px var(--badge-ring)` }} />
                 )}
               </button>
             );
@@ -220,7 +229,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 }}
               >
                 <div className="flex items-center space-x-2.5 min-w-0">
-                  <div className="w-7 h-7 rounded-lg bg-blue-600/30 border border-blue-500/40 text-blue-300 font-bold text-xs flex items-center justify-center flex-shrink-0">
+                  <div className="w-7 h-7 rounded-lg bg-[#fef08a] border border-[#fde047] text-[#18181b] font-bold text-xs flex items-center justify-center flex-shrink-0 shadow-sm">
                     {userName.charAt(0).toUpperCase()}
                   </div>
                   <div className="min-w-0">

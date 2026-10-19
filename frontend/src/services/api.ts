@@ -18,6 +18,20 @@ import type {
 
 const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000/api').replace(/\/+$/, '');
 
+export class ApiError extends Error {
+  status: number;
+  data: unknown;
+  fieldErrors: Record<string, string>;
+
+  constructor(message: string, status: number = 0, data?: unknown, fieldErrors: Record<string, string> = {}) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.data = data;
+    this.fieldErrors = fieldErrors;
+  }
+}
+
 class ApiService {
   private token: string | null = null;
 
@@ -70,20 +84,93 @@ class ApiService {
       headers['Authorization'] = `Bearer ${this.token}`;
     }
 
-    const res = await fetch(`${API_BASE_URL}${endpoint}`, {
-      ...options,
-      headers,
-    });
+    let res: Response;
+    try {
+      res = await fetch(`${API_BASE_URL}${endpoint}`, {
+        ...options,
+        headers,
+      });
+    } catch (networkErr: unknown) {
+      const isConnectionIssue = networkErr instanceof TypeError;
+      const message = isConnectionIssue
+        ? 'Server connection failed. Please ensure the backend server is running and accessible.'
+        : (networkErr instanceof Error ? networkErr.message : 'Network error occurred');
+      throw new ApiError(message, 0, null);
+    }
 
     if (!res.ok) {
       const errorText = await res.text();
-      let errorData;
+      let errorData: any = null;
       try {
         errorData = JSON.parse(errorText);
       } catch {
         errorData = { detail: errorText || `HTTP ${res.status}` };
       }
-      throw new Error(errorData.detail || errorData.message || 'API request failed');
+
+      const fieldErrors: Record<string, string> = {};
+      let cleanErrorMessage = '';
+
+      // 1. Handle FastAPI / Pydantic validation errors (array of errors in detail)
+      if (Array.isArray(errorData?.detail)) {
+        const errorList: string[] = [];
+        for (const item of errorData.detail) {
+          const rawField = Array.isArray(item.loc) && item.loc.length > 0
+            ? String(item.loc[item.loc.length - 1])
+            : 'field';
+
+          let itemMsg = String(item.msg || 'Invalid value');
+          if (itemMsg.startsWith('Value error, ')) {
+            itemMsg = itemMsg.replace('Value error, ', '');
+          }
+
+          const readableField = rawField
+            .replace(/_/g, ' ')
+            .replace(/\b\w/g, (c) => c.toUpperCase());
+
+          if (item.type === 'missing' || itemMsg.toLowerCase().includes('field required')) {
+            const desc = `${readableField} is missing`;
+            fieldErrors[rawField] = desc;
+            errorList.push(desc);
+          } else {
+            const desc = `${readableField}: ${itemMsg}`;
+            fieldErrors[rawField] = itemMsg;
+            errorList.push(desc);
+          }
+        }
+        cleanErrorMessage = errorList.join('. ');
+      } else if (typeof errorData?.detail === 'string') {
+        cleanErrorMessage = errorData.detail;
+      } else if (typeof errorData?.message === 'string') {
+        cleanErrorMessage = errorData.message;
+      }
+
+      // 2. Status-specific semantic enhancements
+      if (res.status === 400) {
+        if (/already registered|already in use|duplicate/i.test(cleanErrorMessage)) {
+          cleanErrorMessage = 'This email address is already registered. Please sign in or use a different email.';
+          fieldErrors.email = 'Email already in use';
+        } else if (!cleanErrorMessage) {
+          cleanErrorMessage = 'Invalid request. Please check all provided information.';
+        }
+      } else if (res.status === 401) {
+        if (!cleanErrorMessage || /not authenticated|unauthorized|invalid token/i.test(cleanErrorMessage)) {
+          cleanErrorMessage = 'Invalid email or password. Please verify your credentials.';
+        }
+      } else if (res.status === 403) {
+        cleanErrorMessage = cleanErrorMessage || 'Access forbidden: You do not have permission for this action.';
+      } else if (res.status === 404) {
+        cleanErrorMessage = cleanErrorMessage || 'The requested resource was not found (404).';
+      } else if (res.status === 422) {
+        if (!cleanErrorMessage) {
+          cleanErrorMessage = 'Validation error: One or more fields are invalid or missing.';
+        }
+      } else if (res.status >= 500) {
+        cleanErrorMessage = `Server error (${res.status}): The backend encountered an unexpected error. Please check your backend logs or try again.`;
+      } else if (!cleanErrorMessage) {
+        cleanErrorMessage = `Request failed with HTTP status ${res.status}`;
+      }
+
+      throw new ApiError(cleanErrorMessage, res.status, errorData, fieldErrors);
     }
 
     const text = await res.text();

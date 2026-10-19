@@ -83,12 +83,12 @@
   --border-subtle: #fef9c3;
   --border-hover: #fde047;
 
-  /* Typography — Dark charcoal for high contrast and readability */
-  --text-primary: #1c1917;
-  --text-secondary: #57534e;
-  --text-tertiary: #78716c;
-  --text-muted: #a8a29e;
-  --text-inverse: #18181b;
+  /* Typography — Deep rich dark colors for maximum clarity and visibility */
+  --text-primary: #09090b;       /* Crisp deep black for headings and primary labels */
+  --text-secondary: #18181b;     /* Very dark charcoal for readable body text and items */
+  --text-tertiary: #334155;      /* Dark slate for subtitles, badges, and labels */
+  --text-muted: #52525b;         /* Solid dark neutral for hints, counters, icons */
+  --text-inverse: #ffffff;
 
   /* Accents — Pure Soft Light Yellow (Zero Orange, Zero Amber) */
   --accent-primary: #fef08a;
@@ -173,46 +173,46 @@
   background-color: rgba(254, 240, 138, 0.20) !important;
 }
 
-.text-blue-400,
-.text-blue-300,
-.text-blue-500,
-.text-indigo-400,
-.text-indigo-300,
-.text-indigo-500,
-.text-sky-400,
-.text-amber-300,
-.text-amber-400,
-.text-amber-500,
-.text-yellow-400,
-.text-yellow-500,
-.text-orange-400,
-.text-orange-500 {
+.dark .text-blue-400,
+.dark .text-blue-300,
+.dark .text-blue-500,
+.dark .text-indigo-400,
+.dark .text-indigo-300,
+.dark .text-indigo-500,
+.dark .text-sky-400,
+.dark .text-amber-300,
+.dark .text-amber-400,
+.dark .text-amber-500,
+.dark .text-yellow-400,
+.dark .text-yellow-500,
+.dark .text-orange-400,
+.dark .text-orange-500 {
   color: #fde047 !important;
 }
 
-.fill-amber-400,
-.fill-amber-500,
-.fill-yellow-400,
-.fill-yellow-500 {
+.dark .fill-amber-400,
+.dark .fill-amber-500,
+.dark .fill-yellow-400,
+.dark .fill-yellow-500 {
   fill: #fde047 !important;
 }
 
-.hover\:text-blue-300:hover,
-.hover\:text-blue-400:hover,
-.hover\:text-indigo-300:hover,
-.hover\:text-indigo-400:hover,
-.hover\:text-amber-300:hover,
-.hover\:text-amber-400:hover,
-.hover\:text-yellow-200:hover,
-.hover\:text-yellow-300:hover,
-.group:hover .group-hover\:text-blue-300,
-.group:hover .group-hover\:text-blue-400,
-.group:hover .group-hover\:text-indigo-300,
-.group:hover .group-hover\:text-indigo-400,
-.group:hover .group-hover\:text-amber-300,
-.group:hover .group-hover\:text-amber-400,
-.group:hover .group-hover\:text-yellow-200,
-.group:hover .group-hover\:text-yellow-300 {
+.dark .hover\:text-blue-300:hover,
+.dark .hover\:text-blue-400:hover,
+.dark .hover\:text-indigo-300:hover,
+.dark .hover\:text-indigo-400:hover,
+.dark .hover\:text-amber-300:hover,
+.dark .hover\:text-amber-400:hover,
+.dark .hover\:text-yellow-200:hover,
+.dark .hover\:text-yellow-300:hover,
+.dark .group:hover .group-hover\:text-blue-300,
+.dark .group:hover .group-hover\:text-blue-400,
+.dark .group:hover .group-hover\:text-indigo-300,
+.dark .group:hover .group-hover\:text-indigo-400,
+.dark .group:hover .group-hover\:text-amber-300,
+.dark .group:hover .group-hover\:text-amber-400,
+.dark .group:hover .group-hover\:text-yellow-200,
+.dark .group:hover .group-hover\:text-yellow-300 {
   color: #fef08a !important;
 }
 
@@ -468,45 +468,142 @@
   border-color: var(--border-hover) !important;
 }
 
-/* Light mode text overrides: dark charcoal for high legibility */
-.light .text-white {
-  color: var(--text-primary) !important;
-}
-
+/* ==========================================================================
+   LIGHT MODE TEXT OVERRIDES
+   Ensures ALL fonts across the application are darker, crisp, and high-contrast
+   ========================================================================== */
+.light .text-white,
 .light .text-slate-100,
-.light .text-slate-200 {
+.light .text-slate-200,
+.light .text-zinc-100,
+.light .text-zinc-200,
+.light .text-gray-100,
+.light .text-gray-200 {
   color: var(--text-primary) !important;
 }
 
-.light .text-slate-300 {
+.light .text-slate-300,
+.light .text-zinc-300,
+.light .text-gray-300 {
   color: var(--text-secondary) !important;
 }
 
-.light .text-slate-400 {
+.light .text-slate-400,
+.light .text-zinc-400,
+.light .text-gray-400 {
   color: var(--text-tertiary) !important;
 }
 
 .light .text-slate-500,
-.light .text-slate-600 {
+.light .text-slate-600,
+.light .text-zinc-500,
+.light .text-zinc-600,
+.light .text-gray-500,
+.light .text-gray-600 {
   color: var(--text-muted) !important;
 }
 
+/* Light mode colored text & badge contrast overrides (never washed-out or yellow-on-white) */
+.light .text-yellow-400,
+.light .text-yellow-500,
+.light .text-amber-400,
+.light .text-amber-500,
+.light .text-amber-600,
+.light .text-orange-400,
+.light .text-orange-500 {
+  color: #854d0e !important; /* Deep dark amber - high contrast */
+}
+
+.light .text-yellow-200,
+.light .text-yellow-300,
+.light .text-amber-200,
+.light .text-amber-300 {
+  color: #92400e !important; /* Deep dark amber-brown */
+}
+
+.light .text-blue-400,
+.light .text-blue-300,
+.light .text-blue-500,
+.light .text-indigo-400,
+.light .text-indigo-300,
+.light .text-indigo-500,
+.light .text-sky-400 {
+  color: #1e293b !important; /* Crisp dark slate */
+}
+
+.light .text-emerald-300,
+.light .text-emerald-400,
+.light .text-emerald-500 {
+  color: #047857 !important; /* Deep dark emerald */
+}
+
+.light .text-rose-300,
+.light .text-rose-400,
+.light .text-rose-500 {
+  color: #be123c !important; /* Deep dark crimson */
+}
+
+.light .text-purple-300,
+.light .text-purple-400,
+.light .text-purple-500 {
+  color: #6b21a8 !important; /* Deep dark purple */
+}
+
+.light .fill-amber-400,
+.light .fill-amber-500,
+.light .fill-yellow-400,
+.light .fill-yellow-500 {
+  fill: #eab308 !important;
+}
+
+/* Light mode hover text colors */
 .light .hover\:text-white:hover,
 .light .hover\:text-slate-100:hover,
-.light .hover\:text-slate-200:hover {
+.light .hover\:text-slate-200:hover,
+.light .hover\:text-zinc-100:hover,
+.light .hover\:text-zinc-200:hover,
+.light .hover\:text-yellow-200:hover,
+.light .hover\:text-yellow-300:hover,
+.light .hover\:text-amber-300:hover,
+.light .hover\:text-amber-400:hover,
+.light .hover\:text-blue-300:hover,
+.light .hover\:text-blue-400:hover,
+.light .hover\:text-indigo-300:hover,
+.light .hover\:text-indigo-400:hover {
+  color: #000000 !important;
+}
+
+.light .hover\:text-slate-300:hover,
+.light .hover\:text-zinc-300:hover {
   color: var(--text-primary) !important;
 }
 
-.light .hover\:text-slate-300:hover {
+.light .hover\:text-slate-400:hover,
+.light .hover\:text-zinc-400:hover {
   color: var(--text-secondary) !important;
 }
 
-.light .group:hover .group-hover\:text-white {
-  color: var(--text-primary) !important;
+.light .group:hover .group-hover\:text-white,
+.light .group:hover .group-hover\:text-slate-100,
+.light .group:hover .group-hover\:text-slate-200,
+.light .group:hover .group-hover\:text-slate-300,
+.light .group:hover .group-hover\:text-yellow-200,
+.light .group:hover .group-hover\:text-yellow-300,
+.light .group:hover .group-hover\:text-blue-300,
+.light .group:hover .group-hover\:text-blue-400,
+.light .group:hover .group-hover\:text-indigo-300,
+.light .group:hover .group-hover\:text-indigo-400,
+.light .group:hover .group-hover\:text-amber-300,
+.light .group:hover .group-hover\:text-amber-400 {
+  color: #000000 !important;
 }
 
-.light .placeholder-slate-500::placeholder {
-  color: var(--text-muted) !important;
+/* Light mode input placeholders - dark & legible */
+.light .placeholder-slate-400::placeholder,
+.light .placeholder-slate-500::placeholder,
+.light input::placeholder,
+.light textarea::placeholder {
+  color: #64748b !important;
 }
 
 /* Ring/outline overrides */

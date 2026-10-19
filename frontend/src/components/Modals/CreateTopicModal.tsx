@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, FolderPlus, Tag, Sparkles, Loader2 } from 'lucide-react';
+import { X, FolderPlus, Sparkles, Loader2 } from 'lucide-react';
 
 interface CreateTopicModalProps {
   isOpen: boolean;
@@ -14,24 +14,10 @@ export const CreateTopicModal: React.FC<CreateTopicModalProps> = ({
 }) => {
   const [topicName, setTopicName] = useState('');
   const [description, setDescription] = useState('');
-  const [tagInput, setTagInput] = useState('');
-  const [tags, setTags] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   if (!isOpen) return null;
-
-  const handleAddTag = () => {
-    const trimmed = tagInput.trim();
-    if (trimmed && !tags.includes(trimmed)) {
-      setTags([...tags, trimmed]);
-      setTagInput('');
-    }
-  };
-
-  const handleRemoveTag = (tagToRemove: string) => {
-    setTags(tags.filter((t) => t !== tagToRemove));
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,12 +29,10 @@ export const CreateTopicModal: React.FC<CreateTopicModalProps> = ({
     setError(null);
     setIsSubmitting(true);
     try {
-      await onCreateTopic(topicName.trim(), description.trim(), tags);
+      await onCreateTopic(topicName.trim(), description.trim(), []);
       // Reset form
       setTopicName('');
       setDescription('');
-      setTags([]);
-      setTagInput('');
       onClose();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to create topic');
@@ -123,55 +107,6 @@ export const CreateTopicModal: React.FC<CreateTopicModalProps> = ({
             />
           </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-              Tags <span className="text-slate-500 text-[11px] font-normal">(Optional)</span>
-            </label>
-            <div className="flex items-center space-x-2">
-              <input
-                type="text"
-                value={tagInput}
-                onChange={(e) => setTagInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleAddTag();
-                  }
-                }}
-                placeholder="e.g. Core, Linear, Advanced"
-                className="flex-1 px-3.5 py-2 bg-[#090E1A] border border-slate-700/80 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
-              />
-              <button
-                type="button"
-                onClick={handleAddTag}
-                className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-semibold rounded-xl transition"
-              >
-                Add
-              </button>
-            </div>
-
-            {tags.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mt-2.5">
-                {tags.map((t) => (
-                  <span
-                    key={t}
-                    className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-blue-500/10 border border-blue-500/20 text-xs text-blue-300"
-                  >
-                    <Tag className="w-3 h-3 text-blue-400" />
-                    <span>{t}</span>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveTag(t)}
-                      className="hover:text-white"
-                    >
-                      &times;
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-
           {/* Modal Actions */}
           <div className="flex items-center justify-end space-x-2.5 pt-4 border-t border-slate-800/80">
             <button
@@ -205,3 +140,4 @@ export const CreateTopicModal: React.FC<CreateTopicModalProps> = ({
     </div>
   );
 };
+

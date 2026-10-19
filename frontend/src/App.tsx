@@ -398,6 +398,20 @@ function MainAppShell() {
     }
   };
 
+  const handleMoveFolderDirect = async (folderId: string, targetParentId: string | null) => {
+    try {
+      await api.moveFolder(folderId, targetParentId);
+      const [updatedTree, updatedQuestions] = await Promise.all([
+        api.getFolderTree(),
+        api.listQuestions(),
+      ]);
+      setFolders(updatedTree);
+      setQuestions(updatedQuestions);
+    } catch (err) {
+      console.error('Failed to move folder directly:', err);
+    }
+  };
+
   // Question Operations
   const handleCreateQuestion = async (data: {
     folder_id?: string | null;
@@ -420,12 +434,14 @@ function MainAppShell() {
     setQuestions(updatedQuestions);
 
     if (created && created.id) {
-      const fullQ = await api.getQuestion(created.id);
-      setActiveQuestion(fullQ);
-      navigate(`/question/${created.id}`);
-    } else {
-      navigate('/questions');
+      try {
+        const fullQ = await api.getQuestion(created.id);
+        setActiveQuestion(fullQ);
+      } catch {
+        // Fallback if detail fetch fails
+      }
     }
+    navigate('/patterns');
   };
 
   const handleSaveQuestion = async (updates: Partial<Question>) => {
@@ -700,6 +716,7 @@ function MainAppShell() {
               onReorderQuestions={handleReorderQuestions}
               onReorderChildren={handleReorderChildren}
               onMoveQuestion={handleMoveQuestionDirect}
+              onMoveFolder={handleMoveFolderDirect}
               activeQuestionId={activeQuestion?.id}
             />
           )}

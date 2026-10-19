@@ -18,6 +18,8 @@ import {
   ExternalLink,
   GripVertical,
   Share2,
+  ArrowUp,
+  ArrowUpRight,
 } from 'lucide-react';
 import { SharePatternModal } from '../Modals/SharePatternModal';
 import type { Folder, QuestionListItem, Difficulty, QuestionStatus } from '../../types/dsa';
@@ -38,6 +40,7 @@ interface MyPatternsViewProps {
   onReorderQuestions?: (folderId: string, reorderedQuestions: QuestionListItem[]) => Promise<void> | void;
   onReorderChildren?: (parentId: string, reorderedFolders: Folder[], reorderedQuestions: QuestionListItem[]) => Promise<void> | void;
   onMoveQuestion?: (questionId: string, targetFolderId: string) => Promise<void> | void;
+  onMoveFolder?: (folderId: string, targetParentId: string | null) => Promise<void> | void;
   activeQuestionId?: string | null;
 }
 
@@ -114,6 +117,17 @@ const sortQuestions = (list: QuestionListItem[]): QuestionListItem[] => {
   });
 };
 
+const findFolder = (list: Folder[], id: string): Folder | null => {
+  for (const f of list) {
+    if (f.id === id) return f;
+    if (f.subfolders && f.subfolders.length > 0) {
+      const found = findFolder(f.subfolders, id);
+      if (found) return found;
+    }
+  }
+  return null;
+};
+
 export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
   folders,
   questions,
@@ -130,6 +144,7 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
   onReorderQuestions,
   onReorderChildren,
   onMoveQuestion,
+  onMoveFolder,
   activeQuestionId,
 }) => {
   const [newTopicName, setNewTopicName] = useState('');
@@ -454,6 +469,10 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
     const isLast = index === totalCount - 1;
     const isActive = activeQuestionId === q.id;
 
+    const curFolder = findFolder(folders, parentId);
+    const parentFolder = curFolder?.parent_id ? findFolder(folders, curFolder.parent_id) : null;
+    const isInsideSubtopic = Boolean(curFolder?.parent_id);
+
     return (
       <div
         key={q.id}
@@ -461,7 +480,7 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
         onDragOver={(e) => {
           if (
             dragState &&
-            dragState.parentId === parentId &&
+            dragState.type === 'question' &&
             dragState.id !== q.id
           ) {
             e.preventDefault();
@@ -485,7 +504,15 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
         onDrop={(e) => {
           e.preventDefault();
           e.stopPropagation();
-          handleChildDrop(parentId, q.id);
+          if (dragState && dragState.type === 'question') {
+            if (dragState.parentId !== parentId && onMoveQuestion) {
+              onMoveQuestion(dragState.id, parentId);
+              setDragState(null);
+              setDropTarget(null);
+              return;
+            }
+            handleChildDrop(parentId, q.id);
+          }
         }}
         className={`flex items-center justify-between py-1.5 px-2.5 rounded-lg transition-all group relative select-none cursor-pointer before:content-[''] before:absolute before:-left-5 before:top-1/2 before:w-3.5 before:h-[1px] ${
           isDraggingQ
@@ -602,6 +629,21 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
 
         {/* Controls: Right side actions */}
         <div className="flex items-center space-x-2 flex-shrink-0">
+          {/* Quick Move Out of Subtopic button on hover */}
+          {isInsideSubtopic && parentFolder && onMoveQuestion && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onMoveQuestion(q.id, parentFolder.id);
+              }}
+              className="opacity-0 group-hover:opacity-100 flex items-center space-x-1 px-1.5 py-0.5 rounded text-[10px] bg-amber-500/10 text-amber-300 hover:bg-amber-500/25 hover:text-amber-200 border border-amber-500/30 transition shadow-sm"
+              title={`Move problem out of "${curFolder?.name}" into "${parentFolder.name}"`}
+            >
+              <ArrowUpRight className="w-3 h-3 text-amber-400" />
+              <span className="hidden sm:inline font-medium">Move Out</span>
+            </button>
+          )}
 
           {onToggleBookmark && (
             <button
@@ -674,6 +716,8 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
     const isFirst = index !== undefined ? index === 0 : false;
     const isLast = index !== undefined && totalCount !== undefined ? index === totalCount - 1 : false;
 
+    const parentFolder = node.parent_id ? findFolder(folders, node.parent_id) : null;
+
     return (
       <div
         key={node.id}
@@ -701,6 +745,10 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
                 e.preventDefault();
                 e.stopPropagation();
                 setDropTarget({ type: 'subfolder', id: node.id, position: 'into' });
+              } else if (dragState.type === 'subfolder' && dragState.id !== node.id) {
+                e.preventDefault();
+                e.stopPropagation();
+                setDropTarget({ type: 'subfolder', id: node.id, position: 'into' });
               }
             }
           }}
@@ -714,11 +762,19 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
           onDrop={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            if (dropTarget?.position === 'into' && dragState?.type === 'question' && onMoveQuestion) {
-              onMoveQuestion(dragState.id, node.id);
-              setDragState(null);
-              setDropTarget(null);
-              return;
+            if (dropTarget?.position === 'into' && dragState) {
+              if (dragState.type === 'question' && onMoveQuestion) {
+                onMoveQuestion(dragState.id, node.id);
+                setDragState(null);
+                setDropTarget(null);
+                return;
+              }
+              if (dragState.type === 'subfolder' && onMoveFolder) {
+                onMoveFolder(dragState.id, node.id);
+                setDragState(null);
+                setDropTarget(null);
+                return;
+              }
             }
             if (node.parent_id) {
               handleChildDrop(node.parent_id, node.id);
@@ -813,6 +869,26 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
               {nodeQuestions.length} {nodeQuestions.length === 1 ? 'problem' : 'problems'}
             </span>
 
+            {/* Quick Move Out of Subtopic button */}
+            {node.parent_id && onMoveFolder && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const grandParentId = parentFolder?.parent_id ?? null;
+                  onMoveFolder(node.id, grandParentId);
+                }}
+                className="opacity-0 group-hover:opacity-100 flex items-center space-x-1 px-2 py-0.5 rounded-md text-[11px] bg-amber-500/10 text-amber-300 hover:bg-amber-500/25 hover:text-amber-200 transition shadow-sm border border-amber-500/30"
+                title={
+                  parentFolder?.parent_id
+                    ? `Move subtopic out to "${findFolder(folders, parentFolder.parent_id)?.name || 'Parent Topic'}"`
+                    : `Promote to Main Topic`
+                }
+              >
+                <ArrowUpRight className="w-3 h-3 text-amber-400" />
+                <span>Move Out</span>
+              </button>
+            )}
+
             {/* Add Subtopic to this subtopic */}
             <button
               onClick={(e) => {
@@ -888,6 +964,85 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
                   : renderQuestionRow(item.data, node.id, idx, unified.length)
               );
             })()}
+
+            {/* Dedicated Drop Zone: When dragging a question from this subtopic, drop here to move it out to parent */}
+            {dragState?.type === 'question' && dragState.parentId === node.id && node.parent_id && (
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setDropTarget({
+                    type: 'subfolder',
+                    id: `move-out-${node.id}`,
+                    position: 'into',
+                  });
+                }}
+                onDragLeave={() => {
+                  if (dropTarget?.id === `move-out-${node.id}`) {
+                    setDropTarget(null);
+                  }
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (onMoveQuestion && node.parent_id) {
+                    onMoveQuestion(dragState.id, node.parent_id);
+                  }
+                  setDragState(null);
+                  setDropTarget(null);
+                }}
+                className={`my-1.5 py-2 px-3 border-2 border-dashed rounded-lg flex items-center justify-center space-x-2 text-xs transition-all cursor-pointer ${
+                  dropTarget?.id === `move-out-${node.id}`
+                    ? 'border-yellow-400 bg-yellow-400/20 text-yellow-200 shadow-md shadow-yellow-400/15 scale-[1.01]'
+                    : 'border-yellow-400/40 bg-yellow-400/5 text-yellow-300 hover:bg-yellow-400/10 hover:border-yellow-300'
+                }`}
+              >
+                <ArrowUp className="w-3.5 h-3.5 animate-bounce text-yellow-400" />
+                <span className="font-semibold text-yellow-300">
+                  Drop here to move problem out of "{node.name}" into "{parentFolder?.name || 'parent'}"
+                </span>
+              </div>
+            )}
+
+            {/* Dedicated Drop Zone: When dragging a subtopic from this subtopic, drop here to move it out */}
+            {dragState?.type === 'subfolder' && dragState.parentId === node.id && (
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setDropTarget({
+                    type: 'subfolder',
+                    id: `move-out-sub-${node.id}`,
+                    position: 'into',
+                  });
+                }}
+                onDragLeave={() => {
+                  if (dropTarget?.id === `move-out-sub-${node.id}`) {
+                    setDropTarget(null);
+                  }
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (onMoveFolder) {
+                    const grandParentId = parentFolder?.parent_id ?? null;
+                    onMoveFolder(dragState.id, grandParentId);
+                  }
+                  setDragState(null);
+                  setDropTarget(null);
+                }}
+                className={`my-1.5 py-2 px-3 border-2 border-dashed rounded-lg flex items-center justify-center space-x-2 text-xs transition-all cursor-pointer ${
+                  dropTarget?.id === `move-out-sub-${node.id}`
+                    ? 'border-indigo-400 bg-indigo-400/20 text-indigo-200 shadow-md shadow-indigo-400/15 scale-[1.01]'
+                    : 'border-indigo-400/40 bg-indigo-400/5 text-indigo-300 hover:bg-indigo-400/10 hover:border-indigo-300'
+                }`}
+              >
+                <ArrowUp className="w-3.5 h-3.5 animate-bounce text-indigo-400" />
+                <span className="font-semibold text-indigo-300">
+                  Drop here to move subtopic out of "{node.name}"
+                </span>
+              </div>
+            )}
 
             {/* Empty prompt */}
             {!hasChildren && (
@@ -1072,34 +1227,75 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
               <div
                 key={pattern.id}
                 onDragOver={(e) => {
-                  if (dragState?.type === 'root-folder' && dragState.id !== pattern.id) {
+                  if (!dragState) return;
+                  if (dragState.type === 'root-folder' && dragState.id !== pattern.id) {
                     e.preventDefault();
                     setDropTarget({
                       type: 'root-folder',
                       id: pattern.id,
                       position: 'after',
                     });
+                  } else if (dragState.type === 'question' && dragState.parentId !== pattern.id) {
+                    e.preventDefault();
+                    setDropTarget({
+                      type: 'root-folder',
+                      id: pattern.id,
+                      position: 'into',
+                    });
+                  } else if (dragState.type === 'subfolder' && dragState.parentId !== pattern.id && dragState.id !== pattern.id) {
+                    e.preventDefault();
+                    setDropTarget({
+                      type: 'root-folder',
+                      id: pattern.id,
+                      position: 'into',
+                    });
                   }
                 }}
-                onDragLeave={() => {
-                  if (dropTarget?.id === pattern.id) {
-                    setDropTarget(null);
+                onDragLeave={(e) => {
+                  if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                    if (dropTarget?.id === pattern.id) {
+                      setDropTarget(null);
+                    }
                   }
                 }}
                 onDrop={(e) => {
                   e.preventDefault();
+                  if (dropTarget?.position === 'into' && dragState) {
+                    if (dragState.type === 'question' && onMoveQuestion) {
+                      onMoveQuestion(dragState.id, pattern.id);
+                      setDragState(null);
+                      setDropTarget(null);
+                      return;
+                    }
+                    if (dragState.type === 'subfolder' && onMoveFolder) {
+                      onMoveFolder(dragState.id, pattern.id);
+                      setDragState(null);
+                      setDropTarget(null);
+                      return;
+                    }
+                  }
                   handleRootTopicDrop(pattern.id);
                 }}
                 className={`bg-[#0D1527] border rounded-xl p-4 shadow-md transition-all duration-200 relative ${
                   isDraggingTopic
                     ? 'opacity-40 border-slate-700'
+                    : isTargetTopic && dropTarget?.position === 'into'
+                    ? 'border-2 border-yellow-400 bg-yellow-400/10 shadow-[0_0_24px_rgba(250,204,21,0.25)]'
                     : isTargetTopic
                     ? 'border-slate-800 border-b-yellow-400/90 shadow-[0_8px_20px_rgba(250,204,21,0.2)]'
                     : 'border-slate-800/90 hover:border-slate-700/90'
                 }`}
               >
+                {/* Active drop into indicator */}
+                {isTargetTopic && dropTarget?.position === 'into' && (
+                  <div className="absolute top-3 right-3 px-2.5 py-1 rounded-md bg-yellow-400 text-slate-900 font-bold text-xs flex items-center space-x-1.5 z-30 shadow-lg animate-pulse pointer-events-none">
+                    <ArrowUp className="w-3.5 h-3.5" />
+                    <span>Drop to move into {pattern.name}</span>
+                  </div>
+                )}
+
                 {/* Yellowish light ONLY from bottom where it is getting rearranged */}
-                {isTargetTopic && (
+                {isTargetTopic && dropTarget?.position !== 'into' && (
                   <>
                     <div className="absolute bottom-0 left-0 right-0 h-4 bg-gradient-to-t from-yellow-400/15 to-transparent pointer-events-none rounded-b-xl" />
                     <div className="absolute -bottom-[2px] left-3 right-3 h-[2px] bg-yellow-400 rounded-full shadow-[0_0_14px_rgba(250,204,21,1),0_0_5px_rgba(250,204,21,1)] z-30 pointer-events-none flex items-center justify-between">
