@@ -189,10 +189,18 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
                   </div>
 
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-2 flex-wrap gap-y-1">
                       <h4 className="font-semibold text-sm text-slate-100 group-hover:text-yellow-300 transition truncate">
                         {q.title}
                       </h4>
+                      {/* Difficulty tag right to question title */}
+                      <span
+                        className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border uppercase tracking-wider text-center shrink-0 ${
+                          difficultyColors[q.difficulty] || 'text-slate-400'
+                        }`}
+                      >
+                        {q.difficulty}
+                      </span>
                       <Star className="w-3.5 h-3.5 text-yellow-300 fill-[#fef08a] flex-shrink-0" />
                     </div>
 
@@ -215,18 +223,8 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
                   </div>
                 </div>
 
-                {/* Right: Left side tags, fixed status, actions, and right side link */}
+                {/* Right: Actions and right side link */}
                 <div className="flex items-center space-x-2.5 sm:space-x-3 flex-shrink-0">
-                  {/* Left side: Tags */}
-                  <div className="w-16 flex items-center shrink-0">
-                    <span
-                      className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full border uppercase tracking-wider text-center ${
-                        difficultyColors[q.difficulty] || 'text-slate-400'
-                      }`}
-                    >
-                      {q.difficulty}
-                    </span>
-                  </div>
 
                   {/* Status text (Fixed width prevents tag jumping) */}
                   <div className="w-28 hidden sm:flex items-center text-xs text-slate-400 shrink-0">
@@ -284,12 +282,8 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
             >
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <span
-                    className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full border uppercase tracking-wider ${
-                      difficultyColors[q.difficulty] || 'text-slate-400'
-                    }`}
-                  >
-                    {q.difficulty}
+                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
+                    {q.status}
                   </span>
 
                   <button
@@ -304,9 +298,19 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
                   </button>
                 </div>
 
-                <h3 className="font-bold text-base text-white group-hover:text-blue-300 transition mb-1 leading-snug">
-                  {q.title}
-                </h3>
+                <div className="flex items-center space-x-2 flex-wrap gap-y-1 mb-1">
+                  <h3 className="font-bold text-base text-white group-hover:text-blue-300 transition leading-snug">
+                    {q.title}
+                  </h3>
+                  {/* Difficulty tag right to question title */}
+                  <span
+                    className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border uppercase tracking-wider shrink-0 ${
+                      difficultyColors[q.difficulty] || 'text-slate-400'
+                    }`}
+                  >
+                    {q.difficulty}
+                  </span>
+                </div>
 
                 <p className="text-xs text-slate-400 mb-4 truncate">
                   {q.folder_path || 'DSA'}

@@ -165,19 +165,20 @@ export const PatternTreeView: React.FC<PatternTreeViewProps> = ({
             >
               {q.title}
             </span>
-          </div>
 
-          {/* Controls: Left side tags and Right side link */}
-          <div className="flex items-center space-x-2.5 flex-shrink-0">
-            {/* Left side: Tags */}
+            {/* Difficulty tag right to question title */}
             <span
-              className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+              className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border shrink-0 ${
                 difficultyColors[q.difficulty] || ''
               }`}
               style={!difficultyColors[q.difficulty] ? { color: 'var(--text-tertiary)' } : undefined}
             >
               {q.difficulty}
             </span>
+          </div>
+
+          {/* Controls: Right side actions */}
+          <div className="flex items-center space-x-2.5 flex-shrink-0">
 
             {onToggleBookmark && (
               <button

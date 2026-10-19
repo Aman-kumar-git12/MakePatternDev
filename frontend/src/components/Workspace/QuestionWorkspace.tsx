@@ -260,16 +260,27 @@ export const QuestionWorkspace: React.FC<QuestionWorkspaceProps> = ({
           )}
         </div>
 
-        {/* Main Row: Title + Inline Tags (Left) and Actions (Right) */}
+        {/* Main Row: Title + Difficulty Tag + Tags (Left) and Actions (Right) */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-0.5">
-          {/* Left: Title + Tags */}
-          <div className="flex items-center space-x-2 min-w-0 flex-1">
+          {/* Left: Title + Difficulty Tag + Tags */}
+          <div className="flex items-center space-x-2 min-w-0 flex-1 flex-wrap gap-y-1">
             <input
               type="text"
               value={title}
               onChange={(e) => handleTitleChange(e.target.value)}
               className="text-base sm:text-lg font-bold text-white bg-transparent border-b border-transparent hover:border-slate-700 focus:border-blue-500 focus:outline-none transition truncate max-w-md py-0 leading-tight"
             />
+            {/* Difficulty Tag right to question title */}
+            <select
+              value={difficulty}
+              onChange={(e) => handleDifficultyChange(e.target.value as Difficulty)}
+              className={`text-xs font-semibold px-2 py-0.5 rounded-lg border focus:outline-none cursor-pointer shrink-0 ${difficultyColors[difficulty]}`}
+              title="Change difficulty"
+            >
+              <option value="Easy" className="bg-[#0D1527] text-emerald-400">Easy</option>
+              <option value="Medium" className="bg-[#0D1527] text-yellow-300">Medium</option>
+              <option value="Hard" className="bg-[#0D1527] text-rose-400">Hard</option>
+            </select>
             {tags.length > 0 && (
               <div className="flex items-center gap-1 flex-wrap">
                 {tags.map((t) => (
@@ -368,17 +379,6 @@ export const QuestionWorkspace: React.FC<QuestionWorkspaceProps> = ({
                 {question.is_bookmarked ? 'Bookmarked' : 'Bookmark'}
               </span>
             </button>
-
-            {/* Difficulty Selector */}
-            <select
-              value={difficulty}
-              onChange={(e) => handleDifficultyChange(e.target.value as Difficulty)}
-              className={`text-xs font-semibold px-2 py-1 rounded-lg border focus:outline-none cursor-pointer ${difficultyColors[difficulty]}`}
-            >
-              <option value="Easy" className="bg-[#0D1527] text-emerald-400">Easy</option>
-              <option value="Medium" className="bg-[#0D1527] text-yellow-300">Medium</option>
-              <option value="Hard" className="bg-[#0D1527] text-rose-400">Hard</option>
-            </select>
 
             {/* Status Dropdown */}
             <select

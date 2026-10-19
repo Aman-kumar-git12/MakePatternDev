@@ -283,6 +283,14 @@ export const SharedPatternView: React.FC = () => {
           <span className="text-sm font-medium text-slate-200 group-hover:text-blue-300 transition truncate">
             {q.title}
           </span>
+          {/* Difficulty tag right to question title */}
+          <span
+            className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border shrink-0 ${getDifficultyColor(
+              q.difficulty
+            )}`}
+          >
+            {q.difficulty}
+          </span>
           {q.tags && q.tags.length > 0 && (
             <div className="hidden sm:flex items-center space-x-1">
               {q.tags.slice(0, 2).map((tag) => (
@@ -297,18 +305,8 @@ export const SharedPatternView: React.FC = () => {
           )}
         </div>
 
-        {/* Controls: Left side tags and Right side link */}
+        {/* Controls: Right side actions */}
         <div className="flex items-center space-x-3 shrink-0">
-          {/* Left side: Tags */}
-          <div className="flex items-center space-x-1.5">
-            <span
-              className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border ${getDifficultyColor(
-                q.difficulty
-              )}`}
-            >
-              {q.difficulty}
-            </span>
-          </div>
 
           {/* Right side: Link (Fixed slot ensures tags and links stay in perfect vertical sequence) */}
           <div className="w-7 flex items-center justify-center shrink-0">
