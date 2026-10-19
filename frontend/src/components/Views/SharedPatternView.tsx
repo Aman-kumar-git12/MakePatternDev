@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
   Layers,
@@ -18,7 +18,8 @@ import {
   X,
   FileText,
   User,
-  Sparkles
+  Sparkles,
+  Link2Off
 } from 'lucide-react';
 import Editor from '@monaco-editor/react';
 import { api } from '../../services/api';
@@ -47,6 +48,46 @@ export const SharedPatternView: React.FC = () => {
   const [activeQuestion, setActiveQuestion] = useState<Question | null>(null);
   const [loadingQuestion, setLoadingQuestion] = useState(false);
   const [activeSolutionIndex, setActiveSolutionIndex] = useState(0);
+
+  // Snackbar state for missing problem URL
+  const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
+  const snackbarTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const FUNNY_NO_LINK_MESSAGES = [
+    "🕵️‍♂️ 404: Link Not Found! The sender forgot to attach the problem URL.",
+    "🤷‍♂️ Sender said: 'Trust me bro, the problem exists!' (No link provided 😅)",
+    "🦗 *crickets chirping*... The sender kept the problem link top secret! 🤫",
+    "🚀 Houston, we have a problem... but the sender didn't give us the link to it! 🛰️",
+    "👻 Whoosh! The link ghosted us. Guess you'll have to solve it from memory!",
+    "📦 The sender shipped the code, but forgot to pack the problem link!",
+    "☕ Looks like the sender needed one more cup of coffee before sharing this question!"
+  ];
+
+  const handleOpenProblemLink = () => {
+    const rawUrl = activeQuestion?.problem_url?.trim();
+    if (rawUrl) {
+      const targetUrl = /^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`;
+      window.open(targetUrl, '_blank', 'noopener,noreferrer');
+    } else {
+      const randomMsg =
+        FUNNY_NO_LINK_MESSAGES[Math.floor(Math.random() * FUNNY_NO_LINK_MESSAGES.length)];
+      if (snackbarTimerRef.current) {
+        clearTimeout(snackbarTimerRef.current);
+      }
+      setSnackbarMessage(randomMsg);
+      snackbarTimerRef.current = setTimeout(() => {
+        setSnackbarMessage(null);
+      }, 4500);
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (snackbarTimerRef.current) {
+        clearTimeout(snackbarTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (shareId) {
@@ -323,10 +364,50 @@ export const SharedPatternView: React.FC = () => {
     : (data.pattern ? [data.pattern] : []);
   const isAllPatterns = share_type === 'all' || (!data.pattern && Boolean(data.patterns));
 
-  // Compute aggregate totals across patterns
-  const totalQuestions = patternsList.reduce((acc, p) => acc + (p.question_count || (p.questions ? p.questions.length : 0)), 0);
-  const totalSolved = patternsList.reduce((acc, p) => acc + (p.solved_count || 0), 0);
-  const overallProgress = totalQuestions > 0 ? Math.round((totalSolved / totalQuestions) * 100) : 0;
+  // Compute aggregate metrics: total topics, total questions, easy count, med count, hard count
+  const stats = React.useMemo(() => {
+    let topicCount = 0;
+    let questionCount = 0;
+    let easyCount = 0;
+    let medCount = 0;
+    let hardCount = 0;
+    let solvedCount = 0;
+
+    const seenQuestions = new Set<string>();
+
+    const traverse = (folder: Folder) => {
+      topicCount += 1;
+      if (folder.questions) {
+        for (const q of folder.questions) {
+          if (!seenQuestions.has(q.id)) {
+            seenQuestions.add(q.id);
+            questionCount += 1;
+            if (q.status === 'Solved') solvedCount += 1;
+            if (q.difficulty === 'Easy') easyCount += 1;
+            else if (q.difficulty === 'Medium') medCount += 1;
+            else if (q.difficulty === 'Hard') hardCount += 1;
+          }
+        }
+      }
+      if (folder.subfolders) {
+        for (const sf of folder.subfolders) {
+          traverse(sf);
+        }
+      }
+    };
+
+    patternsList.forEach(traverse);
+
+    return {
+      totalTopics: topicCount,
+      totalQuestions: questionCount,
+      easyCount,
+      medCount,
+      hardCount,
+      solvedCount,
+      overallProgress: questionCount > 0 ? Math.round((solvedCount / questionCount) * 100) : 0,
+    };
+  }, [patternsList]);
 
   return (
     <div className="min-h-screen bg-[#070B14] text-slate-100 flex flex-col">
@@ -399,23 +480,56 @@ export const SharedPatternView: React.FC = () => {
               </p>
             </div>
 
-            {/* Quick Stats */}
-            <div className="flex items-center space-x-3 shrink-0">
-              <div className="px-4 py-2.5 rounded-xl bg-[#0A0F1D] border border-slate-800 text-center">
-                <div className="text-xs text-slate-500 font-medium">
-                  {isAllPatterns ? 'Topics' : 'Questions'}
+            {/* Quick Stats: Total Topics, Total Questions, Easy, Med, Hard */}
+            <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 shrink-0">
+              {/* Total Topics */}
+              <div className="px-3.5 py-2 rounded-xl bg-[#0A0F1D]/90 border border-slate-800 text-center min-w-[72px]">
+                <div className="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">
+                  Total Topics
                 </div>
-                <div className="text-lg font-bold text-white">
-                  {isAllPatterns ? patternsList.length : totalQuestions}
+                <div className="text-base font-bold text-white mt-0.5">
+                  {stats.totalTopics}
                 </div>
               </div>
-              <div className="px-4 py-2.5 rounded-xl bg-[#0A0F1D] border border-slate-800 text-center">
-                <div className="text-xs text-slate-500 font-medium">Solved</div>
-                <div className="text-lg font-bold text-emerald-400">{totalSolved}</div>
+
+              {/* Total Questions */}
+              <div className="px-3.5 py-2 rounded-xl bg-[#0A0F1D]/90 border border-slate-800 text-center min-w-[72px]">
+                <div className="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">
+                  Total Questions
+                </div>
+                <div className="text-base font-bold text-white mt-0.5">
+                  {stats.totalQuestions}
+                </div>
               </div>
-              <div className="px-4 py-2.5 rounded-xl bg-[#0A0F1D] border border-slate-800 text-center">
-                <div className="text-xs text-slate-500 font-medium">Progress</div>
-                <div className="text-lg font-bold text-blue-400">{overallProgress}%</div>
+
+              {/* Easy Count */}
+              <div className="px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-center min-w-[62px]">
+                <div className="text-[10px] text-emerald-400 uppercase font-semibold tracking-wider">
+                  Easy
+                </div>
+                <div className="text-base font-bold text-emerald-300 mt-0.5">
+                  {stats.easyCount}
+                </div>
+              </div>
+
+              {/* Med Count */}
+              <div className="px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/25 text-center min-w-[62px]">
+                <div className="text-[10px] text-amber-400 uppercase font-semibold tracking-wider">
+                  Med
+                </div>
+                <div className="text-base font-bold text-amber-300 mt-0.5">
+                  {stats.medCount}
+                </div>
+              </div>
+
+              {/* Hard Count */}
+              <div className="px-3 py-2 rounded-xl bg-rose-500/10 border border-rose-500/25 text-center min-w-[62px]">
+                <div className="text-[10px] text-rose-400 uppercase font-semibold tracking-wider">
+                  Hard
+                </div>
+                <div className="text-base font-bold text-rose-300 mt-0.5">
+                  {stats.hardCount}
+                </div>
               </div>
             </div>
           </div>
@@ -568,12 +682,30 @@ export const SharedPatternView: React.FC = () => {
                 </div>
               </div>
 
-              <button
-                onClick={closeQuestionModal}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/60 transition shrink-0"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              {/* Top-Right Action Buttons: Open Link & Close Modal */}
+              <div className="flex items-center space-x-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleOpenProblemLink}
+                  title={
+                    activeQuestion?.problem_url
+                      ? 'Open problem link in new tab'
+                      : 'No problem link provided by sender'
+                  }
+                  className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-blue-600/15 hover:bg-blue-600/25 text-blue-400 hover:text-blue-300 border border-blue-500/30 hover:border-blue-500/50 transition-all shadow-sm active:scale-95 cursor-pointer"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Open Link</span>
+                </button>
+
+                <button
+                  onClick={closeQuestionModal}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/60 transition shrink-0 cursor-pointer"
+                  title="Close Modal"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
             {/* Modal Body */}
@@ -703,12 +835,47 @@ export const SharedPatternView: React.FC = () => {
             <div className="px-6 py-3 border-t border-slate-800 bg-[#0A0F1D]/80 flex justify-end">
               <button
                 onClick={closeQuestionModal}
-                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition"
+                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition cursor-pointer"
               >
                 Close
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Humorous Snackbar for missing problem link */}
+      {snackbarMessage && (
+        <div
+          role="alert"
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] max-w-lg w-[92vw] sm:w-auto px-4 py-3 rounded-2xl bg-[#121829]/95 backdrop-blur-md border border-amber-500/40 text-slate-100 shadow-[0_12px_40px_rgba(0,0,0,0.85)] flex items-center space-x-3 animate-fade-in"
+          style={{
+            boxShadow: '0 8px 30px rgba(245, 158, 11, 0.22), 0 4px 16px rgba(0,0,0,0.8)',
+          }}
+        >
+          <div className="p-2 rounded-xl bg-amber-500/15 text-amber-400 border border-amber-500/30 shrink-0">
+            <Link2Off className="w-4 h-4" />
+          </div>
+          <div className="flex-1 min-w-0 pr-1">
+            <div className="flex items-center space-x-1.5">
+              <span className="text-[11px] font-bold tracking-wider text-amber-400 uppercase">
+                Link Not Provided
+              </span>
+              <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-mono">
+                404
+              </span>
+            </div>
+            <p className="text-xs text-slate-200 mt-0.5 leading-snug">
+              {snackbarMessage}
+            </p>
+          </div>
+          <button
+            onClick={() => setSnackbarMessage(null)}
+            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/60 transition shrink-0 cursor-pointer"
+            title="Dismiss"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
       )}
     </div>

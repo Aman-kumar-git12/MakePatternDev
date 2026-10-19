@@ -635,6 +635,41 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
     );
   };
 
+  // Compute aggregate statistics across topics & questions
+  const stats = useMemo(() => {
+    let topicCount = 0;
+    const seenFolders = new Set<string>();
+    const countFolders = (list: Folder[]) => {
+      for (const f of list) {
+        if (!seenFolders.has(f.id)) {
+          seenFolders.add(f.id);
+          topicCount++;
+        }
+        if (f.subfolders && f.subfolders.length > 0) {
+          countFolders(f.subfolders);
+        }
+      }
+    };
+    countFolders(folders);
+
+    let easyCount = 0;
+    let medCount = 0;
+    let hardCount = 0;
+    for (const q of questions) {
+      if (q.difficulty === 'Easy') easyCount++;
+      else if (q.difficulty === 'Medium') medCount++;
+      else if (q.difficulty === 'Hard') hardCount++;
+    }
+
+    return {
+      totalTopics: topicCount,
+      totalQuestions: questions.length,
+      easyCount,
+      medCount,
+      hardCount,
+    };
+  }, [folders, questions]);
+
   return (
     <div className="p-4 max-w-6xl mx-auto space-y-4 animate-fade-in font-sans">
       {/* Top Header Card */}
@@ -670,6 +705,30 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
               <Plus className="w-3.5 h-3.5" />
               <span>+ Add Topic</span>
             </button>
+          </div>
+        </div>
+
+        {/* Quick Stats: Total Topics, Total Questions, Easy, Med, Hard */}
+        <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-800/80">
+          <div className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-[#090E1A] border border-slate-800 text-xs">
+            <span className="text-slate-400">Total Topics:</span>
+            <span className="font-bold text-white">{stats.totalTopics}</span>
+          </div>
+          <div className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-[#090E1A] border border-slate-800 text-xs">
+            <span className="text-slate-400">Total Questions:</span>
+            <span className="font-bold text-white">{stats.totalQuestions}</span>
+          </div>
+          <div className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/25 text-xs">
+            <span className="text-emerald-400 font-medium">Easy:</span>
+            <span className="font-bold text-emerald-300">{stats.easyCount}</span>
+          </div>
+          <div className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/25 text-xs">
+            <span className="text-amber-400 font-medium">Med:</span>
+            <span className="font-bold text-amber-300">{stats.medCount}</span>
+          </div>
+          <div className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/25 text-xs">
+            <span className="text-rose-400 font-medium">Hard:</span>
+            <span className="font-bold text-rose-300">{stats.hardCount}</span>
           </div>
         </div>
 
