@@ -177,7 +177,7 @@ class ApiService {
   }
 
   async createQuestion(data: {
-    folder_id: string;
+    folder_id?: string | null;
     title: string;
     problem_url?: string;
     difficulty?: Difficulty;
