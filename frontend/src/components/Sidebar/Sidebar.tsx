@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { Home, Layers, FileText, Bookmark, ChevronLeft, ChevronRight, X, LogOut } from 'lucide-react';
+import { Home, Layers, FileText, Bookmark, RotateCcw, ChevronLeft, ChevronRight, X, LogOut } from 'lucide-react';
 import type { ViewMode, User } from '../../types/dsa';
 
 interface SidebarProps {
   currentView: ViewMode;
   onSelectView: (view: ViewMode) => void;
   bookmarkCount?: number;
+  revisionCount?: number;
   isMobileOpen?: boolean;
   onCloseMobile?: () => void;
   user?: User | null;
@@ -16,6 +17,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   currentView,
   onSelectView,
   bookmarkCount = 0,
+  revisionCount = 0,
   isMobileOpen = false,
   onCloseMobile,
   user,
@@ -23,7 +25,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
-  // Exactly four primary navigation items
+  // Primary navigation items
   const navItems = [
     { id: 'home' as ViewMode, label: 'Home', icon: Home },
     { id: 'patterns' as ViewMode, label: 'My Patterns', icon: Layers },
@@ -34,11 +36,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: Bookmark,
       badge: bookmarkCount > 0 ? bookmarkCount : undefined,
     },
+    {
+      id: 'revision' as ViewMode,
+      label: 'Revision',
+      icon: RotateCcw,
+      badge: revisionCount > 0 ? revisionCount : undefined,
+    },
   ];
 
   const isItemActive = (id: ViewMode) => {
     if (currentView === id) return true;
-    if ((currentView === 'recent' || currentView === 'revision') && id === 'all-questions') return true;
+    if (currentView === 'recent' && id === 'all-questions') return true;
     return false;
   };
 
