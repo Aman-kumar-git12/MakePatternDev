@@ -16,7 +16,13 @@ import type {
   PublicSharedPatternResponse
 } from '../types/dsa';
 
-const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000/api').replace(/\/+$/, '');
+const API_BASE_URL = (
+  import.meta.env.VITE_API_BASE_URL ||
+  import.meta.env.VITE_API_URL ||
+  (typeof window !== 'undefined' && !window.location.hostname.includes('localhost') && !window.location.hostname.includes('127.0.0.1')
+    ? 'https://makepatternbakend.onrender.com/api'
+    : 'http://localhost:8000/api')
+).replace(/\/+$/, '');
 
 export class ApiError extends Error {
   status: number;

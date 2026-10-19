@@ -12,8 +12,8 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
     PORT: int = 8000
     HOST: str = "0.0.0.0"
-    CLIENT_URL: str = "http://localhost:5173"
-    CORS_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174,http://localhost:3000"
+    CLIENT_URL: str = "https://make-pattern-dev.vercel.app"
+    CORS_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174,http://localhost:3000,https://make-pattern-dev.vercel.app"
     ALLOW_DEV_FALLBACK_AUTH: bool = False
     MONGODB_URL: Optional[str] = None
     MONGODB_URI: Optional[str] = "mongodb+srv://rajaman5562_db_user:7jKAFWoZA7m8kWAa@makepattern.lnprlgq.mongodb.net"

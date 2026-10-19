@@ -44,19 +44,19 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Configure CORS strictly to permitted frontend origins (no wildcard with credentials)
-raw_origins = [settings.CLIENT_URL]
+# Configure CORS dynamically for local dev, Vercel deployments, and custom domains
+raw_origins = [settings.CLIENT_URL, "https://make-pattern-dev.vercel.app"]
 if hasattr(settings, "CORS_ORIGINS") and settings.CORS_ORIGINS:
-    raw_origins.extend([o.strip() for o in settings.CORS_ORIGINS.split(",") if o.strip()])
+    raw_origins.extend([o.strip().rstrip("/") for o in settings.CORS_ORIGINS.split(",") if o.strip()])
 
 # Filter unique valid origins and strictly exclude "*"
-allowed_origins = sorted(list({origin for origin in raw_origins if origin and origin != "*"}))
+allowed_origins = sorted(list({origin.rstrip("/") for origin in raw_origins if origin and origin != "*"}))
 logger.info(f"Configured CORS allowed origins: {allowed_origins}")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
-    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:[0-9]+)?$",
+    allow_origin_regex=r"^https?://([a-zA-Z0-9_\-]+\.)*vercel\.app$|^https?://(localhost|127\.0\.0\.1)(:[0-9]+)?$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
