@@ -1,15 +1,14 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   RotateCcw,
   Search,
-  CheckCircle2,
-  Clock,
-  Circle,
   ExternalLink,
   ArrowRight,
   Filter,
   CheckSquare,
-  Square
+  Square,
+  X,
+  AlertCircle
 } from 'lucide-react';
 import type { QuestionListItem, Difficulty } from '../../types/dsa';
 
@@ -84,37 +83,32 @@ export const RevisionView: React.FC<RevisionViewProps> = ({
     Hard: 'text-rose-400 bg-rose-500/10 border-rose-500/20',
   };
 
-  const renderStatusBadge = (q: QuestionListItem) => {
-    if (q.status === 'Needs Revision') {
-      return (
-        <span className="flex items-center space-x-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/30">
-          <RotateCcw className="w-3 h-3 text-amber-400 animate-spin-slow" />
-          <span>Needs Revision</span>
-        </span>
-      );
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showToast = (msg: string) => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToastMessage(msg);
+    toastTimerRef.current = setTimeout(() => {
+      setToastMessage(null);
+    }, 3500);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
+
+  const handleRedirectionClick = (e: React.MouseEvent, q: QuestionListItem) => {
+    e.stopPropagation();
+    if (q.problem_url && q.problem_url.trim()) {
+      const rawUrl = q.problem_url.trim();
+      const targetUrl = /^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`;
+      window.open(targetUrl, '_blank', 'noopener,noreferrer');
+    } else {
+      showToast(`No question link is present for "${q.title}"`);
     }
-    if (q.status === 'Solved') {
-      return (
-        <span className="flex items-center space-x-1 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-          <CheckCircle2 className="w-3 h-3" />
-          <span>Solved</span>
-        </span>
-      );
-    }
-    if (q.status === 'In Progress') {
-      return (
-        <span className="flex items-center space-x-1 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20">
-          <Clock className="w-3 h-3" />
-          <span>In Progress</span>
-        </span>
-      );
-    }
-    return (
-      <span className="flex items-center space-x-1 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-800 text-slate-400 border border-slate-700/50">
-        <Circle className="w-3 h-3" />
-        <span>Not Started</span>
-      </span>
-    );
   };
 
   return (
@@ -306,44 +300,57 @@ export const RevisionView: React.FC<RevisionViewProps> = ({
                 </div>
               </div>
 
-              {/* Right Column: Difficulty, Status Badge & Action */}
-              <div className="flex items-center space-x-3 shrink-0">
-                {/* Difficulty */}
+              {/* Right Column: Exactly 3 sections as requested:
+                  1. Tag of Easy, Med, or Hard
+                  2. Practice button (goes inside question and shows all details)
+                  3. Redirection button (if link is present redirects in new tab, else shows no question link is present)
+              */}
+              <div className="flex items-center space-x-2 sm:space-x-2.5 shrink-0">
+                {/* 1. Tag of Easy, Med, or Hard */}
                 <span
-                  className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${
+                  className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${
                     difficultyColors[q.difficulty] || 'text-slate-400 bg-slate-800 border-slate-700'
                   }`}
                 >
                   {q.difficulty}
                 </span>
 
-                {/* Status Badge */}
-                <div className="hidden sm:block">
-                  {renderStatusBadge(q)}
-                </div>
-
-                {/* External URL if any */}
-                {q.problem_url && (
-                  <a
-                    href={q.problem_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                    className="p-1.5 rounded-lg text-slate-500 hover:text-blue-400 hover:bg-slate-800 transition"
-                    title="Open external problem link"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </a>
-                )}
-
-                {/* Solve/Practice Button */}
+                {/* 2. Practice Button: go inside the question and show all details */}
                 <button
-                  onClick={() => onSelectQuestion(q.id)}
-                  className="flex items-center space-x-1 px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-blue-600 text-slate-200 hover:text-white transition shadow-sm active:scale-95"
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSelectQuestion(q.id);
+                  }}
+                  className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-blue-600 text-slate-200 hover:text-white border border-slate-700/80 hover:border-blue-500 transition shadow-sm active:scale-95 cursor-pointer"
+                  title="Practice: view full question details, problem statement, solutions & test cases"
                 >
                   <span>Practice</span>
-                  <ArrowRight className="w-3 h-3" />
+                  <ArrowRight className="w-3.5 h-3.5" />
                 </button>
+
+                {/* 3. Redirection Button: redirect to question link in new tab, or show no link message */}
+                {q.problem_url && q.problem_url.trim() ? (
+                  <button
+                    type="button"
+                    onClick={(e) => handleRedirectionClick(e, q)}
+                    className="flex items-center space-x-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-blue-500/10 hover:bg-blue-600 text-blue-400 hover:text-white border border-blue-500/25 hover:border-blue-500 transition shadow-sm active:scale-95 cursor-pointer"
+                    title={`Redirect to ${q.problem_url} in a new tab`}
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    <span className="hidden md:inline text-[11px]">Link</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={(e) => handleRedirectionClick(e, q)}
+                    className="flex items-center space-x-1 px-2.5 py-1.5 rounded-xl text-xs font-medium bg-[#0A0F1D] text-slate-500 hover:text-amber-400 hover:bg-slate-800/80 border border-slate-800 hover:border-amber-500/30 transition shadow-sm cursor-pointer"
+                    title="No question link is present"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5 opacity-40" />
+                    <span className="hidden md:inline text-[11px] opacity-60">No Link</span>
+                  </button>
+                )}
               </div>
             </div>
           );
@@ -363,6 +370,37 @@ export const RevisionView: React.FC<RevisionViewProps> = ({
           </div>
         )}
       </div>
+
+      {/* Toast Notification when no question link is present */}
+      {toastMessage && (
+        <div
+          role="alert"
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 max-w-md w-[92vw] sm:w-auto px-4 py-3 rounded-2xl bg-[#0D1527]/95 backdrop-blur-md border border-amber-500/40 text-slate-100 shadow-[0_12px_40px_rgba(0,0,0,0.85)] flex items-center space-x-3 animate-fade-in"
+          style={{
+            boxShadow: '0 8px 30px rgba(245, 158, 11, 0.22), 0 4px 16px rgba(0,0,0,0.8)',
+          }}
+        >
+          <div className="w-8 h-8 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center justify-center shrink-0">
+            <AlertCircle className="w-4 h-4" />
+          </div>
+          <div className="flex-1 min-w-0 pr-1">
+            <div className="text-[11px] font-bold uppercase tracking-wider text-amber-400">
+              Problem Link
+            </div>
+            <p className="text-xs text-slate-200 mt-0.5 leading-snug">
+              {toastMessage}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setToastMessage(null)}
+            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/60 transition shrink-0 cursor-pointer"
+            title="Dismiss"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
     </div>
   );
 };
