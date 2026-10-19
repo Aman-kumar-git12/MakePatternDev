@@ -147,3 +147,19 @@ export interface AuthResponse {
   token_type: string;
   user: User;
 }
+
+export interface ShareResponse {
+  share_id: string;
+  folder_id: string;
+  folder_name: string;
+  is_active: boolean;
+  share_url: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PublicSharedPatternResponse {
+  share_id: string;
+  owner_name: string;
+  pattern: Folder;
+}

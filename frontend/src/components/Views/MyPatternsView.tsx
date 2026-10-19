@@ -16,7 +16,9 @@ import {
   FolderTree,
   ExternalLink,
   GripVertical,
+  Share2,
 } from 'lucide-react';
+import { SharePatternModal } from '../Modals/SharePatternModal';
 import type { Folder, QuestionListItem, Difficulty, QuestionStatus } from '../../types/dsa';
 
 interface MyPatternsViewProps {
@@ -93,6 +95,7 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
   const [newTopicName, setNewTopicName] = useState('');
   const [isAddingTopic, setIsAddingTopic] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [sharingFolder, setSharingFolder] = useState<Folder | null>(null);
 
   // Drag and Drop state
   const [dragState, setDragState] = useState<DragState | null>(null);
@@ -437,6 +440,18 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
             >
               <Plus className="w-3 h-3" />
               <span>Problem</span>
+            </button>
+
+            {/* Share Subtopic */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setSharingFolder(node);
+              }}
+              className="opacity-0 group-hover:opacity-100 p-1 rounded-md text-slate-500 hover:text-purple-400 hover:bg-purple-500/10 transition"
+              title={`Share "${node.name}"`}
+            >
+              <Share2 className="w-3 h-3" />
             </button>
 
             {/* Edit Subtopic */}
@@ -824,6 +839,19 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
                       <span>Add Question</span>
                     </button>
 
+                    {/* Share Topic */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSharingFolder(pattern);
+                      }}
+                      className="flex items-center space-x-1 px-2.5 py-1 rounded-lg text-xs bg-purple-600/20 hover:bg-purple-600 text-purple-300 hover:text-white border border-purple-500/30 transition shadow-sm font-medium"
+                      title={`Share pattern "${pattern.name}"`}
+                    >
+                      <Share2 className="w-3.5 h-3.5" />
+                      <span>Share</span>
+                    </button>
+
                     {/* Edit Topic */}
                     <button
                       onClick={() => onEditFolder(pattern)}
@@ -1019,6 +1047,13 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
           })
         )}
       </div>
+
+      {/* Share Modal */}
+      <SharePatternModal
+        isOpen={Boolean(sharingFolder)}
+        folder={sharingFolder}
+        onClose={() => setSharingFolder(null)}
+      />
     </div>
   );
 };

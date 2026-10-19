@@ -46,3 +46,21 @@ class FolderTreeResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 FolderTreeResponse.model_rebuild()
+
+class ShareStatusUpdate(BaseModel):
+    is_active: bool
+
+class ShareResponse(BaseModel):
+    share_id: str
+    folder_id: str
+    folder_name: str
+    is_active: bool
+    share_url: str
+    created_at: str
+    updated_at: str
+
+class PublicSharedPatternResponse(BaseModel):
+    share_id: str
+    owner_name: str
+    pattern: FolderTreeResponse
+

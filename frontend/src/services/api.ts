@@ -11,7 +11,9 @@ import type {
   SupportedLanguage,
   ComplexityAnalysisResult,
   User,
-  AuthResponse
+  AuthResponse,
+  ShareResponse,
+  PublicSharedPatternResponse
 } from '../types/dsa';
 
 const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000/api').replace(/\/+$/, '');
@@ -300,6 +302,40 @@ class ApiService {
   async search(query: string): Promise<SearchResult> {
     return this.request<SearchResult>(`/search/?q=${encodeURIComponent(query)}`);
   }
+
+  // Sharing API
+  async getFolderShare(folderId: string): Promise<ShareResponse> {
+    return this.request<ShareResponse>(`/folders/${folderId}/share`);
+  }
+
+  async createFolderShare(folderId: string): Promise<ShareResponse> {
+    return this.request<ShareResponse>(`/folders/${folderId}/share`, {
+      method: 'POST',
+    });
+  }
+
+  async updateFolderShare(folderId: string, isActive: boolean): Promise<ShareResponse> {
+    return this.request<ShareResponse>(`/folders/${folderId}/share`, {
+      method: 'PATCH',
+      body: JSON.stringify({ is_active: isActive }),
+    });
+  }
+
+  async revokeFolderShare(folderId: string): Promise<ShareResponse> {
+    return this.request<ShareResponse>(`/folders/${folderId}/share/revoke`, {
+      method: 'POST',
+    });
+  }
+
+  // Public Shared API
+  async getSharedPattern(shareId: string): Promise<PublicSharedPatternResponse> {
+    return this.request<PublicSharedPatternResponse>(`/shared/${shareId}`);
+  }
+
+  async getSharedQuestion(shareId: string, questionId: string): Promise<Question> {
+    return this.request<Question>(`/shared/${shareId}/questions/${questionId}`);
+  }
 }
 
 export const api = new ApiService();
+

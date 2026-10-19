@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from app.database import engine, Base, SessionLocal
 from app.config import settings
 from app.mongodb import init_mongodb
-from app.routers import auth, folders, questions, solutions, bookmarks, progress, search, test_cases
+from app.routers import auth, folders, questions, solutions, bookmarks, progress, search, test_cases, shared
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -63,6 +63,7 @@ app.include_router(bookmarks.router, prefix="/api")
 app.include_router(progress.router, prefix="/api")
 app.include_router(search.router, prefix="/api")
 app.include_router(test_cases.router, prefix="/api")
+app.include_router(shared.router, prefix="/api")
 
 
 @app.get("/api/health")

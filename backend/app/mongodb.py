@@ -1,5 +1,6 @@
 import logging
-from typing import Optional, Dict, Any
+import secrets
+from typing import Optional, Dict, Any, List
 from datetime import datetime, timezone
 import pymongo
 from pymongo.collection import Collection
@@ -41,7 +42,7 @@ def get_users_collection() -> Optional[Collection]:
 def init_mongodb():
     """
     Initializes MongoDB users collection, applies schema validation,
-    and creates a unique index on email to guarantee uniqueness.
+    and creates unique indexes on email and shared_patterns.share_id.
     """
     db = get_mongo_db()
     if db is None:
@@ -49,7 +50,6 @@ def init_mongodb():
         return
 
     try:
-        # Check if users collection exists, create with schema validator if not
         collections = db.list_collection_names()
         user_schema_validator = {
             "$jsonSchema": {
@@ -72,6 +72,40 @@ def init_mongodb():
                     "created_at": {
                         "bsonType": ["date", "string"],
                         "description": "timestamp of creation"
+                    },
+                    "shared_patterns": {
+                        "bsonType": "array",
+                        "description": "array of shareable pattern settings",
+                        "items": {
+                            "bsonType": "object",
+                            "required": ["share_id", "folder_id", "is_active"],
+                            "properties": {
+                                "share_id": {
+                                    "bsonType": "string",
+                                    "description": "unique share token"
+                                },
+                                "folder_id": {
+                                    "bsonType": "string",
+                                    "description": "id of the pattern folder being shared"
+                                },
+                                "folder_name": {
+                                    "bsonType": "string",
+                                    "description": "cached display name of the folder"
+                                },
+                                "is_active": {
+                                    "bsonType": "bool",
+                                    "description": "whether sharing is currently enabled"
+                                },
+                                "created_at": {
+                                    "bsonType": "string",
+                                    "description": "timestamp when share was generated"
+                                },
+                                "updated_at": {
+                                    "bsonType": "string",
+                                    "description": "timestamp when share was modified"
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -89,6 +123,10 @@ def init_mongodb():
         # Ensure unique index on email field
         db.users.create_index("email", unique=True, name="unique_email_idx")
         logger.info("MongoDB unique index on users.email verified successfully.")
+
+        # Ensure unique index on shared_patterns.share_id
+        db.users.create_index("shared_patterns.share_id", unique=True, sparse=True, name="unique_share_id_idx")
+        logger.info("MongoDB unique index on shared_patterns.share_id verified successfully.")
     except Exception as e:
         logger.error(f"Error initializing MongoDB collection or index: {e}", exc_info=True)
 
@@ -114,7 +152,6 @@ def save_user_mongo(user_id: str, email: str, full_name: str, hashed_password: s
 
     normalized_email = email.strip().lower()
     user_doc = {
-        "_id": user_id,
         "id": user_id,
         "email": normalized_email,
         "full_name": full_name or "Aman Kumar",
@@ -123,6 +160,167 @@ def save_user_mongo(user_id: str, email: str, full_name: str, hashed_password: s
         "updated_at": datetime.now(timezone.utc).isoformat()
     }
     
-    # Insert or update
-    coll.update_one({"_id": user_id}, {"$set": user_doc}, upsert=True)
+    # Update or insert without overwriting shared_patterns if already set
+    coll.update_one(
+        {"_id": user_id},
+        {
+            "$set": user_doc,
+            "$setOnInsert": {"shared_patterns": []}
+        },
+        upsert=True
+    )
     return True
+
+# =========================================================================
+# Pattern Sharing Persistence & Security Helpers
+# =========================================================================
+
+def generate_share_id() -> str:
+    """Generates an unguessable, URL-safe random token for pattern sharing."""
+    return secrets.token_urlsafe(16)
+
+def get_share_for_folder_mongo(user_id: str, folder_id: str) -> Optional[Dict[str, Any]]:
+    """Returns the sharing metadata for a specific folder owned by user."""
+    coll = get_users_collection()
+    if coll is None:
+        return None
+
+    user = coll.find_one(
+        {"id": user_id, "shared_patterns.folder_id": folder_id},
+        {"shared_patterns.$": 1}
+    )
+    if user and "shared_patterns" in user and len(user["shared_patterns"]) > 0:
+        return user["shared_patterns"][0]
+    return None
+
+def create_or_get_share_mongo(user_id: str, folder_id: str, folder_name: str) -> Dict[str, Any]:
+    """
+    Generates or retrieves persistent share configuration for a folder.
+    Guarantees unique share_id stored in user's document in MongoDB.
+    """
+    coll = get_users_collection()
+    if coll is None:
+        raise RuntimeError("MongoDB connection is unavailable.")
+
+    existing = get_share_for_folder_mongo(user_id, folder_id)
+    now_iso = datetime.now(timezone.utc).isoformat()
+
+    if existing:
+        # Re-activate if it was disabled
+        if not existing.get("is_active"):
+            coll.update_one(
+                {"id": user_id, "shared_patterns.folder_id": folder_id},
+                {
+                    "$set": {
+                        "shared_patterns.$.is_active": True,
+                        "shared_patterns.$.updated_at": now_iso
+                    }
+                }
+            )
+            existing["is_active"] = True
+            existing["updated_at"] = now_iso
+        return existing
+
+    # Create new share entry
+    share_id = generate_share_id()
+    share_record = {
+        "share_id": share_id,
+        "folder_id": folder_id,
+        "folder_name": folder_name,
+        "is_active": True,
+        "created_at": now_iso,
+        "updated_at": now_iso
+    }
+
+    coll.update_one(
+        {"id": user_id},
+        {"$push": {"shared_patterns": share_record}},
+        upsert=True
+    )
+    return share_record
+
+def update_share_status_mongo(user_id: str, folder_id: str, is_active: bool) -> Optional[Dict[str, Any]]:
+    """Enables or disables sharing for an existing pattern."""
+    coll = get_users_collection()
+    if coll is None:
+        return None
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    result = coll.update_one(
+        {"id": user_id, "shared_patterns.folder_id": folder_id},
+        {
+            "$set": {
+                "shared_patterns.$.is_active": is_active,
+                "shared_patterns.$.updated_at": now_iso
+            }
+        }
+    )
+
+    if result.matched_count > 0:
+        return get_share_for_folder_mongo(user_id, folder_id)
+    return None
+
+def revoke_share_mongo(user_id: str, folder_id: str, regenerate_new: bool = False, folder_name: str = "") -> Optional[Dict[str, Any]]:
+    """
+    Revokes the existing share link.
+    If regenerate_new is True, generates a completely new share_id, invalidating the old one immediately.
+    If regenerate_new is False, sets is_active=False and marks revoked.
+    """
+    coll = get_users_collection()
+    if coll is None:
+        return None
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+
+    if regenerate_new:
+        new_share_id = generate_share_id()
+        coll.update_one(
+            {"id": user_id, "shared_patterns.folder_id": folder_id},
+            {
+                "$set": {
+                    "shared_patterns.$.share_id": new_share_id,
+                    "shared_patterns.$.is_active": True,
+                    "shared_patterns.$.updated_at": now_iso
+                }
+            }
+        )
+        return get_share_for_folder_mongo(user_id, folder_id)
+    else:
+        # Disable sharing
+        coll.update_one(
+            {"id": user_id, "shared_patterns.folder_id": folder_id},
+            {
+                "$set": {
+                    "shared_patterns.$.is_active": False,
+                    "shared_patterns.$.updated_at": now_iso
+                }
+            }
+        )
+        return get_share_for_folder_mongo(user_id, folder_id)
+
+def find_active_share_by_id_mongo(share_id: str) -> Optional[Dict[str, Any]]:
+    """
+    Public lookup: Finds the owner and share record for an active shareId.
+    Enforces that is_active must be True.
+    """
+    coll = get_users_collection()
+    if coll is None or not share_id:
+        return None
+
+    user = coll.find_one(
+        {"shared_patterns.share_id": share_id, "shared_patterns.is_active": True},
+        {"id": 1, "full_name": 1, "shared_patterns.$": 1}
+    )
+
+    if not user or "shared_patterns" not in user or len(user["shared_patterns"]) == 0:
+        return None
+
+    share_record = user["shared_patterns"][0]
+    if not share_record.get("is_active"):
+        return None
+
+    return {
+        "user_id": user["id"],
+        "owner_name": user.get("full_name") or "Aman Kumar",
+        "share": share_record
+    }
