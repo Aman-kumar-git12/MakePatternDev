@@ -519,7 +519,7 @@ export const RevisionView: React.FC<RevisionViewProps> = ({
               </div>
               <div>
                 <h3 className="text-lg font-bold text-white tracking-tight">Get Random Questions</h3>
-                <p className="text-xs text-slate-400">Pick up to 10 random questions to practice active recall</p>
+                <p className="text-xs text-slate-400">Pick up to 5 random questions to practice active recall</p>
               </div>
             </div>
 
@@ -537,7 +537,7 @@ export const RevisionView: React.FC<RevisionViewProps> = ({
                   How many random questions do you want?
                 </label>
                 <span className="text-[11px] font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20">
-                  Max 10
+                  Max 5
                 </span>
               </div>
 
@@ -555,20 +555,20 @@ export const RevisionView: React.FC<RevisionViewProps> = ({
                   <input
                     type="number"
                     min={1}
-                    max={10}
+                    max={5}
                     value={randomCount}
                     onChange={(e) => {
                       const val = parseInt(e.target.value, 10);
                       if (!isNaN(val)) {
-                        setRandomCount(Math.min(10, Math.max(1, val)));
+                        setRandomCount(Math.min(5, Math.max(1, val)));
                       }
                     }}
                     className="w-12 text-center bg-transparent font-bold text-white text-base focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                   <button
                     type="button"
-                    onClick={() => setRandomCount((c) => Math.min(10, c + 1))}
-                    disabled={randomCount >= 10}
+                    onClick={() => setRandomCount((c) => Math.min(5, c + 1))}
+                    disabled={randomCount >= 5}
                     className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer"
                   >
                     <Plus className="w-4 h-4" />
@@ -577,7 +577,7 @@ export const RevisionView: React.FC<RevisionViewProps> = ({
 
                 {/* Quick preset chips */}
                 <div className="flex items-center space-x-1.5 flex-1">
-                  {[1, 3, 5, 10].map((num) => (
+                  {[1, 2, 3, 5].map((num) => (
                     <button
                       key={num}
                       type="button"
