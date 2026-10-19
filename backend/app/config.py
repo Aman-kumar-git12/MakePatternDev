@@ -6,7 +6,7 @@ from typing import Optional
 class Settings(BaseSettings):
     ENVIRONMENT: str = "development"  # "development", "staging", "production"
     DATABASE_URL: str = "sqlite:///./dsa_tracker.db"
-    SQLITE_FALLBACK: bool = False
+    SQLITE_FALLBACK: bool = True
     JWT_SECRET: str = "dsa_tracker_super_secret_jwt_key_2026_change_in_production"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440

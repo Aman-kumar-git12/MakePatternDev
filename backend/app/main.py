@@ -24,12 +24,12 @@ async def lifespan(app: FastAPI):
     # Initialize MongoDB connection and indexes
     try:
         init_mongodb()
-        # Automatically sync existing SQLite data to MongoDB (users, folders, questions, solutions, test cases, bookmarks)
-        from app.mongodb import sync_all_sqlite_data_to_mongo
+        # Connect and restore/verify data from MongoDB Atlas
+        from app.mongodb import restore_all_data_from_mongo_to_sqlite
         db = SessionLocal()
         try:
-            stats = sync_all_sqlite_data_to_mongo(db)
-            logger.info(f"Successfully verified/synced complete dataset to MongoDB: {stats}")
+            stats = restore_all_data_from_mongo_to_sqlite(db)
+            logger.info(f"MongoDB cloud persistence active: {stats}")
         finally:
             db.close()
     except Exception as e:
