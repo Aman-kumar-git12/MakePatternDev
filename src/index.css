@@ -1,0 +1,672 @@
+@import "tailwindcss";
+
+/* ==========================================================================
+   DARK THEME
+   - Canvas/Base/Page: Pure Dark Black (#000000 / #050507)
+   - Components (cards, modals, inputs, dropdowns, panels): Light Black (#141417 / #1a1a20)
+   - Accent: Soft Light Yellow (#fde047 / #fef08a) — Zero Orange, Zero Blue!
+   ========================================================================== */
+:root,
+.dark {
+  /* Canvas / Base / App background — Pure Dark Black */
+  --bg-base: #000000;
+  --bg-app: #050507;
+  --bg-sidebar: #09090c;
+  --bg-header: rgba(10, 10, 14, 0.92);
+  --bg-overlay: rgba(0, 0, 0, 0.85);
+
+  /* Component surfaces — Silky Light Black */
+  --bg-card: #121215;
+  --bg-card-alt: #17171c;
+  --bg-surface: #15151a;
+  --bg-elevated: #1e1e24;
+  --bg-input: #0e0e11;
+  --bg-hover: #23232b;
+
+  /* Component Borders */
+  --border-primary: rgba(255, 255, 255, 0.09);
+  --border-subtle: rgba(255, 255, 255, 0.05);
+  --border-hover: rgba(255, 255, 255, 0.18);
+
+  /* Typography */
+  --text-primary: #f5f5f7;
+  --text-secondary: #a1a1aa;
+  --text-tertiary: #71717a;
+  --text-muted: #52525b;
+  --text-inverse: #000000;
+
+  /* Accents — Pure Soft Light Yellow (Zero Orange, Zero Amber, Zero Blue) */
+  --accent-primary: #fef08a;
+  --accent-primary-hover: #fef9c3;
+  --accent-gradient-from: #fef08a;
+  --accent-gradient-to: #fde047;
+
+  /* Scrollbars */
+  --scrollbar-track: #09090c;
+  --scrollbar-thumb: #25252e;
+  --scrollbar-thumb-hover: #353542;
+
+  /* Shadows */
+  --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.6), 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-elevated: 0 10px 32px rgba(0, 0, 0, 0.75);
+  --shadow-dropdown: 0 16px 48px rgba(0, 0, 0, 0.9);
+
+  /* Rings & Badges */
+  --ring-bg: #050507;
+  --badge-ring: #09090c;
+}
+
+/* ==========================================================================
+   LIGHT THEME
+   - Canvas/Base/Page: Pure Clean White (#ffffff)
+   - Components (cards, modals, inputs, dropdowns, panels): Soft Clean Light Yellowish
+   - Accent: Pure Soft Light Yellow (#fef08a / #fef9c3) — Zero Orange, Zero Amber!
+   ========================================================================== */
+.light {
+  /* Canvas / Base / App background — Pure Clean White */
+  --bg-base: #ffffff;
+  --bg-app: #ffffff;
+  --bg-sidebar: #fffef5;
+  --bg-header: rgba(255, 255, 255, 0.96);
+  --bg-overlay: rgba(255, 255, 255, 0.85);
+
+  /* Component surfaces — Soft Clean Light Yellowish */
+  --bg-card: #fefce8;          /* Soft light butter yellowish */
+  --bg-card-alt: #fefce8;      /* Clean light yellowish component card */
+  --bg-surface: #fffdf0;       /* Very gentle warm light cream yellow */
+  --bg-elevated: #ffffff;      /* Clean white for modals & popovers */
+  --bg-input: #ffffff;         /* Clean white input inside yellowish components */
+  --bg-hover: #fef9c3;         /* Subtle pale yellow hover state */
+
+  /* Component Borders — Soft Light Yellow */
+  --border-primary: #fef08a;
+  --border-subtle: #fef9c3;
+  --border-hover: #fde047;
+
+  /* Typography — Deep rich dark colors for maximum clarity and visibility */
+  --text-primary: #09090b;       /* Crisp deep black for headings and primary labels */
+  --text-secondary: #18181b;     /* Very dark charcoal for readable body text and items */
+  --text-tertiary: #334155;      /* Dark slate for subtitles, badges, and labels */
+  --text-muted: #52525b;         /* Solid dark neutral for hints, counters, icons */
+  --text-inverse: #ffffff;
+
+  /* Accents — Pure Soft Light Yellow (Zero Orange, Zero Amber) */
+  --accent-primary: #fef08a;
+  --accent-primary-hover: #fef9c3;
+  --accent-gradient-from: #fef08a;
+  --accent-gradient-to: #fde047;
+
+  /* Scrollbars */
+  --scrollbar-track: #fefce8;
+  --scrollbar-thumb: #fef08a;
+  --scrollbar-thumb-hover: #fde047;
+
+  /* Shadows — Gentle neutral shadows, NO orange */
+  --shadow-card: 0 2px 10px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.02);
+  --shadow-elevated: 0 6px 20px rgba(0, 0, 0, 0.06), 0 2px 4px rgba(0, 0, 0, 0.02);
+  --shadow-dropdown: 0 12px 32px rgba(0, 0, 0, 0.08), 0 4px 10px rgba(0, 0, 0, 0.03);
+
+  /* Rings & Badges */
+  --ring-bg: #ffffff;
+  --badge-ring: #ffffff;
+}
+
+@layer base {
+  body {
+    background-color: var(--bg-app);
+    color: var(--text-primary);
+    @apply antialiased min-h-screen font-sans;
+    transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+}
+
+/* ==========================================================================
+   GLOBAL REMOVAL OF ALL BLUE, INDIGO, AND ORANGE/AMBER
+   Transforms them into Soft Light Yellow (#fef08a / #fef9c3)
+   ========================================================================== */
+.bg-blue-600,
+.bg-blue-500,
+.bg-indigo-600,
+.bg-indigo-500,
+.bg-sky-600,
+.bg-sky-500,
+.bg-yellow-400,
+.bg-yellow-500,
+.bg-amber-400,
+.bg-amber-500,
+.bg-amber-600,
+.bg-orange-400,
+.bg-orange-500 {
+  background-color: #fef08a !important;
+  color: #18181b !important;
+}
+
+.hover\:bg-blue-500:hover,
+.hover\:bg-blue-600:hover,
+.hover\:bg-indigo-500:hover,
+.hover\:bg-indigo-600:hover,
+.hover\:bg-yellow-300:hover,
+.hover\:bg-yellow-400:hover,
+.hover\:bg-amber-400:hover,
+.hover\:bg-amber-500:hover {
+  background-color: #fef9c3 !important;
+  color: #18181b !important;
+}
+
+.bg-blue-500\/10,
+.bg-blue-500\/15,
+.bg-blue-500\/20,
+.bg-blue-600\/10,
+.bg-blue-600\/20,
+.bg-blue-600\/30,
+.bg-indigo-500\/10,
+.bg-indigo-500\/15,
+.bg-indigo-500\/20,
+.bg-amber-500\/10,
+.bg-amber-500\/15,
+.bg-amber-500\/20,
+.bg-amber-500\/30,
+.bg-yellow-400\/10,
+.bg-yellow-400\/15,
+.bg-yellow-400\/20,
+.bg-yellow-400\/30 {
+  background-color: rgba(254, 240, 138, 0.20) !important;
+}
+
+.dark .text-blue-400,
+.dark .text-blue-300,
+.dark .text-blue-500,
+.dark .text-indigo-400,
+.dark .text-indigo-300,
+.dark .text-indigo-500,
+.dark .text-sky-400,
+.dark .text-amber-300,
+.dark .text-amber-400,
+.dark .text-amber-500,
+.dark .text-yellow-400,
+.dark .text-yellow-500,
+.dark .text-orange-400,
+.dark .text-orange-500 {
+  color: #fde047 !important;
+}
+
+.dark .fill-amber-400,
+.dark .fill-amber-500,
+.dark .fill-yellow-400,
+.dark .fill-yellow-500 {
+  fill: #fde047 !important;
+}
+
+.dark .hover\:text-blue-300:hover,
+.dark .hover\:text-blue-400:hover,
+.dark .hover\:text-indigo-300:hover,
+.dark .hover\:text-indigo-400:hover,
+.dark .hover\:text-amber-300:hover,
+.dark .hover\:text-amber-400:hover,
+.dark .hover\:text-yellow-200:hover,
+.dark .hover\:text-yellow-300:hover,
+.dark .group:hover .group-hover\:text-blue-300,
+.dark .group:hover .group-hover\:text-blue-400,
+.dark .group:hover .group-hover\:text-indigo-300,
+.dark .group:hover .group-hover\:text-indigo-400,
+.dark .group:hover .group-hover\:text-amber-300,
+.dark .group:hover .group-hover\:text-amber-400,
+.dark .group:hover .group-hover\:text-yellow-200,
+.dark .group:hover .group-hover\:text-yellow-300 {
+  color: #fef08a !important;
+}
+
+.border-blue-500,
+.border-blue-500\/20,
+.border-blue-500\/30,
+.border-blue-500\/40,
+.border-blue-500\/50,
+.border-indigo-500,
+.border-indigo-500\/20,
+.border-indigo-500\/30,
+.border-indigo-500\/40,
+.border-amber-500,
+.border-amber-500\/20,
+.border-amber-500\/30,
+.border-amber-500\/50,
+.border-yellow-400\/20,
+.border-yellow-400\/30 {
+  border-color: rgba(254, 240, 138, 0.4) !important;
+}
+
+.hover\:border-blue-500\/40:hover,
+.hover\:border-blue-500\/60:hover,
+.hover\:border-amber-500\/40:hover {
+  border-color: rgba(254, 240, 138, 0.7) !important;
+}
+
+.focus\:ring-blue-500:focus,
+.focus\:ring-indigo-500:focus,
+.focus\:ring-amber-500:focus,
+.focus\:ring-yellow-400:focus {
+  --tw-ring-color: rgba(254, 240, 138, 0.6) !important;
+}
+
+.focus\:border-blue-500:focus,
+.focus\:border-indigo-500:focus,
+.focus\:border-amber-500:focus {
+  border-color: #fef08a !important;
+}
+
+.from-blue-600,
+.from-blue-500,
+.from-indigo-600,
+.from-yellow-400,
+.from-amber-500 {
+  --tw-gradient-from: #fef08a !important;
+}
+
+.to-indigo-600,
+.to-indigo-500,
+.to-violet-600,
+.to-blue-600,
+.to-yellow-300,
+.to-yellow-400,
+.to-yellow-500,
+.to-amber-500 {
+  --tw-gradient-to: #fde047 !important;
+}
+
+.shadow-blue-500\/20,
+.shadow-blue-500\/25,
+.shadow-blue-500\/30,
+.shadow-blue-600\/20,
+.shadow-blue-600\/25,
+.shadow-blue-600\/30,
+.shadow-indigo-600\/30,
+.shadow-yellow-400\/20,
+.shadow-yellow-400\/30,
+.shadow-amber-500\/20,
+.shadow-amber-600\/30 {
+  --tw-shadow-color: rgba(254, 240, 138, 0.25) !important;
+}
+
+/* ==========================================================================
+   DARK THEME COMPONENT OVERRIDES
+   Ensures all existing components, modals, filters, and cards
+   display as LIGHT BLACK against the DARK BLACK canvas.
+   ========================================================================== */
+.dark .bg-\[\#0D1527\],
+.dark .bg-\[\#0A0F1D\],
+.dark .bg-\[\#0B1222\],
+.dark .bg-\[\#0B101E\],
+.dark .bg-\[\#090E1A\],
+.dark .bg-\[\#0D172E\] {
+  background-color: var(--bg-card) !important;
+}
+
+.dark .bg-\[\#090F1C\],
+.dark .bg-\[\#090F1D\] {
+  background-color: var(--bg-card-alt) !important;
+}
+
+.dark .bg-\[\#0C1222\],
+.dark .bg-\[\#111A30\],
+.dark .bg-\[\#14203D\],
+.dark .bg-\[\#121B30\] {
+  background-color: var(--bg-elevated) !important;
+}
+
+.dark .bg-\[\#0D1322\] {
+  background-color: var(--bg-input) !important;
+}
+
+.dark .bg-\[\#080D1A\],
+.dark .bg-\[\#080C14\] {
+  background-color: var(--bg-surface) !important;
+}
+
+.dark .bg-slate-900,
+.dark .bg-slate-900\/40,
+.dark .bg-slate-900\/60,
+.dark .bg-slate-900\/80,
+.dark .bg-slate-900\/90 {
+  background-color: var(--bg-surface) !important;
+}
+
+.dark .bg-slate-800,
+.dark .bg-slate-800\/90,
+.dark .bg-slate-800\/80,
+.dark .bg-slate-800\/60,
+.dark .bg-slate-800\/50,
+.dark .bg-slate-800\/40 {
+  background-color: var(--bg-elevated) !important;
+}
+
+/* Dark mode hover states */
+.dark .hover\:bg-\[\#111A30\]:hover,
+.dark .hover\:bg-\[\#121B30\]:hover,
+.dark .hover\:bg-\[\#14203D\]:hover,
+.dark .hover\:bg-slate-800:hover,
+.dark .hover\:bg-slate-800\/40:hover,
+.dark .hover\:bg-slate-800\/50:hover,
+.dark .hover\:bg-slate-800\/60:hover,
+.dark .hover\:bg-slate-900:hover,
+.dark .hover\:bg-slate-900\/80:hover,
+.dark .hover\:bg-slate-900\/90:hover {
+  background-color: var(--bg-hover) !important;
+}
+
+/* Dark mode border overrides */
+.dark .border-slate-800,
+.dark .border-slate-800\/80,
+.dark .border-slate-800\/90,
+.dark .border-slate-700,
+.dark .border-slate-700\/80 {
+  border-color: var(--border-primary) !important;
+}
+
+.dark .border-slate-800\/50,
+.dark .border-slate-800\/60,
+.dark .border-slate-700\/50 {
+  border-color: var(--border-subtle) !important;
+}
+
+.dark .border-slate-600,
+.dark .border-slate-600\/70 {
+  border-color: var(--border-hover) !important;
+}
+
+/* ==========================================================================
+   LIGHT THEME COMPONENT OVERRIDES
+   Ensures all existing components, modals, filters, and cards
+   display as SOFT LIGHT YELLOWISH against the PURE WHITE canvas.
+   ========================================================================== */
+.light .bg-\[\#0D1527\],
+.light .bg-\[\#0A0F1D\],
+.light .bg-\[\#0B1222\],
+.light .bg-\[\#0B101E\],
+.light .bg-\[\#090E1A\],
+.light .bg-\[\#0D172E\] {
+  background-color: var(--bg-card) !important;
+}
+
+.light .bg-\[\#090F1C\],
+.light .bg-\[\#090F1D\] {
+  background-color: var(--bg-card-alt) !important;
+}
+
+.light .bg-\[\#0C1222\],
+.light .bg-\[\#111A30\],
+.light .bg-\[\#14203D\],
+.light .bg-\[\#121B30\] {
+  background-color: var(--bg-elevated) !important;
+}
+
+.light .bg-\[\#080C14\],
+.light .bg-\[\#060911\],
+.light .bg-slate-950 {
+  background-color: var(--bg-app) !important;
+}
+
+.light .bg-\[\#080D1A\] {
+  background-color: var(--bg-header) !important;
+}
+
+.light .bg-\[\#0D1322\] {
+  background-color: var(--bg-input) !important;
+}
+
+.light .bg-slate-900,
+.light .bg-slate-900\/40,
+.light .bg-slate-900\/60,
+.light .bg-slate-900\/80,
+.light .bg-slate-900\/90 {
+  background-color: var(--bg-surface) !important;
+}
+
+.light .bg-slate-800,
+.light .bg-slate-800\/90,
+.light .bg-slate-800\/60,
+.light .bg-slate-800\/50,
+.light .bg-slate-800\/40 {
+  background-color: var(--bg-elevated) !important;
+}
+
+/* Light mode hover backgrounds */
+.light .hover\:bg-\[\#111A30\]:hover,
+.light .hover\:bg-\[\#121B30\]:hover,
+.light .hover\:bg-\[\#14203D\]:hover,
+.light .hover\:bg-slate-800:hover,
+.light .hover\:bg-slate-800\/40:hover,
+.light .hover\:bg-slate-800\/50:hover,
+.light .hover\:bg-slate-800\/60:hover,
+.light .hover\:bg-slate-900:hover,
+.light .hover\:bg-slate-900\/80:hover,
+.light .hover\:bg-slate-900\/90:hover {
+  background-color: var(--bg-hover) !important;
+}
+
+/* Light mode border overrides: soft light yellow */
+.light .border-slate-800,
+.light .border-slate-800\/80,
+.light .border-slate-800\/90,
+.light .border-slate-700,
+.light .border-slate-700\/80 {
+  border-color: var(--border-primary) !important;
+}
+
+.light .border-slate-800\/50,
+.light .border-slate-800\/60,
+.light .border-slate-700\/50 {
+  border-color: var(--border-subtle) !important;
+}
+
+.light .border-slate-600,
+.light .border-slate-600\/70 {
+  border-color: var(--border-hover) !important;
+}
+
+.light .hover\:border-slate-700:hover,
+.light .hover\:border-slate-700\/80:hover,
+.light .hover\:border-slate-600:hover {
+  border-color: var(--border-hover) !important;
+}
+
+/* ==========================================================================
+   LIGHT MODE TEXT OVERRIDES
+   Ensures ALL fonts across the application are darker, crisp, and high-contrast
+   ========================================================================== */
+.light .text-white,
+.light .text-slate-100,
+.light .text-slate-200,
+.light .text-zinc-100,
+.light .text-zinc-200,
+.light .text-gray-100,
+.light .text-gray-200 {
+  color: var(--text-primary) !important;
+}
+
+.light .text-slate-300,
+.light .text-zinc-300,
+.light .text-gray-300 {
+  color: var(--text-secondary) !important;
+}
+
+.light .text-slate-400,
+.light .text-zinc-400,
+.light .text-gray-400 {
+  color: var(--text-tertiary) !important;
+}
+
+.light .text-slate-500,
+.light .text-slate-600,
+.light .text-zinc-500,
+.light .text-zinc-600,
+.light .text-gray-500,
+.light .text-gray-600 {
+  color: var(--text-muted) !important;
+}
+
+/* Light mode colored text & badge contrast overrides (never washed-out or yellow-on-white) */
+.light .text-yellow-400,
+.light .text-yellow-500,
+.light .text-amber-400,
+.light .text-amber-500,
+.light .text-amber-600,
+.light .text-orange-400,
+.light .text-orange-500 {
+  color: #854d0e !important; /* Deep dark amber - high contrast */
+}
+
+.light .text-yellow-200,
+.light .text-yellow-300,
+.light .text-amber-200,
+.light .text-amber-300 {
+  color: #92400e !important; /* Deep dark amber-brown */
+}
+
+.light .text-blue-400,
+.light .text-blue-300,
+.light .text-blue-500,
+.light .text-indigo-400,
+.light .text-indigo-300,
+.light .text-indigo-500,
+.light .text-sky-400 {
+  color: #1e293b !important; /* Crisp dark slate */
+}
+
+.light .text-emerald-300,
+.light .text-emerald-400,
+.light .text-emerald-500 {
+  color: #047857 !important; /* Deep dark emerald */
+}
+
+.light .text-rose-300,
+.light .text-rose-400,
+.light .text-rose-500 {
+  color: #be123c !important; /* Deep dark crimson */
+}
+
+.light .text-purple-300,
+.light .text-purple-400,
+.light .text-purple-500 {
+  color: #6b21a8 !important; /* Deep dark purple */
+}
+
+.light .fill-amber-400,
+.light .fill-amber-500,
+.light .fill-yellow-400,
+.light .fill-yellow-500 {
+  fill: #eab308 !important;
+}
+
+/* Light mode hover text colors */
+.light .hover\:text-white:hover,
+.light .hover\:text-slate-100:hover,
+.light .hover\:text-slate-200:hover,
+.light .hover\:text-zinc-100:hover,
+.light .hover\:text-zinc-200:hover,
+.light .hover\:text-yellow-200:hover,
+.light .hover\:text-yellow-300:hover,
+.light .hover\:text-amber-300:hover,
+.light .hover\:text-amber-400:hover,
+.light .hover\:text-blue-300:hover,
+.light .hover\:text-blue-400:hover,
+.light .hover\:text-indigo-300:hover,
+.light .hover\:text-indigo-400:hover {
+  color: #000000 !important;
+}
+
+.light .hover\:text-slate-300:hover,
+.light .hover\:text-zinc-300:hover {
+  color: var(--text-primary) !important;
+}
+
+.light .hover\:text-slate-400:hover,
+.light .hover\:text-zinc-400:hover {
+  color: var(--text-secondary) !important;
+}
+
+.light .group:hover .group-hover\:text-white,
+.light .group:hover .group-hover\:text-slate-100,
+.light .group:hover .group-hover\:text-slate-200,
+.light .group:hover .group-hover\:text-slate-300,
+.light .group:hover .group-hover\:text-yellow-200,
+.light .group:hover .group-hover\:text-yellow-300,
+.light .group:hover .group-hover\:text-blue-300,
+.light .group:hover .group-hover\:text-blue-400,
+.light .group:hover .group-hover\:text-indigo-300,
+.light .group:hover .group-hover\:text-indigo-400,
+.light .group:hover .group-hover\:text-amber-300,
+.light .group:hover .group-hover\:text-amber-400 {
+  color: #000000 !important;
+}
+
+/* Light mode input placeholders - dark & legible */
+.light .placeholder-slate-400::placeholder,
+.light .placeholder-slate-500::placeholder,
+.light input::placeholder,
+.light textarea::placeholder {
+  color: #64748b !important;
+}
+
+/* Ring/outline overrides */
+.light .ring-\[\#080D1A\] {
+  --tw-ring-color: var(--ring-bg) !important;
+}
+
+.light .ring-\[\#080C14\] {
+  --tw-ring-color: var(--badge-ring) !important;
+}
+
+/* Shadow overrides */
+.light .shadow-xl,
+.light .shadow-2xl {
+  box-shadow: var(--shadow-elevated) !important;
+}
+
+.light .shadow-2xl.shadow-black\/80 {
+  box-shadow: var(--shadow-dropdown) !important;
+}
+
+/* Gradient text */
+.light .bg-gradient-to-r.from-white.via-slate-100.to-slate-400 {
+  background-image: linear-gradient(to right, #1c1917, #44403c, #78716c) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+/* Dot grid pattern */
+.light .bg-\[radial-gradient\(\#1e293b_1px\,transparent_1px\)\] {
+  display: none !important;
+}
+
+/* Custom scrollbar styling */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 3px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+/* Fade in animation */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in {
+  animation: fade-in 0.25s ease-out;
+}
+
+/* Shake animation for error */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-3px); }
+  20%, 40%, 60%, 80% { transform: translateX(3px); }
+}
+.animate-shake {
+  animation: shake 0.4s ease-in-out;
+}
