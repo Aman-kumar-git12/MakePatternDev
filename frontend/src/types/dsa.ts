@@ -161,5 +161,7 @@ export interface ShareResponse {
 export interface PublicSharedPatternResponse {
   share_id: string;
   owner_name: string;
-  pattern: Folder;
+  share_type?: 'single' | 'all';
+  pattern?: Folder | null;
+  patterns?: Folder[];
 }

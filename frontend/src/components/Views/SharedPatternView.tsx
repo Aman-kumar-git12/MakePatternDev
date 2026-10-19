@@ -67,7 +67,9 @@ export const SharedPatternView: React.FC = () => {
         initialExpanded[f.id] = true;
         f.subfolders?.forEach(expandFolder);
       };
-      if (res.pattern) {
+      if (res.patterns && res.patterns.length > 0) {
+        res.patterns.forEach(expandFolder);
+      } else if (res.pattern) {
         expandFolder(res.pattern);
       }
       setExpandedNodes(initialExpanded);
@@ -290,7 +292,7 @@ export const SharedPatternView: React.FC = () => {
         <div className="w-12 h-12 rounded-2xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400 animate-pulse mb-4">
           <Layers className="w-6 h-6" />
         </div>
-        <p className="text-slate-300 font-medium text-sm">Loading shared pattern...</p>
+        <p className="text-slate-300 font-medium text-sm">Loading shared patterns...</p>
       </div>
     );
   }
@@ -315,9 +317,16 @@ export const SharedPatternView: React.FC = () => {
     );
   }
 
-  const { pattern, owner_name } = data;
-  const directQuestions = (pattern.questions || []).filter(filterQuestion);
-  const subfolders = (pattern.subfolders || []).filter(filterFolder);
+  const { owner_name, share_type } = data;
+  const patternsList = data.patterns && data.patterns.length > 0
+    ? data.patterns
+    : (data.pattern ? [data.pattern] : []);
+  const isAllPatterns = share_type === 'all' || (!data.pattern && Boolean(data.patterns));
+
+  // Compute aggregate totals across patterns
+  const totalQuestions = patternsList.reduce((acc, p) => acc + (p.question_count || (p.questions ? p.questions.length : 0)), 0);
+  const totalSolved = patternsList.reduce((acc, p) => acc + (p.solved_count || 0), 0);
+  const overallProgress = totalQuestions > 0 ? Math.round((totalSolved / totalQuestions) * 100) : 0;
 
   return (
     <div className="min-h-screen bg-[#070B14] text-slate-100 flex flex-col">
@@ -332,7 +341,7 @@ export const SharedPatternView: React.FC = () => {
           </Link>
           <div className="hidden sm:flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-300 text-xs font-medium">
             <ShieldCheck className="w-3.5 h-3.5 text-purple-400" />
-            <span>Shared Read-Only</span>
+            <span>{isAllPatterns ? 'All Patterns (Read-Only)' : 'Shared Read-Only'}</span>
           </div>
         </div>
 
@@ -381,26 +390,32 @@ export const SharedPatternView: React.FC = () => {
                 <span>Curated by {owner_name}</span>
               </div>
               <h1 className="text-2xl lg:text-3xl font-extrabold text-white tracking-tight">
-                {pattern.name}
+                {isAllPatterns ? 'All Topics & Patterns' : (data.pattern?.name || 'Shared Pattern')}
               </h1>
-              {pattern.description && (
-                <p className="text-sm text-slate-400 max-w-2xl">{pattern.description}</p>
-              )}
+              <p className="text-sm text-slate-400 max-w-2xl">
+                {isAllPatterns
+                  ? 'Complete curated collection of Data Structures & Algorithms patterns and solutions'
+                  : (data.pattern?.description || 'Curated DSA pattern')}
+              </p>
             </div>
 
             {/* Quick Stats */}
             <div className="flex items-center space-x-3 shrink-0">
               <div className="px-4 py-2.5 rounded-xl bg-[#0A0F1D] border border-slate-800 text-center">
-                <div className="text-xs text-slate-500 font-medium">Questions</div>
-                <div className="text-lg font-bold text-white">{pattern.question_count || 0}</div>
+                <div className="text-xs text-slate-500 font-medium">
+                  {isAllPatterns ? 'Topics' : 'Questions'}
+                </div>
+                <div className="text-lg font-bold text-white">
+                  {isAllPatterns ? patternsList.length : totalQuestions}
+                </div>
               </div>
               <div className="px-4 py-2.5 rounded-xl bg-[#0A0F1D] border border-slate-800 text-center">
                 <div className="text-xs text-slate-500 font-medium">Solved</div>
-                <div className="text-lg font-bold text-emerald-400">{pattern.solved_count || 0}</div>
+                <div className="text-lg font-bold text-emerald-400">{totalSolved}</div>
               </div>
               <div className="px-4 py-2.5 rounded-xl bg-[#0A0F1D] border border-slate-800 text-center">
                 <div className="text-xs text-slate-500 font-medium">Progress</div>
-                <div className="text-lg font-bold text-blue-400">{pattern.progress_percentage || 0}%</div>
+                <div className="text-lg font-bold text-blue-400">{overallProgress}%</div>
               </div>
             </div>
           </div>
@@ -424,26 +439,82 @@ export const SharedPatternView: React.FC = () => {
           </div>
         </div>
 
-        {/* Pattern Content Tree */}
-        <div className="bg-[#0D1527] border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
-          {/* Subtopics */}
-          {subfolders.map(renderSubtopic)}
+        {/* Pattern Content Tree(s) */}
+        <div className="space-y-4">
+          {patternsList.filter(filterFolder).map((pat) => {
+            const isPatExpanded = expandedNodes[pat.id] !== false;
+            const patDirectQuestions = (pat.questions || []).filter(filterQuestion);
+            const patSubfolders = (pat.subfolders || []).filter(filterFolder);
 
-          {/* Direct questions */}
-          {directQuestions.length > 0 && (
-            <div className="space-y-2 pt-2">
-              {subfolders.length > 0 && (
-                <div className="text-xs font-semibold uppercase tracking-wider text-slate-400 px-1">
-                  General Questions
+            return (
+              <div
+                key={pat.id}
+                className="bg-[#0D1527] border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4"
+              >
+                {/* Topic Header */}
+                <div
+                  onClick={() => toggleNode(pat.id)}
+                  className="flex items-center justify-between cursor-pointer select-none group pb-1"
+                >
+                  <div className="flex items-center space-x-3">
+                    <div className="p-1.5 rounded-lg bg-blue-600/10 text-blue-400 group-hover:bg-blue-600/20 transition">
+                      {isPatExpanded ? (
+                        <ChevronDown className="w-4 h-4" />
+                      ) : (
+                        <ChevronRight className="w-4 h-4" />
+                      )}
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-bold text-white group-hover:text-blue-300 transition">
+                        {pat.name}
+                      </h2>
+                      {pat.description && (
+                        <p className="text-xs text-slate-400 mt-0.5">{pat.description}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center space-x-3 text-xs">
+                    <span className="px-2.5 py-1 rounded-full bg-slate-800 text-slate-400 font-mono">
+                      {pat.question_count || (pat.questions ? pat.questions.length : 0)} questions
+                    </span>
+                    <span className="text-emerald-400 font-semibold">
+                      {pat.solved_count || 0} solved
+                    </span>
+                  </div>
                 </div>
-              )}
-              {directQuestions.map(renderQuestionRow)}
-            </div>
-          )}
 
-          {subfolders.length === 0 && directQuestions.length === 0 && (
-            <div className="py-12 text-center text-slate-500 text-sm">
-              No questions found in this shared pattern.
+                {isPatExpanded && (
+                  <div className="space-y-4 pt-2">
+                    {/* Subtopics */}
+                    {patSubfolders.map(renderSubtopic)}
+
+                    {/* Direct questions */}
+                    {patDirectQuestions.length > 0 && (
+                      <div className="space-y-2 pt-2">
+                        {patSubfolders.length > 0 && (
+                          <div className="text-xs font-semibold uppercase tracking-wider text-slate-400 px-1">
+                            General Questions
+                          </div>
+                        )}
+                        {patDirectQuestions.map(renderQuestionRow)}
+                      </div>
+                    )}
+
+                    {patSubfolders.length === 0 && patDirectQuestions.length === 0 && (
+                      <div className="py-6 text-center text-slate-500 text-xs italic">
+                        No questions in this section yet.
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          {patternsList.filter(filterFolder).length === 0 && (
+            <div className="bg-[#0D1527] border border-slate-800 rounded-2xl p-12 text-center text-slate-500 text-sm">
+              No topics or questions found matching your search.
             </div>
           )}
         </div>

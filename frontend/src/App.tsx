@@ -702,7 +702,7 @@ function MainAppShell() {
   );
 }
 
-export function App() {
+function App() {
   return (
     <Routes>
       {/* Public Guest Routes */}

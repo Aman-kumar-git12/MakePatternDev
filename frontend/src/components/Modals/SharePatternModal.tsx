@@ -110,6 +110,8 @@ export const SharePatternModal: React.FC<SharePatternModalProps> = ({
 
   if (!isOpen || !folder) return null;
 
+  const isAllTopics = folder?.id === 'all';
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in">
       <div className="bg-[#0D1527] border border-slate-800 rounded-2xl w-full max-w-lg p-6 shadow-2xl relative text-slate-100 animate-scale-in">
@@ -126,8 +128,12 @@ export const SharePatternModal: React.FC<SharePatternModalProps> = ({
             <Share2 className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-white">Share Pattern</h2>
-            <p className="text-xs text-slate-400 truncate max-w-xs">{folder.name}</p>
+            <h2 className="text-lg font-bold text-white">
+              {isAllTopics ? 'Share All Patterns' : 'Share Pattern'}
+            </h2>
+            <p className="text-xs text-slate-400 truncate max-w-xs">
+              {isAllTopics ? 'The complete list of topics and questions' : folder.name}
+            </p>
           </div>
         </div>
 
@@ -151,7 +157,9 @@ export const SharePatternModal: React.FC<SharePatternModalProps> = ({
               <div className="text-xs text-slate-300 space-y-1">
                 <p className="font-semibold text-blue-300">Read-Only Live Access</p>
                 <p className="text-slate-400">
-                  Anyone with this link can view this pattern, all its subtopics, questions, and solutions in read-only mode. They cannot make any changes.
+                  {isAllTopics
+                    ? 'Anyone with this link can view your entire pattern tracker with all topics, subtopics, questions, and solutions in read-only mode.'
+                    : 'Anyone with this link can view this pattern, all its subtopics, questions, and solutions in read-only mode. They cannot make any changes.'}
                 </p>
               </div>
             </div>

@@ -654,6 +654,15 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
 
           <div className="flex items-center space-x-2">
             <button
+              onClick={() => setSharingFolder({ id: 'all', name: 'All Patterns & Topics' } as Folder)}
+              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-purple-600/20 hover:bg-purple-600 text-purple-300 hover:text-white border border-purple-500/30 text-xs font-semibold shadow-md transition"
+              title="Share the whole list of topics & patterns"
+            >
+              <Share2 className="w-3.5 h-3.5" />
+              <span>Share All Patterns</span>
+            </button>
+
+            <button
               onClick={onOpenCreateTopic}
               className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-[#fef08a] hover:bg-[#fef9c3] text-[#18181b] text-xs font-semibold shadow-md shadow-yellow-200/30 transition"
               title="Create a new top-level DSA topic"

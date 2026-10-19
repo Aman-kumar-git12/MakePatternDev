@@ -225,16 +225,21 @@ def delete_folder(
 # Pattern Sharing Endpoints (Ownership Checked & Persisted in MongoDB)
 # =========================================================================
 
+def _resolve_folder_name(folder_id: str, db: Session, current_user: User) -> str:
+    if folder_id == "all":
+        return "All Patterns"
+    folder = db.query(Folder).filter(Folder.id == folder_id, Folder.user_id == current_user.id).first()
+    if not folder:
+        raise HTTPException(status_code=404, detail="Folder not found or unauthorized")
+    return folder.name
+
 @router.get("/{folder_id}/share", response_model=ShareResponse)
 def get_folder_share_settings(
     folder_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    folder = db.query(Folder).filter(Folder.id == folder_id, Folder.user_id == current_user.id).first()
-    if not folder:
-        raise HTTPException(status_code=404, detail="Folder not found or unauthorized")
-
+    folder_name = _resolve_folder_name(folder_id, db, current_user)
     share = get_share_for_folder_mongo(current_user.id, folder_id)
     if not share:
         raise HTTPException(status_code=404, detail="No share configuration found for this folder")
@@ -242,7 +247,7 @@ def get_folder_share_settings(
     return ShareResponse(
         share_id=share["share_id"],
         folder_id=share["folder_id"],
-        folder_name=share.get("folder_name") or folder.name,
+        folder_name=share.get("folder_name") or folder_name,
         is_active=share.get("is_active", False),
         share_url=f"/shared/{share['share_id']}",
         created_at=share.get("created_at", ""),
@@ -255,15 +260,12 @@ def enable_or_create_folder_share(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    folder = db.query(Folder).filter(Folder.id == folder_id, Folder.user_id == current_user.id).first()
-    if not folder:
-        raise HTTPException(status_code=404, detail="Folder not found or unauthorized")
-
-    share = create_or_get_share_mongo(current_user.id, folder_id, folder.name)
+    folder_name = _resolve_folder_name(folder_id, db, current_user)
+    share = create_or_get_share_mongo(current_user.id, folder_id, folder_name)
     return ShareResponse(
         share_id=share["share_id"],
         folder_id=share["folder_id"],
-        folder_name=share.get("folder_name") or folder.name,
+        folder_name=share.get("folder_name") or folder_name,
         is_active=share.get("is_active", True),
         share_url=f"/shared/{share['share_id']}",
         created_at=share.get("created_at", ""),
@@ -277,10 +279,7 @@ def toggle_folder_share_status(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    folder = db.query(Folder).filter(Folder.id == folder_id, Folder.user_id == current_user.id).first()
-    if not folder:
-        raise HTTPException(status_code=404, detail="Folder not found or unauthorized")
-
+    folder_name = _resolve_folder_name(folder_id, db, current_user)
     share = update_share_status_mongo(current_user.id, folder_id, update_data.is_active)
     if not share:
         raise HTTPException(status_code=404, detail="Share settings not found")
@@ -288,7 +287,7 @@ def toggle_folder_share_status(
     return ShareResponse(
         share_id=share["share_id"],
         folder_id=share["folder_id"],
-        folder_name=share.get("folder_name") or folder.name,
+        folder_name=share.get("folder_name") or folder_name,
         is_active=share.get("is_active", False),
         share_url=f"/shared/{share['share_id']}",
         created_at=share.get("created_at", ""),
@@ -301,18 +300,15 @@ def revoke_and_regenerate_folder_share(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    folder = db.query(Folder).filter(Folder.id == folder_id, Folder.user_id == current_user.id).first()
-    if not folder:
-        raise HTTPException(status_code=404, detail="Folder not found or unauthorized")
-
-    share = revoke_share_mongo(current_user.id, folder_id, regenerate_new=True, folder_name=folder.name)
+    folder_name = _resolve_folder_name(folder_id, db, current_user)
+    share = revoke_share_mongo(current_user.id, folder_id, regenerate_new=True, folder_name=folder_name)
     if not share:
         raise HTTPException(status_code=404, detail="Failed to revoke share link")
 
     return ShareResponse(
         share_id=share["share_id"],
         folder_id=share["folder_id"],
-        folder_name=share.get("folder_name") or folder.name,
+        folder_name=share.get("folder_name") or folder_name,
         is_active=share.get("is_active", True),
         share_url=f"/shared/{share['share_id']}",
         created_at=share.get("created_at", ""),
@@ -325,10 +321,8 @@ def disable_folder_share(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    folder = db.query(Folder).filter(Folder.id == folder_id, Folder.user_id == current_user.id).first()
-    if not folder:
-        raise HTTPException(status_code=404, detail="Folder not found or unauthorized")
-
+    _resolve_folder_name(folder_id, db, current_user)
     revoke_share_mongo(current_user.id, folder_id, regenerate_new=False)
     return {"message": "Sharing disabled successfully for this pattern"}
+
 

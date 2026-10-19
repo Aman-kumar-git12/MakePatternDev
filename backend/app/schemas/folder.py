@@ -62,5 +62,7 @@ class ShareResponse(BaseModel):
 class PublicSharedPatternResponse(BaseModel):
     share_id: str
     owner_name: str
-    pattern: FolderTreeResponse
+    share_type: str = "single"  # "single" or "all"
+    pattern: Optional[FolderTreeResponse] = None
+    patterns: Optional[List[FolderTreeResponse]] = None
 

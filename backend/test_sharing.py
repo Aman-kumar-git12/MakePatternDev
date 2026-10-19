@@ -215,9 +215,65 @@ def test_full_sharing_feature():
     res = client.get(f"{BASE_URL}/shared/invalid-fake-share-id-99999")
     assert res.status_code == 404
     print("✓ Verified: Invalid share link returns 404")
-    print("✓ Verified: Invalid share link returns 404")
+
+    # 12. Test Sharing the Whole List of Topics ("All Patterns")
+    print("\n--- Testing Sharing Whole List of Topics (All Patterns) ---")
+    res = client.post(f"{BASE_URL}/folders/all/share", headers=headers_a)
+    assert res.status_code == 200, f"Share all failed: {res.text}"
+    all_share_info = res.json()
+    all_share_id = all_share_info["share_id"]
+    assert all_share_info["folder_id"] == "all"
+    assert all_share_info["folder_name"] == "All Patterns"
+    assert all_share_info["is_active"] is True
+    print(f"✓ Created Share link for all topics: {all_share_id}")
+
+    # Public Unauthenticated Access to Whole List of Topics
+    res = client.get(f"{BASE_URL}/shared/{all_share_id}")
+    assert res.status_code == 200, f"Get all shared failed: {res.text}"
+    all_public_data = res.json()
+    assert all_public_data["share_id"] == all_share_id
+    assert all_public_data["owner_name"] == "Alice Turing"
+    assert all_public_data["share_type"] == "all"
+    assert "patterns" in all_public_data
+    # Alice has 'Dynamic Programming' and 'Secret Folder'
+    pattern_names = [p["name"] for p in all_public_data["patterns"]]
+    assert "Dynamic Programming" in pattern_names, f"Expected DP in {pattern_names}"
+    assert "Secret Folder" in pattern_names, f"Expected Secret Folder in {pattern_names}"
+    print(f"✓ Retrieved all topics in read-only public view: {pattern_names}")
+
+    # Can inspect questions across any topic in the collection
+    res = client.get(f"{BASE_URL}/shared/{all_share_id}/questions/{q_id}")
+    assert res.status_code == 200
+    assert res.json()["title"] == "Climbing Stairs"
+    print("✓ Question inspection verified within all topics share link")
+
+    # Disable all topics sharing
+    res = client.patch(f"{BASE_URL}/folders/all/share", json={"is_active": False}, headers=headers_a)
+    assert res.status_code == 200
+    res = client.get(f"{BASE_URL}/shared/{all_share_id}")
+    assert res.status_code == 404
+    print("✓ Disabling all topics share link verified (404)")
+
+    # Re-enable all topics sharing
+    res = client.patch(f"{BASE_URL}/folders/all/share", json={"is_active": True}, headers=headers_a)
+    assert res.status_code == 200
+    res = client.get(f"{BASE_URL}/shared/{all_share_id}")
+    assert res.status_code == 200
+    print("✓ Re-enabling all topics share link verified (200)")
+
+    # Revoke all topics share link
+    res = client.post(f"{BASE_URL}/folders/all/share/revoke", headers=headers_a)
+    assert res.status_code == 200
+    new_all_share_id = res.json()["share_id"]
+    assert new_all_share_id != all_share_id
+    res = client.get(f"{BASE_URL}/shared/{all_share_id}")
+    assert res.status_code == 404
+    res = client.get(f"{BASE_URL}/shared/{new_all_share_id}")
+    assert res.status_code == 200
+    print("✓ Revocation for all topics share link verified")
 
     print("\n🎉 ALL SHARING FEATURE TESTS PASSED SUCCESSFULLY! 🎉\n")
 
 if __name__ == "__main__":
     test_full_sharing_feature()
+
