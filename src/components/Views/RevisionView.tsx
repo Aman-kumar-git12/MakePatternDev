@@ -6,9 +6,6 @@ import {
   Clock,
   Circle,
   ExternalLink,
-  Target,
-  Award,
-  Layers,
   ArrowRight,
   Filter,
   CheckSquare,
@@ -42,21 +39,6 @@ export const RevisionView: React.FC<RevisionViewProps> = ({
   const totalCount = questions.length;
   const revisionCount = revisionQuestions.length;
   const unflaggedCount = Math.max(0, totalCount - revisionCount);
-  const revisionRate = totalCount > 0 ? Math.round((revisionCount / totalCount) * 100) : 0;
-
-  // Breakdown of questions currently flagged for revision
-  const easyRevCount = useMemo(
-    () => revisionQuestions.filter((q) => q.difficulty === 'Easy').length,
-    [revisionQuestions]
-  );
-  const medRevCount = useMemo(
-    () => revisionQuestions.filter((q) => q.difficulty === 'Medium').length,
-    [revisionQuestions]
-  );
-  const hardRevCount = useMemo(
-    () => revisionQuestions.filter((q) => q.difficulty === 'Hard').length,
-    [revisionQuestions]
-  );
 
   // Filtered List
   const filtered = useMemo(() => {
@@ -172,75 +154,7 @@ export const RevisionView: React.FC<RevisionViewProps> = ({
         </div>
       </div>
 
-      {/* 2. LIVE REVISION KPIS STRIP (4 CARDS) */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
-        {/* Flagged for Revision */}
-        <div className="rounded-2xl p-4 bg-[#0D1527] border border-slate-800 shadow-md flex items-center space-x-3">
-          <div className="p-2.5 rounded-xl bg-amber-500/15 text-amber-400 border border-amber-500/25 shrink-0">
-            <CheckSquare className="w-5 h-5" />
-          </div>
-          <div>
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block">
-              Flagged for Review
-            </span>
-            <div className="flex items-baseline space-x-1.5 mt-0.5">
-              <span className="text-2xl font-black text-amber-300">{revisionCount}</span>
-              <span className="text-xs text-slate-500">questions</span>
-            </div>
-          </div>
-        </div>
 
-        {/* Total Questions in Tracker */}
-        <div className="rounded-2xl p-4 bg-[#0D1527] border border-slate-800 shadow-md flex items-center space-x-3">
-          <div className="p-2.5 rounded-xl bg-blue-500/15 text-blue-400 border border-blue-500/25 shrink-0">
-            <Layers className="w-5 h-5" />
-          </div>
-          <div>
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block">
-              Available Problems
-            </span>
-            <div className="flex items-baseline space-x-1.5 mt-0.5">
-              <span className="text-2xl font-black text-white">{totalCount}</span>
-              <span className="text-xs text-slate-500">total tracked</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Revision Queue Coverage */}
-        <div className="rounded-2xl p-4 bg-[#0D1527] border border-slate-800 shadow-md flex items-center space-x-3">
-          <div className="p-2.5 rounded-xl bg-purple-500/15 text-purple-400 border border-purple-500/25 shrink-0">
-            <Target className="w-5 h-5" />
-          </div>
-          <div>
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block">
-              Revision Ratio
-            </span>
-            <div className="flex items-baseline space-x-1.5 mt-0.5">
-              <span className="text-2xl font-black text-purple-300">{revisionRate}%</span>
-              <span className="text-xs text-slate-500">of curriculum</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Difficulty Breakdown in Revision */}
-        <div className="rounded-2xl p-4 bg-[#0D1527] border border-slate-800 shadow-md flex items-center space-x-3">
-          <div className="p-2.5 rounded-xl bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 shrink-0">
-            <Award className="w-5 h-5" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block">
-              By Difficulty
-            </span>
-            <div className="flex items-center space-x-2 mt-1 text-xs font-bold">
-              <span className="text-emerald-400">{easyRevCount}E</span>
-              <span className="text-slate-600">•</span>
-              <span className="text-amber-400">{medRevCount}M</span>
-              <span className="text-slate-600">•</span>
-              <span className="text-rose-400">{hardRevCount}H</span>
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* 3. FILTER, SEARCH & TAB CONTROLS */}
       <div className="space-y-3 bg-[#0D1527] border border-slate-800 rounded-2xl p-4 shadow-lg">
