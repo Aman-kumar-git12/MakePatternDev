@@ -15,8 +15,13 @@ class Settings(BaseSettings):
     CLIENT_URL: str = "http://localhost:5173"
     CORS_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174,http://localhost:3000"
     ALLOW_DEV_FALLBACK_AUTH: bool = False
-    MONGODB_URL: str = "mongodb://localhost:27017"
+    MONGODB_URL: Optional[str] = None
+    MONGODB_URI: Optional[str] = "mongodb+srv://rajaman5562_db_user:7jKAFWoZA7m8kWAa@makepattern.lnprlgq.mongodb.net"
     MONGODB_DB_NAME: str = "dsa_tracker"
+
+    @property
+    def mongo_connection_uri(self) -> str:
+        return self.MONGODB_URI or self.MONGODB_URL or "mongodb+srv://rajaman5562_db_user:7jKAFWoZA7m8kWAa@makepattern.lnprlgq.mongodb.net"
 
     model_config = {
         "env_file": ".env",
