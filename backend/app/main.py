@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from app.database import engine, Base, SessionLocal
 from app.config import settings
+from app.mongodb import init_mongodb
 from app.routers import auth, folders, questions, solutions, bookmarks, progress, search, test_cases
 import logging
 
@@ -19,6 +20,12 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.critical(f"Database schema initialization failed: {e}", exc_info=True)
         raise
+
+    # Initialize MongoDB connection and indexes
+    try:
+        init_mongodb()
+    except Exception as e:
+        logger.warning(f"MongoDB initialization error: {e}")
 
     yield
 
