@@ -132,10 +132,18 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                             <FileText className="w-4 h-4" />
                           </div>
                           <div className="min-w-0">
-                            <div className="flex items-center space-x-2">
+                            <div className="flex items-center space-x-2 flex-wrap">
                               <h5 className="font-semibold text-sm text-slate-100 group-hover:text-blue-300 transition truncate">
                                 {q.title}
                               </h5>
+                              {/* Difficulty tag right to question title */}
+                              <span
+                                className={`text-[10px] font-medium px-2 py-0.5 rounded-full border shrink-0 ${
+                                  difficultyColors[q.difficulty] || 'text-slate-400'
+                                }`}
+                              >
+                                {q.difficulty}
+                              </span>
                               {q.is_bookmarked && (
                                 <Star className="w-3.5 h-3.5 text-yellow-300 fill-[#fef08a] flex-shrink-0" />
                               )}
@@ -147,13 +155,6 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                         </div>
 
                         <div className="flex items-center space-x-2 flex-shrink-0">
-                          <span
-                            className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${
-                              difficultyColors[q.difficulty] || 'text-slate-400'
-                            }`}
-                          >
-                            {q.difficulty}
-                          </span>
                           <ChevronRight className="w-4 h-4 text-slate-500 group-hover:text-blue-400 transition" />
                         </div>
                       </div>

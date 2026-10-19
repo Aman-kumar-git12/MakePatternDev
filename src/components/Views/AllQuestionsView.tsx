@@ -253,10 +253,18 @@ export const AllQuestionsView: React.FC<AllQuestionsViewProps> = ({
                     </div>
 
                     <div className="min-w-0">
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center space-x-2 flex-wrap gap-y-1">
                         <h4 className="font-semibold text-sm text-slate-100 group-hover:text-yellow-300 transition truncate">
                           {q.title}
                         </h4>
+                        {/* Difficulty tag right to question title */}
+                        <span
+                          className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border shrink-0 ${
+                            difficultyColors[q.difficulty] || 'text-slate-400'
+                          }`}
+                        >
+                          {q.difficulty}
+                        </span>
                         {q.is_bookmarked && (
                           <Star className="w-3.5 h-3.5 text-yellow-300 fill-[#fef08a] flex-shrink-0" />
                         )}
@@ -292,12 +300,6 @@ export const AllQuestionsView: React.FC<AllQuestionsViewProps> = ({
                   </div>
 
                   <div className="flex items-center space-x-3 flex-shrink-0">
-                    <span
-                      className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full border ${difficultyColors[q.difficulty] || 'text-slate-400'
-                        }`}
-                    >
-                      {q.difficulty}
-                    </span>
 
                     <span className="text-xs text-slate-400 hidden md:inline-block">
                       {q.status}
@@ -353,11 +355,8 @@ export const AllQuestionsView: React.FC<AllQuestionsViewProps> = ({
               >
                 <div>
                   <div className="flex items-center justify-between mb-3">
-                    <span
-                      className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full border uppercase tracking-wider ${difficultyColors[q.difficulty] || 'text-slate-400'
-                        }`}
-                    >
-                      {q.difficulty}
+                    <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
+                      {q.status}
                     </span>
 
                     <div className="flex items-center space-x-1">
@@ -390,9 +389,18 @@ export const AllQuestionsView: React.FC<AllQuestionsViewProps> = ({
                     </div>
                   </div>
 
-                  <h3 className="font-bold text-base text-white group-hover:text-blue-300 transition mb-1 leading-snug">
-                    {q.title}
-                  </h3>
+                  <div className="flex items-center space-x-2 flex-wrap gap-y-1 mb-1">
+                    <h3 className="font-bold text-base text-white group-hover:text-blue-300 transition leading-snug">
+                      {q.title}
+                    </h3>
+                    {/* Difficulty tag right to question title */}
+                    <span
+                      className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border uppercase tracking-wider shrink-0 ${difficultyColors[q.difficulty] || 'text-slate-400'
+                        }`}
+                    >
+                      {q.difficulty}
+                    </span>
+                  </div>
 
                   <p className="text-xs text-slate-400 mb-4 truncate">
                     {q.folder_path || 'DSA'}
