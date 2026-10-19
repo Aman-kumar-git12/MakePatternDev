@@ -276,7 +276,7 @@ export const AllQuestionsView: React.FC<AllQuestionsViewProps> = ({
                         )}
                       </div>
                       <div className="flex items-center space-x-3 text-xs text-slate-400 truncate mt-1">
-                        <span>{q.folder_path || 'DSA'}</span>
+                        <span>{q.folder_path || 'All Questions'}</span>
                         {q.tags && q.tags.length > 0 && (
                           <div className="flex items-center space-x-1 hidden sm:inline-flex">
                             {q.tags.slice(0, 2).map((tag, idx) => (

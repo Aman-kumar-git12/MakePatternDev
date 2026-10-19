@@ -160,12 +160,24 @@ class ApiService {
     return this.request<QuestionListItem[]>(`/questions/${qs}`);
   }
 
+  async getRandomQuestions(params?: { count?: number; only_revision?: boolean; pool?: string; status?: string; difficulty?: string }): Promise<QuestionListItem[]> {
+    const query = new URLSearchParams();
+    if (params?.count) query.append('count', params.count.toString());
+    if (params?.pool) query.append('pool', params.pool);
+    if (params?.only_revision !== undefined) query.append('only_revision', params.only_revision ? 'true' : 'false');
+    if (params?.status) query.append('status', params.status);
+    if (params?.difficulty) query.append('difficulty', params.difficulty);
+
+    const qs = query.toString() ? `?${query.toString()}` : '';
+    return this.request<QuestionListItem[]>(`/questions/random${qs}`);
+  }
+
   async getQuestion(id: string): Promise<Question> {
     return this.request<Question>(`/questions/${id}`);
   }
 
   async createQuestion(data: {
-    folder_id: string;
+    folder_id?: string | null;
     title: string;
     problem_url?: string;
     difficulty?: Difficulty;

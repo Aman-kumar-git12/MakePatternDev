@@ -4,10 +4,6 @@ import {
   Layers,
   ChevronDown,
   ChevronRight,
-  CheckCircle2,
-  Clock,
-  RotateCcw,
-  Circle,
   ExternalLink,
   Copy,
   Check,
@@ -29,7 +25,6 @@ import type {
   QuestionListItem,
   Question,
   Difficulty,
-  QuestionStatus,
   SupportedLanguage
 } from '../../types/dsa';
 
@@ -108,7 +103,6 @@ export const SharedPatternView: React.FC = () => {
     let easyCount = 0;
     let medCount = 0;
     let hardCount = 0;
-    let solvedCount = 0;
 
     const seenQuestions = new Set<string>();
 
@@ -119,7 +113,6 @@ export const SharedPatternView: React.FC = () => {
           if (!seenQuestions.has(q.id)) {
             seenQuestions.add(q.id);
             questionCount += 1;
-            if (q.status === 'Solved') solvedCount += 1;
             if (q.difficulty === 'Easy') easyCount += 1;
             else if (q.difficulty === 'Medium') medCount += 1;
             else if (q.difficulty === 'Hard') hardCount += 1;
@@ -141,8 +134,6 @@ export const SharedPatternView: React.FC = () => {
       easyCount,
       medCount,
       hardCount,
-      solvedCount,
-      overallProgress: questionCount > 0 ? Math.round((solvedCount / questionCount) * 100) : 0,
     };
   }, [patternsList]);
 
@@ -238,18 +229,7 @@ export const SharedPatternView: React.FC = () => {
     }
   };
 
-  const getStatusIcon = (status: QuestionStatus) => {
-    switch (status) {
-      case 'Solved':
-        return <CheckCircle2 className="w-4 h-4 text-emerald-400" />;
-      case 'In Progress':
-        return <Clock className="w-4 h-4 text-amber-400" />;
-      case 'Needs Revision':
-        return <RotateCcw className="w-4 h-4 text-rose-400" />;
-      default:
-        return <Circle className="w-4 h-4 text-slate-500" />;
-    }
-  };
+
 
   const monacoLanguage = (lang?: SupportedLanguage | string) => {
     switch (lang) {
@@ -273,7 +253,6 @@ export const SharedPatternView: React.FC = () => {
     return (
       q.title.toLowerCase().includes(query) ||
       q.difficulty.toLowerCase().includes(query) ||
-      q.status.toLowerCase().includes(query) ||
       q.tags?.some((t) => t.toLowerCase().includes(query))
     );
   };
@@ -298,7 +277,9 @@ export const SharedPatternView: React.FC = () => {
         className="flex items-center justify-between p-3 rounded-xl bg-[#0B101E] hover:bg-[#111A30] border border-slate-800/80 hover:border-blue-500/40 transition cursor-pointer group"
       >
         <div className="flex items-center space-x-3 min-w-0">
-          <div className="shrink-0">{getStatusIcon(q.status)}</div>
+          <div className="shrink-0 p-1.5 rounded-lg bg-slate-800/80 text-slate-400 group-hover:text-blue-400 group-hover:bg-blue-500/15 border border-slate-700/50 transition">
+            <Code2 className="w-3.5 h-3.5" />
+          </div>
           <span className="text-sm font-medium text-slate-200 group-hover:text-blue-300 transition truncate">
             {q.title}
           </span>
@@ -364,10 +345,6 @@ export const SharedPatternView: React.FC = () => {
             <span className="text-xs px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">
               {node.question_count || (node.questions ? node.questions.length : 0)}
             </span>
-          </div>
-
-          <div className="text-xs text-slate-400">
-            {node.progress_percentage !== undefined ? `${node.progress_percentage}% solved` : ''}
           </div>
         </div>
 
@@ -599,9 +576,6 @@ export const SharedPatternView: React.FC = () => {
                   <div className="flex items-center space-x-3 text-xs">
                     <span className="px-2.5 py-1 rounded-full bg-slate-800 text-slate-400 font-mono">
                       {pat.question_count || (pat.questions ? pat.questions.length : 0)} questions
-                    </span>
-                    <span className="text-emerald-400 font-semibold">
-                      {pat.solved_count || 0} solved
                     </span>
                   </div>
                 </div>

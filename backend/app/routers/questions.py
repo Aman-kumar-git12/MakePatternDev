@@ -36,7 +36,7 @@ def format_question_response(db: Session, q: Question, user_id: str) -> Question
         Bookmark.question_id == q.id
     ).first() is not None
 
-    folder_path = get_folder_path_string(db, q.folder_id)
+    folder_path = get_folder_path_string(db, q.folder_id) if q.folder_id else ""
 
     solutions = [
         SolutionResponse(
@@ -145,7 +145,58 @@ def list_questions(
                 status=q.status,
                 tags=tags_list,
                 is_bookmarked=(q.id in bookmarked_ids),
-                folder_path=get_folder_path_string(db, q.folder_id),
+                folder_path=get_folder_path_string(db, q.folder_id) if q.folder_id else "",
+                position=q.position or 0,
+                created_at=q.created_at,
+                updated_at=q.updated_at
+            )
+        )
+    return result
+
+@router.get("/random", response_model=List[QuestionListItem])
+def get_random_questions(
+    count: int = Query(default=3, ge=1, le=5, description="Number of random questions to return (max 5)"),
+    only_revision: bool = Query(default=False, description="Filter only questions flagged for revision"),
+    pool: Optional[str] = Query(default="all", description="Pool to sample from: 'all', 'not_revised', or 'revision'"),
+    status: Optional[str] = Query(default=None, description="Optional status filter"),
+    difficulty: Optional[str] = Query(default=None, description="Optional difficulty filter"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    query = db.query(Question).filter(Question.user_id == current_user.id)
+    if pool == "revision" or only_revision or status == "Needs Revision":
+        query = query.filter(Question.status == "Needs Revision")
+    elif pool in ("not_revised", "unrevised", "unflagged"):
+        query = query.filter((Question.status != "Needs Revision") | (Question.status.is_(None)))
+    elif status:
+        query = query.filter(Question.status == status)
+
+    if difficulty and difficulty != "all":
+        query = query.filter(Question.difficulty == difficulty)
+
+    questions = query.order_by(func.random()).limit(count).all()
+
+    bookmarked_ids = {b.question_id for b in db.query(Bookmark).filter(Bookmark.user_id == current_user.id).all()}
+
+    result = []
+    for q in questions:
+        tags_list = []
+        try:
+            tags_list = json.loads(q.tags) if q.tags else []
+        except Exception:
+            tags_list = [q.tags] if q.tags else []
+
+        result.append(
+            QuestionListItem(
+                id=q.id,
+                folder_id=q.folder_id,
+                title=q.title,
+                problem_url=getattr(q, 'problem_url', '') or "",
+                difficulty=q.difficulty,
+                status=q.status,
+                tags=tags_list,
+                is_bookmarked=(q.id in bookmarked_ids),
+                folder_path=get_folder_path_string(db, q.folder_id) if q.folder_id else "",
                 position=q.position or 0,
                 created_at=q.created_at,
                 updated_at=q.updated_at
@@ -174,12 +225,15 @@ def create_question(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    folder = db.query(Folder).filter(
-        Folder.id == q_in.folder_id,
-        Folder.user_id == current_user.id
-    ).first()
-    if not folder:
-        raise HTTPException(status_code=404, detail="Folder not found")
+    actual_folder_id = None
+    if q_in.folder_id and q_in.folder_id.strip():
+        folder = db.query(Folder).filter(
+            Folder.id == q_in.folder_id.strip(),
+            Folder.user_id == current_user.id
+        ).first()
+        if not folder:
+            raise HTTPException(status_code=404, detail="Folder not found")
+        actual_folder_id = folder.id
 
     tags_str = json.dumps(q_in.tags or [])
 
@@ -188,13 +242,13 @@ def create_question(
     else:
         max_pos = db.query(func.max(Question.position)).filter(
             Question.user_id == current_user.id,
-            Question.folder_id == q_in.folder_id
+            Question.folder_id == actual_folder_id
         ).scalar()
         q_pos = (max_pos + 1) if max_pos is not None else 0
 
     question = Question(
         user_id=current_user.id,
-        folder_id=q_in.folder_id,
+        folder_id=actual_folder_id,
         title=q_in.title.strip(),
         problem_url=(q_in.problem_url or "").strip(),
         problem_statement=q_in.problem_statement or "",

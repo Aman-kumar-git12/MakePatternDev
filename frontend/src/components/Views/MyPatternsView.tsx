@@ -3,6 +3,7 @@ import {
   Layers,
   Plus,
   ChevronDown,
+  ChevronUp,
   ChevronRight,
   FileCode,
   CheckCircle2,
@@ -42,7 +43,7 @@ const EXPANDED_STORAGE_KEY = 'mp_mypatterns_expanded_nodes';
 interface DragState {
   type: 'root-folder' | 'subfolder' | 'question';
   id: string;
-  folderId?: string; // For questions: folder_id
+  folderId?: string | null; // For questions: folder_id
   parentId?: string | null; // For subfolders: parent folder ID
 }
 
@@ -154,9 +155,11 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
   const questionsByFolder = useMemo(() => {
     const map = new Map<string, QuestionListItem[]>();
     for (const q of questions) {
-      const list = map.get(q.folder_id) || [];
-      list.push(q);
-      map.set(q.folder_id, list);
+      if (q.folder_id) {
+        const list = map.get(q.folder_id) || [];
+        list.push(q);
+        map.set(q.folder_id, list);
+      }
     }
     for (const [folderId, list] of map.entries()) {
       map.set(folderId, sortQuestions(list));
@@ -239,8 +242,9 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
   };
 
   // Drag handlers for Questions (STRICT: only within same folder)
-  const handleQuestionDrop = (folderId: string, targetQuestionId: string) => {
+  const handleQuestionDrop = (folderId: string | null | undefined, targetQuestionId: string) => {
     if (
+      !folderId ||
       !dragState ||
       dragState.type !== 'question' ||
       dragState.folderId !== folderId ||
@@ -275,7 +279,7 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
   };
 
   // Drag handlers for Subtopics (STRICT: only within same parent folder)
-  const handleSubtopicDrop = (parentId: string, targetSubtopicId: string) => {
+  const handleSubtopicDrop = (parentId: string, targetSubtopicId: string, forcedPosition?: 'before' | 'after') => {
     if (
       !dragState ||
       dragState.type !== 'subfolder' ||
@@ -287,6 +291,8 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
       return;
     }
 
+    const currentPos = forcedPosition || dropTarget?.position;
+
     const findAndReorderSubfolders = (nodes: Folder[]): Folder[] => {
       return nodes.map((node) => {
         if (node.id === parentId) {
@@ -296,8 +302,9 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
 
           if (dragIdx !== -1 && targetIdx !== -1) {
             const [dragged] = subList.splice(dragIdx, 1);
-            const insertIdx = subList.findIndex((s) => s.id === targetSubtopicId);
-            const finalIdx = dropTarget?.position === 'after' ? insertIdx + 1 : insertIdx;
+            const newTargetIdx = subList.findIndex((s) => s.id === targetSubtopicId);
+            const shouldInsertAfter = currentPos ? currentPos === 'after' : dragIdx < targetIdx;
+            const finalIdx = shouldInsertAfter ? newTargetIdx + 1 : newTargetIdx;
             subList.splice(finalIdx, 0, dragged);
             const reorderedSub = subList.map((s, idx) => ({ ...s, position: idx }));
             return { ...node, subfolders: reorderedSub };
@@ -318,8 +325,36 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
     setDropTarget(null);
   };
 
+  const handleMoveSubtopic = (parentId: string, subtopicId: string, direction: 'up' | 'down') => {
+    const findAndMove = (nodes: Folder[]): Folder[] => {
+      return nodes.map((node) => {
+        if (node.id === parentId) {
+          const subList = sortFolders(node.subfolders || []);
+          const idx = subList.findIndex((s) => s.id === subtopicId);
+          if (idx === -1) return node;
+          const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+          if (targetIdx < 0 || targetIdx >= subList.length) return node;
+
+          const [item] = subList.splice(idx, 1);
+          subList.splice(targetIdx, 0, item);
+          const reorderedSub = subList.map((s, i) => ({ ...s, position: i }));
+          return { ...node, subfolders: reorderedSub };
+        }
+        if (node.subfolders && node.subfolders.length > 0) {
+          return { ...node, subfolders: findAndMove(node.subfolders) };
+        }
+        return node;
+      });
+    };
+
+    const newTree = findAndMove(folders);
+    if (onReorderFolders) {
+      onReorderFolders(newTree);
+    }
+  };
+
   // Render a recursive subtopic / nested folder node
-  const renderSubtopicNode = (node: Folder) => {
+  const renderSubtopicNode = (node: Folder, index?: number, totalCount?: number) => {
     const expanded = isNodeExpanded(node.id);
     const nodeQuestions = getQuestionsForFolder(node.id);
     const subtopics = sortFolders(node.subfolders || []);
@@ -327,49 +362,53 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
 
     const isDraggingThis = dragState?.id === node.id;
     const isTargetThis = dropTarget?.id === node.id;
+    const isFirst = index !== undefined ? index === 0 : false;
+    const isLast = index !== undefined && totalCount !== undefined ? index === totalCount - 1 : false;
 
     return (
       <div
         key={node.id}
         className={`text-xs space-y-1 rounded-lg transition-all ${
-          isDraggingThis ? 'opacity-40 border border-dashed border-slate-600' : ''
-        } ${
-          isTargetThis && dropTarget?.position === 'before'
-            ? 'border-t-2 border-t-yellow-400'
-            : isTargetThis && dropTarget?.position === 'after'
-            ? 'border-b-2 border-b-yellow-400'
-            : ''
+          isDraggingThis ? 'opacity-40' : ''
         }`}
-        onDragOver={(e) => {
-          if (
-            dragState?.type === 'subfolder' &&
-            dragState.parentId === node.parent_id &&
-            dragState.id !== node.id
-          ) {
-            e.preventDefault();
-            e.stopPropagation();
-            const rect = e.currentTarget.getBoundingClientRect();
-            const isAfter = e.clientY - rect.top > rect.height / 2;
-            setDropTarget({ type: 'subfolder', id: node.id, position: isAfter ? 'after' : 'before' });
-          }
-        }}
-        onDragLeave={() => {
-          if (dropTarget?.id === node.id) {
-            setDropTarget(null);
-          }
-        }}
-        onDrop={(e) => {
-          if (node.parent_id) {
-            e.preventDefault();
-            e.stopPropagation();
-            handleSubtopicDrop(node.parent_id, node.id);
-          }
-        }}
       >
         {/* Node Row Header */}
         <div
           onClick={() => toggleNode(node.id)}
-          className="flex items-center justify-between py-1.5 px-2.5 rounded-lg hover:bg-slate-800/60 cursor-pointer transition select-none group"
+          onDragOver={(e) => {
+            if (
+              dragState?.type === 'subfolder' &&
+              dragState.parentId === node.parent_id &&
+              dragState.id !== node.id
+            ) {
+              e.preventDefault();
+              e.stopPropagation();
+              const rect = e.currentTarget.getBoundingClientRect();
+              const isAfter = e.clientY - rect.top > rect.height / 2;
+              setDropTarget({ type: 'subfolder', id: node.id, position: isAfter ? 'after' : 'before' });
+            }
+          }}
+          onDragLeave={(e) => {
+            if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+              if (dropTarget?.id === node.id) {
+                setDropTarget(null);
+              }
+            }
+          }}
+          onDrop={(e) => {
+            if (node.parent_id) {
+              e.preventDefault();
+              e.stopPropagation();
+              handleSubtopicDrop(node.parent_id, node.id);
+            }
+          }}
+          className={`flex items-center justify-between py-1.5 px-2.5 rounded-lg hover:bg-slate-800/60 cursor-pointer transition select-none group ${
+            isTargetThis && dropTarget?.position === 'before'
+              ? 'border-t-2 border-t-yellow-400'
+              : isTargetThis && dropTarget?.position === 'after'
+              ? 'border-b-2 border-b-yellow-400'
+              : ''
+          }`}
         >
           <div className="flex items-center space-x-1.5 min-w-0">
             {/* Drag Handle for Subtopic */}
@@ -393,6 +432,34 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
               title="Drag to rearrange subtopic within this folder"
             >
               <GripVertical className="w-3.5 h-3.5" />
+            </div>
+
+            {/* Quick Move Up/Down buttons on hover */}
+            <div className="flex flex-col -space-y-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button
+                type="button"
+                disabled={isFirst}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (node.parent_id) handleMoveSubtopic(node.parent_id, node.id, 'up');
+                }}
+                className={`p-0.5 rounded hover:bg-slate-700 transition ${isFirst ? 'opacity-20 cursor-not-allowed text-slate-600' : 'text-slate-400 hover:text-white'}`}
+                title="Move subtopic up"
+              >
+                <ChevronUp className="w-2.5 h-2.5" />
+              </button>
+              <button
+                type="button"
+                disabled={isLast}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (node.parent_id) handleMoveSubtopic(node.parent_id, node.id, 'down');
+                }}
+                className={`p-0.5 rounded hover:bg-slate-700 transition ${isLast ? 'opacity-20 cursor-not-allowed text-slate-600' : 'text-slate-400 hover:text-white'}`}
+                title="Move subtopic down"
+              >
+                <ChevronDown className="w-2.5 h-2.5" />
+              </button>
             </div>
 
             <span className="text-slate-500 hover:text-white transition">
@@ -484,7 +551,7 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
         {expanded && (
           <div className="pl-4 ml-2 border-l border-slate-800 space-y-1 py-1">
             {/* Recursive Sub-subtopics */}
-            {subtopics.map((sub) => renderSubtopicNode(sub))}
+            {subtopics.map((sub, idx) => renderSubtopicNode(sub, idx, subtopics.length))}
 
             {/* Questions in this subtopic */}
             {nodeQuestions.map((q) => {
@@ -499,7 +566,7 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
                     // Strict: only allow if dragged question belongs to same folder
                     if (
                       dragState?.type === 'question' &&
-                      dragState.folderId === q.folder_id &&
+                      dragState.folderId === node.id &&
                       dragState.id !== q.id
                     ) {
                       e.preventDefault();
@@ -517,7 +584,7 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
                   onDrop={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    handleQuestionDrop(q.folder_id, q.id);
+                    handleQuestionDrop(node.id, q.id);
                   }}
                   className={`flex items-center justify-between py-1.5 px-2.5 rounded-md hover:bg-slate-800/40 cursor-pointer transition group ${
                     isDraggingQ ? 'opacity-40 border border-dashed border-slate-600' : ''
@@ -539,7 +606,7 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
                         setDragState({
                           type: 'question',
                           id: q.id,
-                          folderId: q.folder_id,
+                          folderId: node.id,
                         });
                       }}
                       onDragEnd={() => {
@@ -950,7 +1017,7 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
                     {hasChildren ? (
                       <div className="relative pl-5 ml-2 border-l border-slate-700/50 space-y-1">
                         {/* 1. Subtopics */}
-                        {subfolders.map((sub) => renderSubtopicNode(sub))}
+                        {subfolders.map((sub, idx) => renderSubtopicNode(sub, idx, subfolders.length))}
 
                         {/* 2. Questions directly under root pattern */}
                         {patternQuestions.map((q) => {
@@ -965,7 +1032,7 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
                                 // Strict: only allow if dragged question belongs to same folder
                                 if (
                                   dragState?.type === 'question' &&
-                                  dragState.folderId === q.folder_id &&
+                                  dragState.folderId === pattern.id &&
                                   dragState.id !== q.id
                                 ) {
                                   e.preventDefault();
@@ -987,7 +1054,7 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
                               onDrop={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
-                                handleQuestionDrop(q.folder_id, q.id);
+                                handleQuestionDrop(pattern.id, q.id);
                               }}
                               className={`flex items-center justify-between py-1.5 px-2.5 rounded-md hover:bg-slate-800/50 cursor-pointer transition group relative before:content-[''] before:absolute before:-left-5 before:top-1/2 before:w-3.5 before:h-[1px] before:bg-slate-700/50 ${
                                 isDraggingQ ? 'opacity-40 border border-dashed border-slate-600' : ''
@@ -1009,7 +1076,7 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
                                     setDragState({
                                       type: 'question',
                                       id: q.id,
-                                      folderId: q.folder_id,
+                                      folderId: pattern.id,
                                     });
                                   }}
                                   onDragEnd={() => {

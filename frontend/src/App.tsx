@@ -315,7 +315,7 @@ function MainAppShell() {
       const payload: { id: string; position: number }[] = [];
       const collectPositions = (nodes: Folder[]) => {
         nodes.forEach((node, idx) => {
-          payload.push({ id: node.id, position: node.position ?? idx });
+          payload.push({ id: node.id, position: idx });
           if (node.subfolders && node.subfolders.length > 0) {
             collectPositions(node.subfolders);
           }
@@ -323,6 +323,8 @@ function MainAppShell() {
       };
       collectPositions(reorderedFolders);
       await api.reorderFolders(payload);
+      const freshTree = await api.getFolderTree();
+      setFolders(freshTree);
     } catch (err) {
       console.error('Failed to persist folder reordering:', err);
     }
@@ -343,7 +345,7 @@ function MainAppShell() {
 
   // Question Operations
   const handleCreateQuestion = async (data: {
-    folder_id: string;
+    folder_id?: string | null;
     title: string;
     problem_url?: string;
     difficulty: Difficulty;

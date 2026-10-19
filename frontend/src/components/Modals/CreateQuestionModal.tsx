@@ -8,7 +8,7 @@ interface CreateQuestionModalProps {
   initialFolderId?: string;
   folders: Folder[];
   onCreateQuestion: (data: {
-    folder_id: string;
+    folder_id?: string | null;
     title: string;
     problem_url?: string;
     difficulty: Difficulty;
@@ -58,11 +58,11 @@ export const CreateQuestionModal: React.FC<CreateQuestionModalProps> = ({
     if (isOpen) {
       if (initialFolderId) {
         setSelectedFolderId(initialFolderId);
-      } else if (flatList.length > 0) {
-        setSelectedFolderId(flatList[0].id);
+      } else {
+        setSelectedFolderId('');
       }
     }
-  }, [isOpen, initialFolderId, folders]);
+  }, [isOpen, initialFolderId]);
 
   if (!isOpen) return null;
 
@@ -80,10 +80,6 @@ export const CreateQuestionModal: React.FC<CreateQuestionModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedFolderId) {
-      setError('Please select a folder for this problem');
-      return;
-    }
     if (!title.trim()) {
       setError('Problem title is required');
       return;
@@ -93,7 +89,7 @@ export const CreateQuestionModal: React.FC<CreateQuestionModalProps> = ({
     setIsSubmitting(true);
     try {
       await onCreateQuestion({
-        folder_id: selectedFolderId,
+        folder_id: selectedFolderId || undefined,
         title: title.trim(),
         problem_url: problemUrl.trim() || undefined,
         difficulty,
@@ -154,15 +150,15 @@ export const CreateQuestionModal: React.FC<CreateQuestionModalProps> = ({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-semibold text-slate-300 mb-1.5" htmlFor="problem-folder">
-              Destination Topic / Subtopic <span className="text-rose-400">*</span>
+              Destination Topic / Subtopic <span className="text-slate-400 font-normal">(Optional — defaults to All Questions only)</span>
             </label>
             <select
               id="problem-folder"
-              required
               value={selectedFolderId}
               onChange={(e) => setSelectedFolderId(e.target.value)}
               className="w-full px-3.5 py-2.5 bg-[#090E1A] border border-slate-700/80 rounded-xl text-xs text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition cursor-pointer"
             >
+              <option value="">📂 None (All Questions only — not in pattern)</option>
               {flatList.map((f) => (
                 <option key={f.id} value={f.id}>
                   {'\u00A0'.repeat(f.depth * 4)}

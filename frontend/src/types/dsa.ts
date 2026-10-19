@@ -49,7 +49,7 @@ export interface ComplexityAnalysisResult {
 export interface Question {
   id: string;
   user_id?: string;
-  folder_id: string;
+  folder_id?: string | null;
   title: string;
   problem_url?: string;
   problem_statement: string;
@@ -68,7 +68,7 @@ export interface Question {
 
 export interface QuestionListItem {
   id: string;
-  folder_id: string;
+  folder_id?: string | null;
   title: string;
   problem_url?: string;
   difficulty: Difficulty;
