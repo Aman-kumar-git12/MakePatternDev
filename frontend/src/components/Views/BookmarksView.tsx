@@ -12,6 +12,7 @@ import {
   Clock,
   RotateCcw,
   Circle,
+  ExternalLink,
 } from 'lucide-react';
 import type { QuestionListItem } from '../../types/dsa';
 
@@ -214,30 +215,57 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
                   </div>
                 </div>
 
-                {/* Right: Difficulty badge, Status text, Actions */}
-                <div className="flex items-center justify-between sm:justify-end space-x-3 flex-shrink-0">
-                  <span
-                    className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full border uppercase tracking-wider ${
-                      difficultyColors[q.difficulty] || 'text-slate-400'
-                    }`}
-                  >
-                    {q.difficulty}
-                  </span>
+                {/* Right: Left side tags, fixed status, actions, and right side link */}
+                <div className="flex items-center space-x-2.5 sm:space-x-3 flex-shrink-0">
+                  {/* Left side: Tags */}
+                  <div className="w-16 flex items-center shrink-0">
+                    <span
+                      className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full border uppercase tracking-wider text-center ${
+                        difficultyColors[q.difficulty] || 'text-slate-400'
+                      }`}
+                    >
+                      {q.difficulty}
+                    </span>
+                  </div>
 
-                  <span className="text-xs text-slate-400 hidden sm:inline-block w-24 text-right">
-                    {q.status}
-                  </span>
+                  {/* Status text (Fixed width prevents tag jumping) */}
+                  <div className="w-28 hidden sm:flex items-center text-xs text-slate-400 shrink-0">
+                    <span className="truncate">{q.status}</span>
+                  </div>
 
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       onRemoveBookmark(q.id);
                     }}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition"
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition shrink-0"
                     title="Remove from bookmarks"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
+
+                  {/* Right side: Link */}
+                  <div className="w-7 flex items-center justify-center shrink-0">
+                    {q.problem_url && q.problem_url.trim() ? (
+                      <a
+                        href={q.problem_url.trim()}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="p-1 text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition flex items-center justify-center"
+                        title={`Open problem link: ${q.problem_url}`}
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    ) : (
+                      <span
+                        className="p-1 text-slate-700/40 cursor-not-allowed flex items-center justify-center"
+                        title="No problem link provided"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5 opacity-20" />
+                      </span>
+                    )}
+                  </div>
 
                   <ChevronRight className="w-4 h-4 text-slate-500 group-hover:text-blue-400 group-hover:translate-x-1 transition flex-shrink-0" />
                 </div>
