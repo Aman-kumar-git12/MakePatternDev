@@ -8,9 +8,14 @@ import {
   CheckSquare,
   Square,
   X,
-  AlertCircle
+  AlertCircle,
+  Shuffle,
+  Plus,
+  Minus,
+  Sparkles,
 } from 'lucide-react';
 import type { QuestionListItem, Difficulty } from '../../types/dsa';
+import { api } from '../../services/api';
 
 interface RevisionViewProps {
   questions: QuestionListItem[];
@@ -29,19 +34,44 @@ export const RevisionView: React.FC<RevisionViewProps> = ({
   const [activeTab, setActiveTab] = useState<'all' | 'flagged' | 'unflagged'>('all');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
-  // Live Counts for Revision KPIs
+  // Random Questions state
+  const [isRandomModalOpen, setIsRandomModalOpen] = useState(false);
+  const [randomCount, setRandomCount] = useState<number>(3);
+  const [randomSource, setRandomSource] = useState<'all' | 'revision'>('revision');
+  const [isLoadingRandom, setIsLoadingRandom] = useState(false);
+  const [randomQuestions, setRandomQuestions] = useState<QuestionListItem[] | null>(null);
+  const [randomError, setRandomError] = useState<string | null>(null);
+
+  // Global counts
   const revisionQuestions = useMemo(
     () => questions.filter((q) => q.status === 'Needs Revision'),
     [questions]
   );
-
   const totalCount = questions.length;
   const revisionCount = revisionQuestions.length;
   const unflaggedCount = Math.max(0, totalCount - revisionCount);
 
+  // Keep randomQuestions statuses in sync when parent questions prop updates
+  useEffect(() => {
+    if (!randomQuestions) return;
+    const questionMap = new Map(questions.map((q) => [q.id, q]));
+    setRandomQuestions((prev) => {
+      if (!prev) return null;
+      return prev.map((item) => {
+        const updated = questionMap.get(item.id);
+        return updated ? { ...item, ...updated } : item;
+      });
+    });
+  }, [questions]);
+
+  // Base list of questions to display: either random selection or all questions
+  const displayedQuestions = useMemo(() => {
+    return randomQuestions !== null ? randomQuestions : questions;
+  }, [randomQuestions, questions]);
+
   // Filtered List
   const filtered = useMemo(() => {
-    return questions.filter((q) => {
+    return displayedQuestions.filter((q) => {
       // Search
       const query = search.toLowerCase();
       const matchesSearch =
@@ -64,7 +94,7 @@ export const RevisionView: React.FC<RevisionViewProps> = ({
 
       return matchesSearch && matchesDiff && matchesTab;
     });
-  }, [questions, search, filterDifficulty, activeTab]);
+  }, [displayedQuestions, search, filterDifficulty, activeTab]);
 
   const handleCheckboxClick = async (e: React.MouseEvent, q: QuestionListItem) => {
     e.stopPropagation();
@@ -72,8 +102,46 @@ export const RevisionView: React.FC<RevisionViewProps> = ({
     setUpdatingId(q.id);
     try {
       await onToggleRevision(q.id, !isCurrentlyRevision);
+      if (randomQuestions) {
+        setRandomQuestions((prev) =>
+          prev
+            ? prev.map((item) =>
+                item.id === q.id
+                  ? { ...item, status: !isCurrentlyRevision ? 'Needs Revision' : 'Solved' }
+                  : item
+              )
+            : null
+        );
+      }
     } finally {
       setUpdatingId(null);
+    }
+  };
+
+  const handleFindRandomQuestions = async () => {
+    setIsLoadingRandom(true);
+    setRandomError(null);
+    try {
+      const res = await api.getRandomQuestions({
+        count: randomCount,
+        only_revision: randomSource === 'revision',
+      });
+      if (!res || res.length === 0) {
+        setRandomError(
+          randomSource === 'revision'
+            ? 'No questions flagged for revision yet. Try selecting "All Questions" or mark questions for revision first.'
+            : 'No questions available in the tracker.'
+        );
+        return;
+      }
+      setRandomQuestions(res);
+      setIsRandomModalOpen(false);
+      showToast(`Selected ${res.length} random question${res.length > 1 ? 's' : ''}`);
+    } catch (err: any) {
+      console.error('Failed to get random questions:', err);
+      setRandomError(err.message || 'Failed to fetch random questions');
+    } finally {
+      setIsLoadingRandom(false);
     }
   };
 
@@ -136,7 +204,22 @@ export const RevisionView: React.FC<RevisionViewProps> = ({
           </div>
         </div>
 
+        {/* Right side controls: Get Random Questions button & Revision Queue counter */}
         <div className="flex items-center space-x-3 shrink-0 relative z-10">
+          <button
+            onClick={() => {
+              setRandomCount(Math.min(5, Math.max(1, revisionCount > 0 ? Math.min(revisionCount, 5) : 3)));
+              setRandomSource(revisionCount > 0 ? 'revision' : 'all');
+              setRandomError(null);
+              setIsRandomModalOpen(true);
+            }}
+            className="flex items-center space-x-2 px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-zinc-950 font-bold text-xs sm:text-sm shadow-lg shadow-amber-500/20 active:scale-95 transition-all duration-150 cursor-pointer"
+          >
+            <Shuffle className="w-4 h-4 stroke-[2.5]" />
+            <span className="hidden sm:inline">Get Random Questions</span>
+            <span className="sm:hidden">Random</span>
+          </button>
+
           <div className="px-4 py-2.5 rounded-xl bg-[#0A0F1D] border border-slate-800 text-center">
             <div className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">
               Revision Queue
@@ -148,7 +231,47 @@ export const RevisionView: React.FC<RevisionViewProps> = ({
         </div>
       </div>
 
-
+      {/* 2. RANDOM PRACTICE MODE BANNER (When random questions are active) */}
+      {randomQuestions !== null && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 shadow-lg animate-fade-in">
+          <div className="flex items-center space-x-3">
+            <div className="p-2.5 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/30 shrink-0">
+              <Shuffle className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-sm font-bold text-white flex items-center space-x-2">
+                <span>Random Practice Set</span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-amber-500/25 text-amber-300 border border-amber-500/40">
+                  {randomQuestions.length} Questions
+                </span>
+                <span className="text-xs text-slate-400 font-normal">
+                  ({randomSource === 'revision' ? 'from Revision Queue' : 'from All Questions'})
+                </span>
+              </div>
+              <p className="text-xs text-amber-300/80 mt-0.5">
+                Practicing these randomly picked questions on this revision page.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center space-x-2 shrink-0">
+            <button
+              onClick={handleFindRandomQuestions}
+              disabled={isLoadingRandom}
+              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/30 text-xs font-semibold transition active:scale-95 disabled:opacity-50 cursor-pointer"
+            >
+              <RotateCcw className={`w-3.5 h-3.5 ${isLoadingRandom ? 'animate-spin' : ''}`} />
+              <span>Reroll</span>
+            </button>
+            <button
+              onClick={() => setRandomQuestions(null)}
+              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs font-semibold transition active:scale-95 cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5" />
+              <span>Show All Questions</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 3. FILTER, SEARCH & TAB CONTROLS */}
       <div className="space-y-3 bg-[#0D1527] border border-slate-800 rounded-2xl p-4 shadow-lg">
@@ -223,7 +346,7 @@ export const RevisionView: React.FC<RevisionViewProps> = ({
           </div>
 
           <div className="text-xs text-slate-500 font-mono">
-            Showing {filtered.length} of {totalCount} questions
+            Showing {filtered.length} of {displayedQuestions.length} questions {randomQuestions !== null ? '(Random Mode)' : ''}
           </div>
         </div>
       </div>
@@ -249,108 +372,93 @@ export const RevisionView: React.FC<RevisionViewProps> = ({
                 {/* Dedicated Revision Checkbox */}
                 <button
                   type="button"
-                  onClick={(e) => handleCheckboxClick(e, q)}
+                  title={isRevision ? 'Remove from revision queue' : 'Mark for revision'}
                   disabled={isUpdating}
-                  title={isRevision ? 'Uncheck to remove from Revision' : 'Check to mark for Revision'}
-                  className={`p-1.5 rounded-xl transition-all duration-150 shrink-0 cursor-pointer ${
+                  onClick={(e) => handleCheckboxClick(e, q)}
+                  className={`p-1.5 rounded-xl border transition-all duration-200 shrink-0 cursor-pointer ${
                     isRevision
-                      ? 'bg-amber-500 text-zinc-950 hover:bg-amber-400 shadow-md shadow-amber-500/30'
-                      : 'bg-[#0A0F1D] text-slate-500 border border-slate-700 hover:border-amber-400 hover:text-amber-400'
-                  } ${isUpdating ? 'opacity-50 animate-pulse' : ''}`}
+                      ? 'bg-amber-500/20 border-amber-500/50 text-amber-400 hover:bg-amber-500/30 shadow-md shadow-amber-500/10'
+                      : 'bg-slate-900 border-slate-700/80 text-slate-500 hover:border-slate-500 hover:text-slate-300'
+                  }`}
                 >
-                  {isRevision ? (
+                  {isUpdating ? (
+                    <RotateCcw className="w-5 h-5 animate-spin text-amber-400" />
+                  ) : isRevision ? (
                     <CheckSquare className="w-5 h-5 stroke-[2.4]" />
                   ) : (
                     <Square className="w-5 h-5 stroke-[1.8]" />
                   )}
                 </button>
 
-                {/* Question Info */}
+                {/* Title & Metadata */}
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center space-x-2">
-                    <span
-                      className={`text-sm font-semibold truncate transition ${
-                        isRevision
-                          ? 'text-white group-hover:text-amber-300'
-                          : 'text-slate-200 group-hover:text-white'
-                      }`}
-                    >
+                  <div className="flex items-center space-x-2.5 flex-wrap gap-y-1">
+                    <span className="font-semibold text-sm sm:text-base text-slate-200 group-hover:text-amber-300 transition truncate">
                       {q.title}
                     </span>
-                    {q.folder_path && (
-                      <span className="hidden sm:inline-block px-2 py-0.5 rounded-md text-[10px] font-medium bg-[#0A0F1D] text-slate-400 border border-slate-800 truncate max-w-[200px]">
-                        {q.folder_path}
+                    <span
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                        difficultyColors[q.difficulty] || difficultyColors.Medium
+                      }`}
+                    >
+                      {q.difficulty}
+                    </span>
+                    {isRevision && (
+                      <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 tracking-wider">
+                        Needs Revision
                       </span>
                     )}
                   </div>
 
-                  {/* Tags */}
-                  {q.tags && q.tags.length > 0 && (
-                    <div className="flex items-center space-x-1.5 mt-1">
-                      {q.tags.slice(0, 3).map((tag) => (
-                        <span
-                          key={tag}
-                          className="px-1.5 py-0.2 rounded text-[10px] font-mono text-slate-500 bg-slate-800/60"
-                        >
-                          #{tag}
-                        </span>
-                      ))}
-                    </div>
-                  )}
+                  <div className="flex items-center space-x-3 mt-1 text-xs text-slate-400 flex-wrap gap-y-1">
+                    {q.folder_path && (
+                      <span className="truncate max-w-xs text-slate-400 font-mono text-[11px]">
+                        📁 {q.folder_path}
+                      </span>
+                    )}
+                    {q.tags && q.tags.length > 0 && (
+                      <div className="flex items-center space-x-1.5">
+                        {q.tags.slice(0, 3).map((tag) => (
+                          <span
+                            key={tag}
+                            className="px-1.5 py-0.2 rounded text-[10px] bg-slate-800 text-slate-400 border border-slate-700/50"
+                          >
+                            #{tag}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
-              {/* Right Column: Exactly 3 sections as requested:
-                  1. Tag of Easy, Med, or Hard
-                  2. Practice button (goes inside question and shows all details)
-                  3. Redirection button (if link is present redirects in new tab, else shows no question link is present)
-              */}
-              <div className="flex items-center space-x-2 sm:space-x-2.5 shrink-0">
-                {/* 1. Tag of Easy, Med, or Hard */}
-                <span
-                  className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${
-                    difficultyColors[q.difficulty] || 'text-slate-400 bg-slate-800 border-slate-700'
-                  }`}
-                >
-                  {q.difficulty}
-                </span>
-
-                {/* 2. Practice Button: go inside the question and show all details */}
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onSelectQuestion(q.id);
-                  }}
-                  className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-blue-600 text-slate-200 hover:text-white border border-slate-700/80 hover:border-blue-500 transition shadow-sm active:scale-95 cursor-pointer"
-                  title="Practice: view full question details, problem statement, solutions & test cases"
-                >
-                  <span>Practice</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
-
-                {/* 3. Redirection Button: redirect to question link in new tab, or show no link message */}
+              {/* Right Column: Link Redirection & Action chevron */}
+              <div className="flex items-center space-x-2 shrink-0">
                 {q.problem_url && q.problem_url.trim() ? (
                   <button
                     type="button"
                     onClick={(e) => handleRedirectionClick(e, q)}
-                    className="flex items-center space-x-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-blue-500/10 hover:bg-blue-600 text-blue-400 hover:text-white border border-blue-500/25 hover:border-blue-500 transition shadow-sm active:scale-95 cursor-pointer"
-                    title={`Redirect to ${q.problem_url} in a new tab`}
+                    title={`Open problem link in new tab: ${q.problem_url}`}
+                    className="flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 text-xs font-medium transition cursor-pointer active:scale-95"
                   >
                     <ExternalLink className="w-3.5 h-3.5" />
-                    <span className="hidden md:inline text-[11px]">Link</span>
+                    <span className="hidden md:inline text-[11px]">Problem</span>
                   </button>
                 ) : (
                   <button
                     type="button"
                     onClick={(e) => handleRedirectionClick(e, q)}
-                    className="flex items-center space-x-1 px-2.5 py-1.5 rounded-xl text-xs font-medium bg-[#0A0F1D] text-slate-500 hover:text-amber-400 hover:bg-slate-800/80 border border-slate-800 hover:border-amber-500/30 transition shadow-sm cursor-pointer"
-                    title="No question link is present"
+                    title="No link provided"
+                    className="flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-slate-800/40 hover:bg-slate-800 text-slate-500 hover:text-slate-400 border border-slate-700/40 text-xs font-medium transition cursor-pointer active:scale-95"
                   >
                     <ExternalLink className="w-3.5 h-3.5 opacity-40" />
                     <span className="hidden md:inline text-[11px] opacity-60">No Link</span>
                   </button>
                 )}
+
+                <div className="p-1.5 rounded-lg text-slate-600 group-hover:text-slate-300 group-hover:translate-x-0.5 transition">
+                  <ArrowRight className="w-4 h-4" />
+                </div>
               </div>
             </div>
           );
@@ -363,15 +471,187 @@ export const RevisionView: React.FC<RevisionViewProps> = ({
             </div>
             <h3 className="text-base font-bold text-white">No questions found</h3>
             <p className="text-xs text-slate-400 max-w-sm mx-auto">
-              {activeTab === 'flagged'
+              {randomQuestions !== null
+                ? 'No questions matched in this random practice set. You can reroll or click "Show All Questions" to clear the filter.'
+                : activeTab === 'flagged'
                 ? 'No questions are currently checked for revision. Tick the checkbox on any question to add it to your revision queue!'
                 : 'No questions match your current search or filter criteria.'}
             </p>
+            {randomQuestions !== null && (
+              <button
+                type="button"
+                onClick={() => setRandomQuestions(null)}
+                className="mt-2 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition"
+              >
+                Show All Questions
+              </button>
+            )}
           </div>
         )}
       </div>
 
-      {/* Toast Notification when no question link is present */}
+      {/* 5. GET RANDOM QUESTIONS MODAL */}
+      {isRandomModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+          <div
+            className="bg-[#0D1527] border border-slate-800 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden p-6 relative animate-scale-in"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close button */}
+            <button
+              onClick={() => setIsRandomModalOpen(false)}
+              className="absolute top-4 right-4 p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Modal Header */}
+            <div className="flex items-center space-x-3 mb-5">
+              <div className="p-3 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400">
+                <Shuffle className="w-6 h-6 stroke-[2.2]" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white tracking-tight">Get Random Questions</h3>
+                <p className="text-xs text-slate-400">Pick up to 10 random questions to practice active recall</p>
+              </div>
+            </div>
+
+            {randomError && (
+              <div className="mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center space-x-2">
+                <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+                <span>{randomError}</span>
+              </div>
+            )}
+
+            {/* Number of Questions Selector */}
+            <div className="space-y-2.5 mb-5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-slate-300">
+                  How many random questions do you want?
+                </label>
+                <span className="text-[11px] font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20">
+                  Max 10
+                </span>
+              </div>
+
+              {/* Counter controls + Presets */}
+              <div className="flex items-center space-x-3">
+                <div className="flex items-center bg-[#0A0F1D] border border-slate-800 rounded-xl p-1 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setRandomCount((c) => Math.max(1, c - 1))}
+                    disabled={randomCount <= 1}
+                    className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer"
+                  >
+                    <Minus className="w-4 h-4" />
+                  </button>
+                  <input
+                    type="number"
+                    min={1}
+                    max={10}
+                    value={randomCount}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value, 10);
+                      if (!isNaN(val)) {
+                        setRandomCount(Math.min(10, Math.max(1, val)));
+                      }
+                    }}
+                    className="w-12 text-center bg-transparent font-bold text-white text-base focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setRandomCount((c) => Math.min(10, c + 1))}
+                    disabled={randomCount >= 10}
+                    className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* Quick preset chips */}
+                <div className="flex items-center space-x-1.5 flex-1">
+                  {[1, 3, 5, 10].map((num) => (
+                    <button
+                      key={num}
+                      type="button"
+                      onClick={() => setRandomCount(num)}
+                      className={`flex-1 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+                        randomCount === num
+                          ? 'bg-amber-500 text-zinc-950 shadow-md shadow-amber-500/20'
+                          : 'bg-[#0A0F1D] text-slate-400 border border-slate-800 hover:border-slate-700 hover:text-white'
+                      }`}
+                    >
+                      {num}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Scope: Revision Queue vs All Questions */}
+            <div className="space-y-2 mb-6">
+              <label className="text-xs font-semibold text-slate-300 block">Question Pool</label>
+              <div className="grid grid-cols-2 gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setRandomSource('revision')}
+                  className={`p-3 rounded-xl border text-left transition cursor-pointer ${
+                    randomSource === 'revision'
+                      ? 'bg-amber-500/15 border-amber-500/50 text-amber-300'
+                      : 'bg-[#0A0F1D] border-slate-800 text-slate-400 hover:text-slate-300'
+                  }`}
+                >
+                  <div className="text-xs font-bold">Revision Queue</div>
+                  <div className="text-[11px] opacity-75 mt-0.5">{revisionCount} flagged questions</div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRandomSource('all')}
+                  className={`p-3 rounded-xl border text-left transition cursor-pointer ${
+                    randomSource === 'all'
+                      ? 'bg-blue-500/15 border-blue-500/50 text-blue-300'
+                      : 'bg-[#0A0F1D] border-slate-800 text-slate-400 hover:text-slate-300'
+                  }`}
+                >
+                  <div className="text-xs font-bold">All Questions</div>
+                  <div className="text-[11px] opacity-75 mt-0.5">{totalCount} total tracked</div>
+                </button>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center justify-end space-x-3 pt-4 border-t border-slate-800/80">
+              <button
+                type="button"
+                onClick={() => setIsRandomModalOpen(false)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isLoadingRandom}
+                onClick={handleFindRandomQuestions}
+                className="flex items-center space-x-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-zinc-950 font-bold text-xs sm:text-sm shadow-lg shadow-amber-500/25 active:scale-95 disabled:opacity-50 transition cursor-pointer"
+              >
+                {isLoadingRandom ? (
+                  <>
+                    <RotateCcw className="w-4 h-4 animate-spin" />
+                    <span>Finding...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4" />
+                    <span>Find Questions</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notification */}
       {toastMessage && (
         <div
           role="alert"
@@ -385,7 +665,7 @@ export const RevisionView: React.FC<RevisionViewProps> = ({
           </div>
           <div className="flex-1 min-w-0 pr-1">
             <div className="text-[11px] font-bold uppercase tracking-wider text-amber-400">
-              Problem Link
+              Notification
             </div>
             <p className="text-xs text-slate-200 mt-0.5 leading-snug">
               {toastMessage}
