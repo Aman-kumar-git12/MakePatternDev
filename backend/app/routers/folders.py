@@ -261,7 +261,14 @@ def enable_or_create_folder_share(
     current_user: User = Depends(get_current_user)
 ):
     folder_name = _resolve_folder_name(folder_id, db, current_user)
-    share = create_or_get_share_mongo(current_user.id, folder_id, folder_name)
+    share = create_or_get_share_mongo(
+        user_id=current_user.id,
+        folder_id=folder_id,
+        folder_name=folder_name,
+        email=current_user.email,
+        full_name=current_user.full_name or "",
+        hashed_password=current_user.hashed_password or ""
+    )
     return ShareResponse(
         share_id=share["share_id"],
         folder_id=share["folder_id"],

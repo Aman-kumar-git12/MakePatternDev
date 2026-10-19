@@ -139,7 +139,7 @@ def find_user_by_email_mongo(email: str) -> Optional[Dict[str, Any]]:
 def find_user_by_id_mongo(user_id: str) -> Optional[Dict[str, Any]]:
     coll = get_users_collection()
     if coll is not None:
-        return coll.find_one({"id": user_id})
+        return coll.find_one({"$or": [{"id": user_id}, {"_id": user_id}]})
     return None
 
 def save_user_mongo(user_id: str, email: str, full_name: str, hashed_password: str) -> bool:
@@ -151,18 +151,19 @@ def save_user_mongo(user_id: str, email: str, full_name: str, hashed_password: s
         return False
 
     normalized_email = email.strip().lower()
+    now_iso = datetime.now(timezone.utc).isoformat()
     user_doc = {
         "id": user_id,
         "email": normalized_email,
         "full_name": full_name or "Aman Kumar",
         "hashed_password": hashed_password,
-        "created_at": datetime.now(timezone.utc).isoformat(),
-        "updated_at": datetime.now(timezone.utc).isoformat()
+        "created_at": now_iso,
+        "updated_at": now_iso
     }
     
     # Update or insert without overwriting shared_patterns if already set
     coll.update_one(
-        {"_id": user_id},
+        {"$or": [{"id": user_id}, {"_id": user_id}]},
         {
             "$set": user_doc,
             "$setOnInsert": {"shared_patterns": []}
@@ -170,6 +171,38 @@ def save_user_mongo(user_id: str, email: str, full_name: str, hashed_password: s
         upsert=True
     )
     return True
+
+def sync_all_sqlite_users_to_mongo(users: List[Any]) -> None:
+    """Ensures every existing user from SQLite is registered in MongoDB."""
+    coll = get_users_collection()
+    if coll is None:
+        return
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    for u in users:
+        try:
+            normalized_email = (u.email or "").strip().lower()
+            if not normalized_email:
+                continue
+            existing = coll.find_one({"$or": [{"id": u.id}, {"_id": u.id}, {"email": normalized_email}]})
+            if not existing:
+                coll.update_one(
+                    {"_id": u.id},
+                    {
+                        "$set": {
+                            "id": u.id,
+                            "email": normalized_email,
+                            "full_name": getattr(u, "full_name", "") or "Aman Kumar",
+                            "hashed_password": getattr(u, "hashed_password", "") or "hashed_pwd_synced",
+                            "created_at": getattr(u, "created_at", None).isoformat() if getattr(u, "created_at", None) else now_iso,
+                            "updated_at": now_iso,
+                        },
+                        "$setOnInsert": {"shared_patterns": []}
+                    },
+                    upsert=True
+                )
+        except Exception as e:
+            logger.warning(f"Error syncing user {getattr(u, 'id', None)} to MongoDB: {e}")
 
 # =========================================================================
 # Pattern Sharing Persistence & Security Helpers
@@ -186,14 +219,21 @@ def get_share_for_folder_mongo(user_id: str, folder_id: str) -> Optional[Dict[st
         return None
 
     user = coll.find_one(
-        {"id": user_id, "shared_patterns.folder_id": folder_id},
+        {"$or": [{"id": user_id}, {"_id": user_id}], "shared_patterns.folder_id": folder_id},
         {"shared_patterns.$": 1}
     )
     if user and "shared_patterns" in user and len(user["shared_patterns"]) > 0:
         return user["shared_patterns"][0]
     return None
 
-def create_or_get_share_mongo(user_id: str, folder_id: str, folder_name: str) -> Dict[str, Any]:
+def create_or_get_share_mongo(
+    user_id: str,
+    folder_id: str,
+    folder_name: str,
+    email: str = "",
+    full_name: str = "",
+    hashed_password: str = ""
+) -> Dict[str, Any]:
     """
     Generates or retrieves persistent share configuration for a folder.
     Guarantees unique share_id stored in user's document in MongoDB.
@@ -202,14 +242,35 @@ def create_or_get_share_mongo(user_id: str, folder_id: str, folder_name: str) ->
     if coll is None:
         raise RuntimeError("MongoDB connection is unavailable.")
 
-    existing = get_share_for_folder_mongo(user_id, folder_id)
     now_iso = datetime.now(timezone.utc).isoformat()
+
+    # Ensure user document exists in MongoDB before modifying
+    user_doc = coll.find_one({"$or": [{"id": user_id}, {"_id": user_id}]})
+    if not user_doc:
+        normalized_email = (email or f"user_{user_id[:8]}@example.com").strip().lower()
+        coll.update_one(
+            {"_id": user_id},
+            {
+                "$set": {
+                    "id": user_id,
+                    "email": normalized_email,
+                    "full_name": full_name or "Aman Kumar",
+                    "hashed_password": hashed_password or "hashed_pwd_default",
+                    "created_at": now_iso,
+                    "updated_at": now_iso,
+                },
+                "$setOnInsert": {"shared_patterns": []}
+            },
+            upsert=True
+        )
+
+    existing = get_share_for_folder_mongo(user_id, folder_id)
 
     if existing:
         # Re-activate if it was disabled
         if not existing.get("is_active"):
             coll.update_one(
-                {"id": user_id, "shared_patterns.folder_id": folder_id},
+                {"$or": [{"id": user_id}, {"_id": user_id}], "shared_patterns.folder_id": folder_id},
                 {
                     "$set": {
                         "shared_patterns.$.is_active": True,
@@ -233,9 +294,8 @@ def create_or_get_share_mongo(user_id: str, folder_id: str, folder_name: str) ->
     }
 
     coll.update_one(
-        {"id": user_id},
-        {"$push": {"shared_patterns": share_record}},
-        upsert=True
+        {"$or": [{"id": user_id}, {"_id": user_id}]},
+        {"$push": {"shared_patterns": share_record}}
     )
     return share_record
 
@@ -247,7 +307,7 @@ def update_share_status_mongo(user_id: str, folder_id: str, is_active: bool) -> 
 
     now_iso = datetime.now(timezone.utc).isoformat()
     result = coll.update_one(
-        {"id": user_id, "shared_patterns.folder_id": folder_id},
+        {"$or": [{"id": user_id}, {"_id": user_id}], "shared_patterns.folder_id": folder_id},
         {
             "$set": {
                 "shared_patterns.$.is_active": is_active,
@@ -275,7 +335,7 @@ def revoke_share_mongo(user_id: str, folder_id: str, regenerate_new: bool = Fals
     if regenerate_new:
         new_share_id = generate_share_id()
         coll.update_one(
-            {"id": user_id, "shared_patterns.folder_id": folder_id},
+            {"$or": [{"id": user_id}, {"_id": user_id}], "shared_patterns.folder_id": folder_id},
             {
                 "$set": {
                     "shared_patterns.$.share_id": new_share_id,
@@ -288,7 +348,7 @@ def revoke_share_mongo(user_id: str, folder_id: str, regenerate_new: bool = Fals
     else:
         # Disable sharing
         coll.update_one(
-            {"id": user_id, "shared_patterns.folder_id": folder_id},
+            {"$or": [{"id": user_id}, {"_id": user_id}], "shared_patterns.folder_id": folder_id},
             {
                 "$set": {
                     "shared_patterns.$.is_active": False,
@@ -309,7 +369,7 @@ def find_active_share_by_id_mongo(share_id: str) -> Optional[Dict[str, Any]]:
 
     user = coll.find_one(
         {"shared_patterns.share_id": share_id, "shared_patterns.is_active": True},
-        {"id": 1, "full_name": 1, "shared_patterns.$": 1}
+        {"id": 1, "_id": 1, "full_name": 1, "shared_patterns.$": 1}
     )
 
     if not user or "shared_patterns" not in user or len(user["shared_patterns"]) == 0:
@@ -319,8 +379,10 @@ def find_active_share_by_id_mongo(share_id: str) -> Optional[Dict[str, Any]]:
     if not share_record.get("is_active"):
         return None
 
+    user_id = user.get("id") or str(user.get("_id"))
     return {
-        "user_id": user["id"],
+        "user_id": user_id,
         "owner_name": user.get("full_name") or "Aman Kumar",
         "share": share_record
     }
+

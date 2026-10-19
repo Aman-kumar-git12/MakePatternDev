@@ -24,8 +24,18 @@ async def lifespan(app: FastAPI):
     # Initialize MongoDB connection and indexes
     try:
         init_mongodb()
+        # Automatically sync existing SQLite users to MongoDB
+        from app.models.user import User as SqlUser
+        from app.mongodb import sync_all_sqlite_users_to_mongo
+        db = SessionLocal()
+        try:
+            sql_users = db.query(SqlUser).all()
+            sync_all_sqlite_users_to_mongo(sql_users)
+            logger.info(f"Successfully verified/synced {len(sql_users)} users to MongoDB.")
+        finally:
+            db.close()
     except Exception as e:
-        logger.warning(f"MongoDB initialization error: {e}")
+        logger.warning(f"MongoDB initialization/sync error: {e}")
 
     yield
 
