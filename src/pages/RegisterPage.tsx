@@ -31,8 +31,8 @@ export const RegisterPage: React.FC = () => {
 
   const handleAutofill = () => {
     const num = Math.floor(1000 + Math.random() * 9000);
-    setFullName(`user(${num})`);
-    setEmail(`user(${num})@gmail.com`);
+    setFullName(`user${num}`);
+    setEmail(`user${num}@gmail.com`);
     setPassword(`password@${num}`);
     setConfirmPassword(`password@${num}`);
     setError(null);

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Home, Layers, FileText, Bookmark, RotateCcw, ChevronLeft, ChevronRight, X, LogOut } from 'lucide-react';
-import type { ViewMode, User } from '../../types/dsa';
+import { Home, Layers, FileText, Bookmark, RotateCcw, ChevronLeft, ChevronRight, X, LogOut, Sparkles } from 'lucide-react';
+import type { ViewMode, User, Question } from '../../types/dsa';
 
 interface SidebarProps {
   currentView: ViewMode;
@@ -11,6 +11,7 @@ interface SidebarProps {
   onCloseMobile?: () => void;
   user?: User | null;
   onLogout?: () => void;
+  activeQuestion?: Question | null;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -22,6 +23,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onCloseMobile,
   user,
   onLogout,
+  activeQuestion,
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
@@ -47,6 +49,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const isItemActive = (id: ViewMode) => {
     if (currentView === id) return true;
     if (currentView === 'recent' && id === 'all-questions') return true;
+    if (currentView === 'workspace') {
+      if (activeQuestion?.folder_id && id === 'patterns') return true;
+      if (!activeQuestion?.folder_id && id === 'all-questions') return true;
+    }
     return false;
   };
 
@@ -147,8 +153,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 }
                 onMouseEnter={(e) => {
                   if (!active) {
-                    e.currentTarget.style.backgroundColor = 'var(--bg-hover)';
-                    e.currentTarget.style.color = 'var(--text-primary)';
+                    e.currentTarget.style.backgroundColor = 'rgba(254, 240, 138, 0.08)';
+                    e.currentTarget.style.color = '#fef08a';
                   }
                 }}
                 onMouseLeave={(e) => {
@@ -162,7 +168,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <div className="flex items-center space-x-3">
                   <Icon
                     className={`w-4 h-4 transition duration-200 ${
-                      active ? 'text-[#18181b]' : ''
+                      active ? 'text-[#18181b]' : 'group-hover:text-yellow-300'
                     }`}
                     style={active ? undefined : { color: 'var(--text-secondary)' }}
                   />
@@ -187,6 +193,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </button>
             );
           })}
+
+          {/* Active Question Badge (shows where user is present when solving) */}
+          {currentView === 'workspace' && activeQuestion && !isCollapsed && (
+            <div className="mx-1 mt-4 p-2.5 rounded-xl bg-yellow-400/10 border border-yellow-400/25 space-y-1 animate-fade-in shadow-sm shadow-yellow-400/5">
+              <div className="flex items-center space-x-1.5 text-[10px] font-bold text-yellow-300 uppercase tracking-wider">
+                <Sparkles className="w-3 h-3 text-yellow-400 animate-pulse flex-shrink-0" />
+                <span>Present In Problem</span>
+              </div>
+              <div className="text-xs font-semibold text-yellow-100 truncate" title={activeQuestion.title}>
+                {activeQuestion.title}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* User Card & Sign Out Footer */}

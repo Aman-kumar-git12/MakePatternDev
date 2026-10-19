@@ -15,6 +15,7 @@ interface DashboardProps {
   onOpenImportLeetCode?: () => void;
   onSelectView?: (view: ViewMode) => void;
   onToggleBookmark?: (questionId: string) => void;
+  activeQuestionId?: string | null;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({
@@ -26,6 +27,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onDeleteFolder,
   onToggleBookmark,
   onSelectView,
+  activeQuestionId,
 }) => {
   return (
     <div className="p-4 max-w-6xl mx-auto space-y-4 animate-fade-in">
@@ -104,6 +106,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         onOpenNewQuestion={onOpenNewQuestion}
         onDeleteFolder={onDeleteFolder}
         onToggleBookmark={onToggleBookmark}
+        activeQuestionId={activeQuestionId}
       />
     </div>
   );
