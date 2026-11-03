@@ -23,6 +23,14 @@ import {
 } from 'lucide-react';
 import { SharePatternModal } from '../Modals/SharePatternModal';
 import type { Folder, QuestionListItem, Difficulty, QuestionStatus } from '../../types/dsa';
+import {
+  EXPANDED_STORAGE_KEY,
+  getUnifiedChildren,
+  sortFolders,
+  sortQuestions,
+  findFolder,
+} from './myPatternsTree';
+import type { DragState, DropTarget } from './myPatternsTree';
 
 interface MyPatternsViewProps {
   folders: Folder[];
@@ -43,90 +51,6 @@ interface MyPatternsViewProps {
   onMoveFolder?: (folderId: string, targetParentId: string | null) => Promise<void> | void;
   activeQuestionId?: string | null;
 }
-
-const EXPANDED_STORAGE_KEY = 'mp_mypatterns_expanded_nodes';
-
-interface DragState {
-  type: 'root-folder' | 'subfolder' | 'question';
-  id: string;
-  folderId?: string | null; // For questions: folder_id
-  parentId?: string | null; // For subfolders: parent folder ID
-}
-
-interface DropTarget {
-  type: 'root-folder' | 'subfolder' | 'question';
-  id: string;
-  position: 'before' | 'after' | 'into';
-}
-
-type UnifiedChildItem =
-  | { kind: 'subtopic'; id: string; position: number; data: Folder }
-  | { kind: 'question'; id: string; position: number; data: QuestionListItem };
-
-const getUnifiedChildren = (
-  subfolders: Folder[],
-  questions: QuestionListItem[]
-): UnifiedChildItem[] => {
-  const sortedSubs = sortFolders(subfolders);
-  const sortedQs = sortQuestions(questions);
-
-  const list: UnifiedChildItem[] = [
-    ...sortedSubs.map((s, idx) => ({
-      kind: 'subtopic' as const,
-      id: s.id,
-      position: s.position !== undefined && s.position !== null ? s.position : idx,
-      data: s,
-    })),
-    ...sortedQs.map((q, idx) => ({
-      kind: 'question' as const,
-      id: q.id,
-      position: q.position !== undefined && q.position !== null ? q.position : sortedSubs.length + idx,
-      data: q,
-    })),
-  ];
-
-  return list.sort((a, b) => {
-    if (a.position !== b.position) return a.position - b.position;
-    if (a.kind !== b.kind) return a.kind === 'subtopic' ? -1 : 1;
-    return 0;
-  });
-};
-
-// First added shown first at top (position ASC, then created_at ASC)
-const sortFolders = (list: Folder[]): Folder[] => {
-  return [...list].sort((a, b) => {
-    const posA = a.position ?? 0;
-    const posB = b.position ?? 0;
-    if (posA !== posB) return posA - posB;
-    if (a.created_at && b.created_at) {
-      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-    }
-    return 0;
-  });
-};
-
-const sortQuestions = (list: QuestionListItem[]): QuestionListItem[] => {
-  return [...list].sort((a, b) => {
-    const posA = a.position ?? 0;
-    const posB = b.position ?? 0;
-    if (posA !== posB) return posA - posB;
-    if (a.created_at && b.created_at) {
-      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-    }
-    return 0;
-  });
-};
-
-const findFolder = (list: Folder[], id: string): Folder | null => {
-  for (const f of list) {
-    if (f.id === id) return f;
-    if (f.subfolders && f.subfolders.length > 0) {
-      const found = findFolder(f.subfolders, id);
-      if (found) return found;
-    }
-  }
-  return null;
-};
 
 export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
   folders,
