@@ -2,7 +2,7 @@
 
 A modern full-stack web application designed for students and software engineers practicing Data Structures & Algorithms, preparing for coding interviews, and tracking their problem-solving journey.
 
-Built with **React + TypeScript + Vite + Tailwind CSS** on the frontend, and **FastAPI + Python + SQLAlchemy + Alembic** on the backend.
+Built with **React + TypeScript + Vite + Tailwind CSS** on the frontend, and **FastAPI + MongoDB** on the backend.
 
 Inspired by the dark-themed structured course tracker layout with recursive folders, Monaco code editor, solution tabs, bookmarking, and progress calculations.
 
@@ -46,90 +46,56 @@ Inspired by the dark-themed structured course tracker layout with recursive fold
 
 ---
 
+## ✨ What's new in 2.0
+
+- **Spaced-repetition reviews** — solving a problem schedules reviews (1 → 3 → 7 → 14 → 30 → 60 → 120 days). Rate each review Again / Hard / Good / Easy from the "Due today" queue.
+- **Streaks & activity heatmap** — every solve, review and attempt is logged; streaks respect your local timezone.
+- **Real LeetCode integration** (public GraphQL): search & import problems with real title, difficulty, tags, statement and example test cases; daily challenge; refresh a problem's statement; sync your recent accepted submissions by LeetCode username.
+- **Starter curricula** — "Core Interview Patterns" (118 problems) and "Beginner Foundations" (34), verified against LeetCode.
+- **Attempts & time tracking** per problem, with a stopwatch.
+- **Copy a shared pattern** into your own workspace.
+- **Account settings** — change password (signs out other sessions), sign out everywhere, export all data as JSON, delete account.
+- Any email works for sign-up/login — emails are never verified, by design.
+
 ## 🛠️ Tech Stack
 
-- **Frontend**: React 19, TypeScript, Vite, Tailwind CSS, `@monaco-editor/react`, `lucide-react`, `canvas-confetti`.
-- **Backend**: FastAPI (Python 3), SQLAlchemy ORM, Alembic migrations, Pydantic v2, Python-Jose (JWT), BCrypt.
-- **Database**: PostgreSQL (with SQLite zero-config fallback for testing).
-
----
+- **Frontend**: React 19, TypeScript, Vite, Tailwind CSS, Monaco editor, DOMPurify.
+- **Backend**: FastAPI, Pydantic v2, PyJWT, bcrypt, httpx.
+- **Database**: MongoDB (single source of truth — Atlas in production).
 
 ## 🚀 Getting Started
 
-### 1. Run the Backend
+### Backend
 
 ```bash
 cd backend
-
-# Create virtual environment (if not already created)
-python3 -m venv venv
-source venv/bin/activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Run migrations
-alembic upgrade head
-
-# Start FastAPI server
-python run.py
+python3 -m venv venv && source venv/bin/activate
+pip install -r requirements-dev.txt
+cp .env.example .env   # set MONGODB_URI (and JWT_SECRET for production)
+python run.py          # http://localhost:8000/api, docs at /docs in development
 ```
-- API Base: `http://localhost:8000/api`
-- Interactive Swagger Docs: `http://localhost:8000/docs`
-- Health check: `http://localhost:8000/api/health`
 
-### 2. Run the Frontend
+### Tests
 
 ```bash
-cd frontend
-
-# Install dependencies (if not already installed)
-npm install
-
-# Start Vite dev server
-npm run dev
-```
-- Web Application: `http://localhost:5173/`
-
----
-
-## ⚙️ Environment Variables
-
-### Backend (`backend/.env`)
-```env
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/dsa_tracker
-SQLITE_FALLBACK=true
-JWT_SECRET=your_jwt_secret_key_here
-ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=1440
-PORT=8000
-HOST=0.0.0.0
-CLIENT_URL=http://localhost:5173
+cd backend && python -m pytest -q
 ```
 
-> **Note on Database:** If PostgreSQL is running locally, set `DATABASE_URL`. If PostgreSQL is not yet running, `SQLITE_FALLBACK=true` ensures the backend immediately starts and seeds without crashing.
+Tests run on an in-memory MongoDB (mongomock) and never touch a real database. CI runs them on every push (`.github/workflows/backend.yml`).
 
-### Frontend (`frontend/.env`)
-```env
-VITE_API_BASE_URL=http://localhost:8000/api
-VITE_APP_TITLE=DSA Learning Tracker
-```
-
----
-
-## 🧪 Automated Tests
-
-To run the backend test suite:
+### Frontend
 
 ```bash
-cd backend
-source venv/bin/activate
-PYTHONPATH=. pytest
+cd frontend && npm install && npm run dev   # http://localhost:5173
 ```
-Testing covers:
-- Health check
-- Recursive folder tree building and counts
-- Circular folder move prevention (returns 400)
-- Bookmark toggle
-- Global search
-- Progress aggregation
+
+Set `VITE_API_BASE_URL` to point at a non-default backend.
+
+## 🔐 Production configuration
+
+| Variable | Notes |
+|---|---|
+| `MONGODB_URI` | **Required.** No credentials are stored in code. |
+| `JWT_SECRET` | **Required**, ≥ 32 random chars. Startup aborts otherwise. |
+| `ENVIRONMENT` | Auto-detected as `production` on Render/Vercel/Fly/Railway. |
+| `CLIENT_URL`, `CORS_ORIGINS` | Allowed frontend origins (plus `make-pattern*.vercel.app` previews). |
