@@ -43,20 +43,21 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <header
-      className="h-16 backdrop-blur-md sticky top-0 z-30 px-4 sm:px-6 flex items-center justify-between"
+      className="h-16 shrink-0 backdrop-blur-md sticky top-0 z-30 px-3 sm:px-6 flex items-center justify-between gap-2"
       style={{
         backgroundColor: 'var(--bg-header)',
         borderBottom: '1px solid var(--border-primary)',
       }}
     >
       {/* Mobile Menu & Search Bar */}
-      <div className="flex items-center space-x-3 w-full max-w-xl min-w-0">
+      <div className="flex items-center gap-1 sm:gap-3 w-full max-w-xl min-w-0">
         {onToggleMobileMenu && (
           <button
             onClick={onToggleMobileMenu}
-            className="md:hidden p-2 -ml-1 rounded-xl transition"
+            className="md:hidden h-10 w-10 -ml-1 shrink-0 inline-flex items-center justify-center rounded-xl transition"
             style={{ color: 'var(--text-secondary)' }}
             title="Open navigation menu"
+            aria-label="Open navigation menu"
           >
             <Menu className="w-5 h-5" />
           </button>
@@ -64,7 +65,8 @@ export const Header: React.FC<HeaderProps> = ({
 
         <button
           onClick={onOpenSearch}
-          className="w-full flex items-center justify-between px-4 py-2.5 rounded-full text-xs transition duration-150 group shadow-inner"
+          aria-label="Search questions and topics"
+          className="h-10 w-10 shrink-0 justify-center sm:shrink sm:w-full sm:min-w-[9rem] sm:h-auto sm:justify-between flex items-center px-0 sm:px-4 sm:py-2.5 rounded-full text-xs transition duration-150 group shadow-inner"
           style={{
             backgroundColor: 'var(--bg-input)',
             border: '1px solid var(--border-primary)',
@@ -73,7 +75,7 @@ export const Header: React.FC<HeaderProps> = ({
         >
           <div className="flex items-center space-x-2.5 min-w-0">
             <Search className="w-4 h-4 group-hover:text-yellow-300 transition" style={{ color: 'var(--text-tertiary)' }} />
-            <span className="transition text-[13px] truncate" style={{ color: 'var(--text-tertiary)' }}>
+            <span className="hidden sm:inline transition text-[13px] truncate" style={{ color: 'var(--text-tertiary)' }}>
               Search questions, topics…
             </span>
           </div>
@@ -91,23 +93,25 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* Right controls */}
-      <div className="flex items-center space-x-2 sm:space-x-3.5 shrink-0 ml-2">
+      <div className="flex items-center gap-1 sm:gap-3 shrink-0">
         {/* Quick New Question Button */}
         {onOpenNewQuestion && (
           <button
             onClick={onOpenNewQuestion}
-            className="flex items-center space-x-1.5 px-3.5 py-1.5 bg-[#fef08a] hover:bg-[#fef9c3] text-[#18181b] rounded-xl text-xs font-semibold shadow-md shadow-yellow-200/30 active:scale-95 transition"
+            className="h-10 min-w-10 inline-flex items-center justify-center gap-1.5 px-3 sm:px-3.5 bg-[#fef08a] hover:bg-[#fef9c3] text-[#18181b] rounded-xl text-xs font-semibold shadow-md shadow-yellow-200/30 active:scale-95 transition"
             title="Create New Question"
+            aria-label="Create new question"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">New Question</span>
+            <span className="hidden lg:inline">New Question</span>
           </button>
         )}
 
         {/* Theme toggle button */}
         <button
           onClick={toggleTheme}
-          className="p-2 rounded-xl transition"
+          aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+          className="h-10 w-10 inline-flex items-center justify-center rounded-xl transition"
           style={{ color: 'var(--text-secondary)' }}
           onMouseEnter={(e) => {
             e.currentTarget.style.backgroundColor = 'var(--bg-hover)';
@@ -124,16 +128,17 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Notification Bell with indicator */}
         <button
-          className="p-2 rounded-xl transition relative"
+          className="hidden lg:inline-flex h-10 w-10 items-center justify-center rounded-xl transition relative"
           style={{ color: 'var(--text-secondary)' }}
           title="Notifications"
+          aria-label="Notifications"
         >
           <Bell className="w-4 h-4" />
           <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500" style={{ boxShadow: `0 0 0 2px var(--ring-bg)` }} />
         </button>
 
         {/* User Profile & Interactive Dropdown */}
-        <div className="relative pl-1" ref={dropdownRef}>
+        <div className="relative sm:pl-1" ref={dropdownRef}>
           <button
             type="button"
             onClick={() => setIsDropdownOpen((prev) => !prev)}
@@ -149,7 +154,7 @@ export const Header: React.FC<HeaderProps> = ({
             <div className="w-8 h-8 rounded-full bg-[#fef08a] text-[#18181b] font-bold text-xs flex items-center justify-center shadow-md shadow-yellow-200/30 ring-1 ring-[#fef08a]/50">
               {userName.charAt(0).toUpperCase()}
             </div>
-            <span className="text-xs font-medium transition hidden sm:inline-block max-w-[120px] truncate" style={{ color: 'var(--text-primary)' }}>
+            <span className="text-xs font-medium transition hidden xl:inline-block max-w-[120px] truncate" style={{ color: 'var(--text-primary)' }}>
               {userName}
             </span>
             <ChevronDown
@@ -163,7 +168,7 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Dropdown Menu */}
           {isDropdownOpen && (
             <div
-              className="absolute right-0 mt-2 w-64 rounded-2xl p-2 z-50 animate-fade-in"
+              className="absolute right-0 mt-2 w-64 max-w-[calc(100vw-1.5rem)] rounded-2xl p-2 z-50 animate-fade-in"
               style={{
                 backgroundColor: 'var(--bg-elevated)',
                 border: '1px solid var(--border-primary)',

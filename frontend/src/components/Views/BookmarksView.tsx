@@ -200,7 +200,7 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
                     if (el) el.indeterminate = selection.someSelected;
                   }}
                   onChange={selection.toggleAll}
-                  className="w-4 h-4 cursor-pointer accent-[#fef08a]"
+                  className="w-5 h-5 sm:w-4 sm:h-4 cursor-pointer accent-[#fef08a]"
                   aria-label={selection.allSelected ? 'Deselect all bookmarks' : 'Select all bookmarks'}
                 />
               )}
@@ -231,7 +231,7 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
                         selection.toggle(q.id, e.shiftKey);
                       }}
                       onChange={() => {}}
-                      className="w-4 h-4 shrink-0 cursor-pointer accent-[#fef08a]"
+                      className="w-5 h-5 sm:w-4 sm:h-4 shrink-0 cursor-pointer accent-[#fef08a]"
                       aria-label={`Select ${q.title}`}
                     />
                   )}
@@ -287,21 +287,23 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
                       e.stopPropagation();
                       onRemoveBookmark(q.id);
                     }}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition shrink-0"
+                    className="h-10 w-10 sm:h-auto sm:w-auto sm:p-1.5 inline-flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition shrink-0"
                     title="Remove from bookmarks"
+                    aria-label="Remove from bookmarks"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
 
                   {/* Right side: Link */}
-                  <div className="w-7 flex items-center justify-center shrink-0">
+                  <div className="w-10 sm:w-7 flex items-center justify-center shrink-0">
                     {q.problem_url && q.problem_url.trim() ? (
                       <a
                         href={q.problem_url.trim()}
                         target="_blank"
                         rel="noreferrer"
                         onClick={(e) => e.stopPropagation()}
-                        className="p-1 text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition flex items-center justify-center"
+                        aria-label="Open problem link"
+                        className="h-10 w-10 sm:h-auto sm:w-auto p-1 text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition flex items-center justify-center"
                         title={`Open problem link: ${q.problem_url}`}
                       >
                         <ExternalLink className="w-3.5 h-3.5" />

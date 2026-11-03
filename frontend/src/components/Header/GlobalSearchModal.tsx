@@ -69,7 +69,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 p-4 bg-black/75 backdrop-blur-md animate-fade-in">
+    <div className="fixed inset-0 z-50 flex items-start justify-center p-2 pt-2 sm:p-4 sm:pt-20 bg-black/75 backdrop-blur-md animate-fade-in">
       <div className="bg-[#0D1527] border border-slate-700/80 rounded-2xl w-full max-w-2xl shadow-2xl relative text-slate-100 overflow-hidden">
         {/* Search Input Bar */}
         <div className="p-4 border-b border-slate-800 flex items-center space-x-3 bg-[#0A0F1D]">
@@ -96,7 +96,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
         </div>
 
         {/* Results Body */}
-        <div className="max-h-[60vh] overflow-y-auto p-4 space-y-4">
+        <div className="max-h-[70dvh] sm:max-h-[60vh] overflow-y-auto p-4 space-y-4">
           {isLoading ? (
             <div className="py-12 text-center text-xs text-slate-400 animate-pulse">
               Searching questions and folders...

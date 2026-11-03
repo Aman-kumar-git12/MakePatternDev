@@ -115,7 +115,7 @@
   body {
     background-color: var(--bg-app);
     color: var(--text-primary);
-    @apply antialiased min-h-screen font-sans;
+    @apply antialiased min-h-[100dvh] font-sans;
     transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 }
@@ -883,4 +883,97 @@ html.mp-reduce-motion body > canvas[style*='pointer-events'] {
 html.mp-hc [data-nav-selected='true'] {
   outline-width: 3px;
   outline-color: var(--text-primary);
+}
+
+/* ==========================================================================
+   Responsive helpers (phones / tablets / touch)
+   ========================================================================== */
+
+/* Hover-only controls are unreachable with touch and steal width on phones. */
+.mp-touch-only {
+  display: none !important;
+}
+@media (hover: none), (max-width: 767px) {
+  .mp-desktop-only {
+    display: none !important;
+  }
+  .mp-touch-only {
+    display: inline-flex !important;
+  }
+}
+
+/* Bottom sheets / docked bars clear the home indicator on notched phones. */
+.mp-sheet {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.mp-safe-bottom {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+}
+.mp-safe-x {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* Phone modals: bottom-sheet style, never taller than the visible viewport. */
+@media (max-width: 639px) {
+  .mp-modal-panel {
+    max-height: calc(100dvh - 1rem);
+    overflow-y: auto;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .mp-sheet {
+    animation: mp-sheet-in 160ms ease-out;
+  }
+}
+@keyframes mp-sheet-in {
+  from {
+    transform: translateY(12px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+/* Long unbroken strings (URLs, test inputs, slugs) never widen the page. */
+.mp-break {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* iOS Safari zooms the page when focusing a field under 16px; keep phones at 16px. */
+@media (max-width: 639px) and (hover: none) {
+  input[type='text'],
+  input[type='search'],
+  input[type='email'],
+  input[type='password'],
+  input[type='number'],
+  input[type='url'],
+  input:not([type]),
+  select,
+  textarea:not(.inputarea) {
+    font-size: 16px !important;
+  }
+}
+
+/* Shared modal overlays become bottom sheets on phones. */
+@media (max-width: 639px) {
+  .mp-modal-overlay {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .mp-modal-overlay > :not(.absolute):not(.fixed) {
+    width: 100%;
+    max-width: 100%;
+    max-height: calc(100dvh - 0.75rem - env(safe-area-inset-top));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+  }
 }

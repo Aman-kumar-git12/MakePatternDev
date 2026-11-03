@@ -148,7 +148,7 @@ export const LoginPage: React.FC = () => {
   });
 
   return (
-    <div className="min-h-screen w-full flex flex-col justify-between overflow-x-hidden selection:bg-yellow-400/30 font-sans" style={{ backgroundColor: 'var(--bg-base)', color: 'var(--text-primary)' }}>
+    <div className="min-h-[100dvh] w-full flex flex-col justify-between overflow-x-hidden selection:bg-yellow-400/30 font-sans" style={{ backgroundColor: 'var(--bg-base)', color: 'var(--text-primary)' }}>
       {/* Background Ambient Glow Orbs */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
         <div className={`absolute -top-40 -left-40 w-96 h-96 rounded-full blur-[120px] ${isDark ? 'bg-yellow-400/5' : 'bg-yellow-200/20'}`} />

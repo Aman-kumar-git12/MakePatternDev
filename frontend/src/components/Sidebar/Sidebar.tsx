@@ -84,7 +84,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Main Sidebar Container */}
       <aside
-        className={`fixed md:static inset-y-0 left-0 z-50 h-screen flex flex-col select-none flex-shrink-0 transition-all duration-300 ease-in-out ${
+        className={`fixed md:static inset-y-0 left-0 z-50 h-[100dvh] pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)] md:pt-0 flex flex-col select-none flex-shrink-0 transition-all duration-300 ease-in-out ${
           isMobileOpen ? 'translate-x-0 w-64' : '-translate-x-full md:translate-x-0'
         } ${isCollapsed ? 'md:w-20' : 'md:w-64'}`}
         style={{

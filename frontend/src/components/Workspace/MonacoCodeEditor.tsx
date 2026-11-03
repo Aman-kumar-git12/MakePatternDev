@@ -486,19 +486,19 @@ export const MonacoCodeEditor: React.FC<MonacoCodeEditorProps> = ({
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 [&>*]:min-w-0">
             {/* Left 8 Columns: Monaco Code Editor */}
             <div className="lg:col-span-8 bg-[#0A0F1D] border border-slate-800 rounded-xl overflow-hidden shadow-sm flex flex-col">
-              <div className="px-4 py-2 bg-[#080D1A] border-b border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
-                <div className="flex items-center space-x-2">
-                  <span className="font-semibold text-white">{activeSolution.title}</span>
+              <div className="px-3 sm:px-4 py-2 bg-[#080D1A] border-b border-slate-800/80 flex items-center justify-between gap-2 text-xs text-slate-400">
+                <div className="flex items-center space-x-2 min-w-0">
+                  <span className="font-semibold text-white truncate">{activeSolution.title}</span>
                   {!isSaved && (
                     <span className="text-[10px] text-yellow-300 font-medium">● Unsaved edits</span>
                   )}
                 </div>
-                <span className="text-[11px] font-mono text-slate-500 uppercase">
-                  Language: {activeSolution.language}
+                <span className="text-[11px] font-mono text-slate-500 uppercase shrink-0">
+                  <span className="hidden sm:inline">Language: </span>{activeSolution.language}
                 </span>
               </div>
 
-              <div className="h-[430px] w-full">
+              <div className="h-[min(430px,60dvh)] sm:h-[430px] w-full">
                 <Editor
                   height="100%"
                   language={monacoLanguage(activeSolution.language)}
@@ -831,7 +831,7 @@ export const MonacoCodeEditor: React.FC<MonacoCodeEditorProps> = ({
 
       {/* Confirmation Modal to Delete Solution */}
       {solutionToDelete && (
-        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="mp-modal-overlay fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="bg-[#0D1527] border border-slate-700 rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-2xl animate-fade-in">
             <div className="flex items-center space-x-3 text-rose-400">
               <div className="p-2 rounded-xl bg-rose-500/10 border border-rose-500/20">

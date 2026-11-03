@@ -20,6 +20,9 @@ interface DashboardProps {
   activeQuestionId?: string | null;
   onOpenCurricula?: () => void;
   activityKey?: number;
+  /** False while the first data load is in flight (suppresses the empty state). */
+  dataLoaded?: boolean;
+  /** undefined while the review queue is still loading */
   dueCount?: number;
   onQuestionTracked?: (question: Question) => void | Promise<void>;
 }
@@ -37,10 +40,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onOpenImportLeetCode,
   onOpenCurricula,
   activityKey,
-  dueCount = 0,
+  dataLoaded = true,
+  dueCount,
   onQuestionTracked,
 }) => {
-  const isEmpty = folders.length === 0 && questions.length === 0;
+  const isEmpty = dataLoaded && folders.length === 0 && questions.length === 0;
 
   return (
     <div className="p-4 max-w-6xl mx-auto space-y-4 animate-fade-in">
@@ -113,7 +117,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         <button type="button" onClick={() => onSelectView?.('revision')} className="mp-card p-3 flex items-center gap-3 text-left hover:border-[var(--border-hover)] transition">
           <Brain className="w-5 h-5 shrink-0" style={{ color: '#facc15' }} />
           <div className="min-w-0">
-            <div className="text-sm font-bold">{dueCount > 0 ? `${dueCount} review${dueCount === 1 ? '' : 's'} due` : 'No reviews due'}</div>
+            <div className="text-sm font-bold">{dueCount === undefined ? 'Reviews' : dueCount > 0 ? `${dueCount} review${dueCount === 1 ? '' : 's'} due` : 'No reviews due'}</div>
             <div className="text-[11px] mp-muted">Spaced-repetition queue</div>
           </div>
         </button>

@@ -20,7 +20,9 @@ import {
   Share2,
   ArrowUp,
   ArrowUpRight,
+  MoreHorizontal,
 } from 'lucide-react';
+import { ActionSheet, type SheetAction } from '../Common/ActionSheet';
 import { SharePatternModal } from '../Modals/SharePatternModal';
 import type { Folder, QuestionListItem, Difficulty, QuestionStatus } from '../../types/dsa';
 import {
@@ -75,6 +77,8 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
   const [isAddingTopic, setIsAddingTopic] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [sharingFolder, setSharingFolder] = useState<Folder | null>(null);
+  // Touch / narrow screens: row actions live in a bottom sheet instead of hover-only buttons.
+  const [sheet, setSheet] = useState<{ title: string; subtitle?: string; actions: SheetAction[] } | null>(null);
 
   // Drag and Drop state
   const [dragState, setDragState] = useState<DragState | null>(null);
@@ -439,7 +443,7 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
             handleChildDrop(parentId, q.id);
           }
         }}
-        className={`flex items-center justify-between py-1.5 px-2.5 rounded-lg transition-all group relative select-none cursor-pointer before:content-[''] before:absolute before:-left-5 before:top-1/2 before:w-3.5 before:h-[1px] ${
+        className={`flex items-center justify-between gap-2 py-1.5 px-2.5 min-h-[44px] md:min-h-0 rounded-lg transition-all group relative select-none cursor-pointer before:content-[''] before:absolute before:-left-5 before:top-1/2 before:w-3.5 before:h-[1px] ${
           isDraggingQ
             ? 'opacity-40 border border-slate-700'
             : isActive
@@ -474,14 +478,14 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
               setDropTarget(null);
             }}
             onClick={(e) => e.stopPropagation()}
-            className="cursor-grab active:cursor-grabbing p-0.5 text-slate-500 hover:text-amber-400 hover:bg-amber-400/10 rounded transition-all duration-150 active:scale-110 active:text-amber-300"
+            className="mp-desktop-only cursor-grab active:cursor-grabbing p-0.5 text-slate-500 hover:text-amber-400 hover:bg-amber-400/10 rounded transition-all duration-150 active:scale-110 active:text-amber-300"
             title="Drag to rearrange problem"
           >
             <GripVertical className="w-3 h-3" />
           </div>
 
           {/* Quick Move Up/Down buttons for Question on hover */}
-          <div className="flex flex-col -space-y-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="mp-desktop-only flex flex-col -space-y-1 opacity-0 group-hover:opacity-100 transition-opacity">
             <button
               type="button"
               disabled={isFirst}
@@ -523,17 +527,17 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
               title="You are currently viewing this problem"
             />
           ) : (
-            <div title={q.status}>{renderStatusIcon(q.status)}</div>
+            <div title={q.status} className="shrink-0">{renderStatusIcon(q.status)}</div>
           )}
 
           <FileCode
-            className={`w-3.5 h-3.5 flex-shrink-0 ${
+            className={`mp-desktop-only w-3.5 h-3.5 flex-shrink-0 ${
               isActive ? 'text-yellow-400' : 'text-slate-500'
             }`}
           />
 
           <span
-            className={`truncate ${
+            className={`truncate min-w-0 ${
               isActive
                 ? 'font-bold text-yellow-200'
                 : 'font-medium text-slate-300 group-hover:text-yellow-200'
@@ -554,7 +558,7 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
 
         {/* Controls: Right side actions */}
         <div className="flex items-center space-x-2 flex-shrink-0">
-          {/* Quick Move Out of Subtopic button on hover */}
+          {/* Quick Move Out of Subtopic button on hover (desktop) */}
           {isInsideSubtopic && parentFolder && onMoveQuestion && (
             <button
               type="button"
@@ -562,7 +566,7 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
                 e.stopPropagation();
                 onMoveQuestion(q.id, parentFolder.id);
               }}
-              className="opacity-0 group-hover:opacity-100 flex items-center space-x-1 px-1.5 py-0.5 rounded text-[10px] bg-amber-500/10 text-amber-300 hover:bg-amber-500/25 hover:text-amber-200 border border-amber-500/30 transition shadow-sm"
+              className="mp-desktop-only opacity-0 group-hover:opacity-100 flex items-center space-x-1 px-1.5 py-0.5 rounded text-[10px] bg-amber-500/10 text-amber-300 hover:bg-amber-500/25 hover:text-amber-200 border border-amber-500/30 transition shadow-sm"
               title={`Move problem out of "${curFolder?.name}" into "${parentFolder.name}"`}
             >
               <ArrowUpRight className="w-3 h-3 text-amber-400" />
@@ -590,7 +594,7 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
           )}
 
           {/* Right side: Link (Fixed slot ensures tags and links stay in sequence) */}
-          <div className="w-6 flex items-center justify-center shrink-0">
+          <div className="mp-desktop-only w-6 flex items-center justify-center shrink-0">
             {q.problem_url && q.problem_url.trim() ? (
               <a
                 href={q.problem_url.trim()}
@@ -618,12 +622,39 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
                 e.stopPropagation();
                 onDeleteQuestion(q.id, q.title);
               }}
-              className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-rose-500/20 text-slate-500 hover:text-rose-400 transition"
+              className="mp-desktop-only opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-rose-500/20 text-slate-500 hover:text-rose-400 transition"
               title="Delete question"
             >
               <Trash2 className="w-3 h-3" />
             </button>
           )}
+
+          {/* Touch: all row actions in one sheet */}
+          <button
+            type="button"
+            className="mp-touch-only h-10 w-10 -mr-2 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-700/40"
+            aria-label={`Actions for ${q.title}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              const actions: SheetAction[] = [
+                { label: 'Open problem', icon: <FileCode className="w-4 h-4" />, onSelect: () => onSelectQuestion(q.id) },
+                { label: 'Move up', icon: <ChevronUp className="w-4 h-4" />, disabled: isFirst, onSelect: () => handleMoveItem(parentId, q.id, 'up') },
+                { label: 'Move down', icon: <ChevronDown className="w-4 h-4" />, disabled: isLast, onSelect: () => handleMoveItem(parentId, q.id, 'down') },
+              ];
+              if (isInsideSubtopic && parentFolder && onMoveQuestion) {
+                actions.push({ label: `Move out to "${parentFolder.name}"`, icon: <ArrowUpRight className="w-4 h-4" />, onSelect: () => onMoveQuestion(q.id, parentFolder.id) });
+              }
+              if (q.problem_url && q.problem_url.trim()) {
+                actions.push({ label: 'Open on LeetCode', icon: <ExternalLink className="w-4 h-4" />, onSelect: () => window.open(q.problem_url!.trim(), '_blank', 'noopener,noreferrer') });
+              }
+              if (onDeleteQuestion) {
+                actions.push({ label: 'Delete problem', icon: <Trash2 className="w-4 h-4" />, danger: true, onSelect: () => onDeleteQuestion(q.id, q.title) });
+              }
+              setSheet({ title: q.title, subtitle: `${q.difficulty} · ${q.status}`, actions });
+            }}
+          >
+            <MoreHorizontal className="w-4 h-4" />
+          </button>
         </div>
       </div>
     );
@@ -705,7 +736,7 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
               handleChildDrop(node.parent_id, node.id);
             }
           }}
-          className={`flex items-center justify-between py-1.5 px-2.5 rounded-lg cursor-pointer transition-all select-none group relative ${
+          className={`flex items-center justify-between gap-2 py-1.5 px-2.5 min-h-[44px] md:min-h-0 rounded-lg cursor-pointer transition-all select-none group relative ${
             isDraggingThis
               ? 'opacity-40 border border-slate-700'
               : isTargetThis && dropTarget?.position === 'into'
@@ -739,14 +770,14 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
                 setDropTarget(null);
               }}
               onClick={(e) => e.stopPropagation()}
-              className="cursor-grab active:cursor-grabbing p-0.5 text-slate-500 hover:text-amber-400 hover:bg-amber-400/10 rounded transition-all duration-150 active:scale-110 active:text-amber-300"
+              className="mp-desktop-only cursor-grab active:cursor-grabbing p-0.5 text-slate-500 hover:text-amber-400 hover:bg-amber-400/10 rounded transition-all duration-150 active:scale-110 active:text-amber-300"
               title="Drag to rearrange subtopic"
             >
               <GripVertical className="w-3.5 h-3.5" />
             </div>
 
             {/* Quick Move Up/Down buttons on hover */}
-            <div className="flex flex-col -space-y-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="mp-desktop-only flex flex-col -space-y-1 opacity-0 group-hover:opacity-100 transition-opacity">
               <button
                 type="button"
                 disabled={isFirst}
@@ -783,14 +814,14 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
 
             <FolderTree className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0" />
 
-            <span className="font-medium text-slate-200 group-hover:text-yellow-200 transition truncate">
+            <span className="font-medium text-slate-200 group-hover:text-yellow-200 transition truncate min-w-0">
               {node.name}
             </span>
           </div>
 
           {/* Right Actions */}
-          <div className="flex items-center space-x-1.5">
-            <span className="text-[10px] text-slate-500 group-hover:text-slate-400 transition font-mono">
+          <div className="flex items-center space-x-1.5 shrink-0">
+            <span className="text-[10px] text-slate-500 group-hover:text-slate-400 transition font-mono whitespace-nowrap">
               {nodeQuestions.length} {nodeQuestions.length === 1 ? 'problem' : 'problems'}
             </span>
 
@@ -802,7 +833,7 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
                   const grandParentId = parentFolder?.parent_id ?? null;
                   onMoveFolder(node.id, grandParentId);
                 }}
-                className="opacity-0 group-hover:opacity-100 flex items-center space-x-1 px-2 py-0.5 rounded-md text-[11px] bg-amber-500/10 text-amber-300 hover:bg-amber-500/25 hover:text-amber-200 transition shadow-sm border border-amber-500/30"
+                className="mp-desktop-only opacity-0 group-hover:opacity-100 flex items-center space-x-1 px-2 py-0.5 rounded-md text-[11px] bg-amber-500/10 text-amber-300 hover:bg-amber-500/25 hover:text-amber-200 transition shadow-sm border border-amber-500/30"
                 title={
                   parentFolder?.parent_id
                     ? `Move subtopic out to "${findFolder(folders, parentFolder.parent_id)?.name || 'Parent Topic'}"`
@@ -820,7 +851,7 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
                 e.stopPropagation();
                 onOpenCreateSubtopic(node.id);
               }}
-              className="opacity-0 group-hover:opacity-100 flex items-center space-x-1 px-2 py-0.5 rounded-md text-[11px] bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white transition shadow-sm border border-slate-700"
+              className="mp-desktop-only opacity-0 group-hover:opacity-100 flex items-center space-x-1 px-2 py-0.5 rounded-md text-[11px] bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white transition shadow-sm border border-slate-700"
               title={`Add Subtopic inside "${node.name}"`}
             >
               <Plus className="w-3 h-3 text-indigo-400" />
@@ -833,7 +864,7 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
                 e.stopPropagation();
                 onOpenCreateQuestion(node.id);
               }}
-              className="opacity-0 group-hover:opacity-100 flex items-center space-x-1 px-2 py-0.5 rounded-md text-[11px] bg-blue-600/20 text-blue-300 hover:bg-blue-600 hover:text-white transition shadow-sm"
+              className="mp-desktop-only opacity-0 group-hover:opacity-100 flex items-center space-x-1 px-2 py-0.5 rounded-md text-[11px] bg-blue-600/20 text-blue-300 hover:bg-blue-600 hover:text-white transition shadow-sm"
               title={`Add Problem inside "${node.name}"`}
             >
               <Plus className="w-3 h-3" />
@@ -846,7 +877,7 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
                 e.stopPropagation();
                 setSharingFolder(node);
               }}
-              className="opacity-0 group-hover:opacity-100 p-1 rounded-md text-slate-500 hover:text-purple-400 hover:bg-purple-500/10 transition"
+              className="mp-desktop-only opacity-0 group-hover:opacity-100 p-1 rounded-md text-slate-500 hover:text-purple-400 hover:bg-purple-500/10 transition"
               title={`Share "${node.name}"`}
             >
               <Share2 className="w-3 h-3" />
@@ -858,7 +889,7 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
                 e.stopPropagation();
                 onEditFolder(node);
               }}
-              className="opacity-0 group-hover:opacity-100 p-1 rounded-md text-slate-500 hover:text-white hover:bg-slate-800 transition"
+              className="mp-desktop-only opacity-0 group-hover:opacity-100 p-1 rounded-md text-slate-500 hover:text-white hover:bg-slate-800 transition"
               title={`Edit subtopic "${node.name}"`}
             >
               <Edit2 className="w-3 h-3" />
@@ -870,10 +901,37 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
                 e.stopPropagation();
                 onDeleteFolder(node.id, node.name);
               }}
-              className="opacity-0 group-hover:opacity-100 p-1 rounded-md text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition"
+              className="mp-desktop-only opacity-0 group-hover:opacity-100 p-1 rounded-md text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition"
               title={`Delete subtopic "${node.name}"`}
             >
               <Trash2 className="w-3 h-3" />
+            </button>
+
+            {/* Touch: all subtopic actions in one sheet */}
+            <button
+              type="button"
+              className="mp-touch-only h-10 w-10 -mr-2 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-700/40"
+              aria-label={`Actions for ${node.name}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                const actions: SheetAction[] = [
+                  { label: 'Add problem here', icon: <Plus className="w-4 h-4" />, onSelect: () => onOpenCreateQuestion(node.id) },
+                  { label: 'Add subtopic here', icon: <FolderTree className="w-4 h-4" />, onSelect: () => onOpenCreateSubtopic(node.id) },
+                  { label: 'Move up', icon: <ChevronUp className="w-4 h-4" />, disabled: isFirst || !node.parent_id, onSelect: () => node.parent_id && handleMoveItem(node.parent_id, node.id, 'up') },
+                  { label: 'Move down', icon: <ChevronDown className="w-4 h-4" />, disabled: isLast || !node.parent_id, onSelect: () => node.parent_id && handleMoveItem(node.parent_id, node.id, 'down') },
+                ];
+                if (node.parent_id && onMoveFolder) {
+                  actions.push({ label: parentFolder?.parent_id ? 'Move out one level' : 'Promote to main topic', icon: <ArrowUpRight className="w-4 h-4" />, onSelect: () => onMoveFolder(node.id, parentFolder?.parent_id ?? null) });
+                }
+                actions.push(
+                  { label: 'Share', icon: <Share2 className="w-4 h-4" />, onSelect: () => setSharingFolder(node) },
+                  { label: 'Edit', icon: <Edit2 className="w-4 h-4" />, onSelect: () => onEditFolder(node) },
+                  { label: 'Delete subtopic', icon: <Trash2 className="w-4 h-4" />, danger: true, onSelect: () => onDeleteFolder(node.id, node.name) },
+                );
+                setSheet({ title: node.name, subtitle: `${nodeQuestions.length} ${nodeQuestions.length === 1 ? 'problem' : 'problems'}`, actions });
+              }}
+            >
+              <MoreHorizontal className="w-4 h-4" />
             </button>
           </div>
         </div>
@@ -1040,10 +1098,10 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
             </p>
           </div>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={() => setSharingFolder({ id: 'all', name: 'All Patterns & Topics' } as Folder)}
-              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-purple-600/20 hover:bg-purple-600 text-purple-300 hover:text-white border border-purple-500/30 text-xs font-semibold shadow-md transition"
+              className="min-h-10 whitespace-nowrap flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-purple-600/20 hover:bg-purple-600 text-purple-300 hover:text-white border border-purple-500/30 text-xs font-semibold shadow-md transition"
               title="Share the whole list of topics & patterns"
             >
               <Share2 className="w-3.5 h-3.5" />
@@ -1052,7 +1110,7 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
 
             <button
               onClick={onOpenCreateTopic}
-              className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-[#fef08a] hover:bg-[#fef9c3] text-[#18181b] text-xs font-semibold shadow-md shadow-yellow-200/30 transition"
+              className="min-h-10 whitespace-nowrap flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-[#fef08a] hover:bg-[#fef9c3] text-[#18181b] text-xs font-semibold shadow-md shadow-yellow-200/30 transition"
               title="Create a new top-level DSA topic"
             >
               <Plus className="w-3.5 h-3.5" />
@@ -1247,7 +1305,7 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
                         setDragState(null);
                         setDropTarget(null);
                       }}
-                      className="cursor-grab active:cursor-grabbing p-1 text-slate-500 hover:text-amber-400 hover:bg-amber-400/10 rounded-md transition-all duration-150 active:scale-110 active:text-amber-300"
+                      className="mp-desktop-only cursor-grab active:cursor-grabbing p-1 text-slate-500 hover:text-amber-400 hover:bg-amber-400/10 rounded-md transition-all duration-150 active:scale-110 active:text-amber-300"
                       title="Drag to rearrange topic order"
                     >
                       <GripVertical className="w-4 h-4" />
@@ -1270,11 +1328,11 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
                       onClick={() => toggleNode(pattern.id)}
                       className="cursor-pointer group select-none min-w-0"
                     >
-                      <div className="flex items-center space-x-2">
-                        <h3 className="text-sm font-bold text-white group-hover:text-blue-300 transition truncate">
+                      <div className="flex items-center gap-x-2 gap-y-1 flex-wrap min-w-0">
+                        <h3 className="text-sm font-bold text-white group-hover:text-blue-300 transition truncate min-w-0 max-w-full">
                           {pattern.name}
                         </h3>
-                        <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-800 text-slate-300">
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 whitespace-nowrap">
                           {subfolders.length} {subfolders.length === 1 ? 'subtopic' : 'subtopics'} • {totalQ} {totalQ === 1 ? 'problem' : 'problems'}
                         </span>
                       </div>
@@ -1394,6 +1452,14 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
         isOpen={Boolean(sharingFolder)}
         folder={sharingFolder}
         onClose={() => setSharingFolder(null)}
+      />
+
+      <ActionSheet
+        open={Boolean(sheet)}
+        title={sheet?.title || ''}
+        subtitle={sheet?.subtitle}
+        actions={sheet?.actions || []}
+        onClose={() => setSheet(null)}
       />
     </div>
   );

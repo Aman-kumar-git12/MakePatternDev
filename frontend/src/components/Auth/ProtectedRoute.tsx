@@ -13,7 +13,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen w-full bg-[#080C14] flex flex-col items-center justify-center space-y-4">
+      <div className="min-h-[100dvh] w-full bg-[#080C14] flex flex-col items-center justify-center space-y-4">
         <div className="relative">
           <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-violet-500 flex items-center justify-center shadow-2xl shadow-blue-500/30 animate-pulse">
             <Layers className="w-8 h-8 text-white" />

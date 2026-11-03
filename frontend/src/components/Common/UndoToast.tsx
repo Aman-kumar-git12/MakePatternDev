@@ -79,7 +79,7 @@ export const UndoToastStack: React.FC = () => {
   if (toasts.length === 0) return null;
   return (
     <div
-      className="fixed z-[60] bottom-3 left-3 right-3 sm:left-auto sm:right-4 sm:bottom-4 flex flex-col gap-2 items-stretch sm:items-end pointer-events-none"
+      className="fixed z-[60] bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-3 right-3 sm:left-auto sm:right-4 sm:bottom-4 flex flex-col gap-2 items-stretch sm:items-end pointer-events-none"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
       {toasts.map((t) => (

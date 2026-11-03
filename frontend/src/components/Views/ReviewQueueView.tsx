@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Brain, ExternalLink, ArrowRight, CalendarClock, CheckCircle2, Loader2, RefreshCw } from 'lucide-react';
+import { Brain, ExternalLink, ArrowRight, CalendarClock, CheckCircle2, Loader2, RefreshCw, CloudOff, CloudUpload } from 'lucide-react';
+import { usePendingReviewCount } from '../../offline/useOffline';
 import type { QuestionListItem, ReviewRating } from '../../types/dsa';
 import type { ReviewQueueState } from '../../hooks/useReviewQueue';
 import { relativeDays } from '../../utils/dates';
@@ -46,7 +47,8 @@ const problemHref = (q: QuestionListItem) => {
 };
 
 export const ReviewQueueView: React.FC<ReviewQueueViewProps> = ({ reviews, onSelectQuestion, onReviewed }) => {
-  const { queue, loading, error, rate, refresh } = reviews;
+  const { queue, loading, error, rate, refresh, offline, cachedAt } = reviews;
+  const pending = usePendingReviewCount();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -54,7 +56,11 @@ export const ReviewQueueView: React.FC<ReviewQueueViewProps> = ({ reviews, onSel
     setBusyId(q.id);
     try {
       const updated = await rate(q.id, rating);
-      setToast(`"${q.title}" — next review ${relativeDays(updated.next_review_at)}`);
+      setToast(
+        updated.queued
+          ? `"${q.title}" saved offline — it will sync when you're back online`
+          : `"${q.title}" — next review ${relativeDays(updated.next_review_at)}`
+      );
       setTimeout(() => setToast(null), 2500);
       onReviewed?.();
     } catch (err) {
@@ -87,6 +93,24 @@ export const ReviewQueueView: React.FC<ReviewQueueViewProps> = ({ reviews, onSel
           </button>
         </div>
       </div>
+
+      {offline && (
+        <div className="mp-card p-3 text-xs flex items-start gap-2" role="status" style={{ borderColor: 'rgba(250,204,21,0.35)' }}>
+          <CloudOff className="w-4 h-4 shrink-0 text-yellow-300" />
+          <span>
+            Offline — showing your saved queue{cachedAt ? ` from ${new Date(cachedAt).toLocaleString()}` : ''}. Reviews you rate now
+            will sync automatically when you reconnect.
+          </span>
+        </div>
+      )}
+      {pending > 0 && (
+        <div className="mp-card p-3 text-xs flex items-center gap-2" role="status">
+          <CloudUpload className="w-4 h-4 shrink-0 text-sky-400" />
+          <span>
+            {pending} {pending === 1 ? 'review' : 'reviews'} waiting to sync
+          </span>
+        </div>
+      )}
 
       {error && (
         <div className="mp-card p-3 text-xs text-rose-400" role="alert">
@@ -182,7 +206,7 @@ export const ReviewQueueView: React.FC<ReviewQueueViewProps> = ({ reviews, onSel
 
       {toast && (
         <div
-          className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-xl text-xs font-semibold shadow-lg max-w-[90vw] text-center"
+          className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-xl text-xs font-semibold shadow-lg max-w-[90vw] text-center"
           style={{ backgroundColor: 'var(--bg-elevated)', border: '1px solid var(--border-hover)', color: 'var(--text-primary)' }}
           role="status"
         >

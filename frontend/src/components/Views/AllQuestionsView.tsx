@@ -135,7 +135,7 @@ export const AllQuestionsView: React.FC<AllQuestionsViewProps> = ({
             selection.toggle(q.id, e.shiftKey);
           }
         }}
-        className="w-4 h-4 shrink-0 cursor-pointer accent-[#fef08a]"
+        className="w-5 h-5 sm:w-4 sm:h-4 shrink-0 cursor-pointer accent-[#fef08a]"
         aria-label={`Select ${q.title}`}
       />
     ) : null;
@@ -280,7 +280,7 @@ export const AllQuestionsView: React.FC<AllQuestionsViewProps> = ({
                     if (el) el.indeterminate = selection.someSelected;
                   }}
                   onChange={selection.toggleAll}
-                  className="w-4 h-4 cursor-pointer accent-[#fef08a]"
+                  className="w-5 h-5 sm:w-4 sm:h-4 cursor-pointer accent-[#fef08a]"
                   aria-label={selection.allSelected ? 'Deselect all visible questions' : 'Select all visible questions'}
                   title="Select all (shift-click rows to select a range)"
                 />
@@ -311,17 +311,17 @@ export const AllQuestionsView: React.FC<AllQuestionsViewProps> = ({
                   key={q.id}
                   onClick={() => onSelectQuestion(q.id)}
                   data-nav-id={q.id}
-                  className="p-4 hover:bg-slate-800/40 cursor-pointer transition flex items-center justify-between group"
+                  className="p-3 sm:p-4 hover:bg-slate-800/40 cursor-pointer transition flex items-center justify-between gap-2 group"
                 >
-                  <div className="flex items-center space-x-3.5 min-w-0 pr-4">
+                  <div className="flex items-center space-x-3 sm:space-x-3.5 flex-1 min-w-0 sm:pr-4">
                     {renderCheckbox(q)}
                     <div className="flex-shrink-0" title={`Status: ${q.status}`}>
                       {renderStatusIcon(q.status)}
                     </div>
 
-                    <div className="min-w-0">
-                      <div className="flex items-center space-x-2 flex-wrap gap-y-1">
-                        <h4 className="font-semibold text-sm text-slate-100 group-hover:text-yellow-300 transition truncate">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center space-x-2 flex-wrap gap-y-1 min-w-0">
+                        <h4 className="font-semibold text-sm text-slate-100 group-hover:text-yellow-300 transition truncate min-w-0 max-w-full">
                           {q.title}
                         </h4>
                         {/* Difficulty tag right to question title */}
@@ -348,14 +348,14 @@ export const AllQuestionsView: React.FC<AllQuestionsViewProps> = ({
                           </a>
                         )}
                       </div>
-                      <div className="flex items-center space-x-3 text-xs text-slate-400 truncate mt-1">
-                        <span>{q.folder_path || 'All Questions'}</span>
+                      <div className="flex items-center gap-3 text-xs text-slate-400 min-w-0 mt-1">
+                        <span className="truncate min-w-0">{q.folder_path || 'All Questions'}</span>
                         {q.tags && q.tags.length > 0 && (
-                          <div className="flex items-center space-x-1 hidden sm:inline-flex">
+                          <div className="hidden lg:inline-flex items-center gap-1 shrink-0">
                             {q.tags.slice(0, 2).map((tag, idx) => (
                               <span
                                 key={idx}
-                                className="text-[10px] px-2 py-0.5 rounded-md bg-slate-800/90 text-slate-400 border border-slate-700/50"
+                                className="text-[10px] px-2 py-0.5 rounded-md bg-slate-800/90 text-slate-400 border border-slate-700/50 max-w-[9rem] truncate"
                               >
                                 #{tag}
                               </span>
@@ -377,8 +377,9 @@ export const AllQuestionsView: React.FC<AllQuestionsViewProps> = ({
                         e.stopPropagation();
                         onToggleBookmark(q.id);
                       }}
-                      className="p-1 text-slate-400 hover:text-yellow-300 transition"
+                      className="h-10 w-10 -my-2 inline-flex items-center justify-center rounded-lg text-slate-400 hover:text-yellow-300 transition"
                       title="Toggle bookmark"
+                      aria-label={q.is_bookmarked ? 'Remove bookmark' : 'Bookmark question'}
                     >
                       <Star
                         className={`w-4 h-4 ${q.is_bookmarked ? 'fill-[#fef08a] text-yellow-300' : ''
@@ -392,14 +393,15 @@ export const AllQuestionsView: React.FC<AllQuestionsViewProps> = ({
                           e.stopPropagation();
                           onDeleteQuestion(q.id, q.title);
                         }}
-                        className="p-1 text-slate-500 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition"
+                        className="mp-desktop-only p-1 text-slate-500 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition"
                         title="Delete question"
+                        aria-label="Delete question"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
                     )}
 
-                    <ChevronRight className="w-4 h-4 text-slate-500 group-hover:text-blue-400 group-hover:translate-x-0.5 transition" />
+                    <ChevronRight className="hidden sm:block w-4 h-4 text-slate-500 group-hover:text-blue-400 group-hover:translate-x-0.5 transition" />
                   </div>
                 </div>
               ))

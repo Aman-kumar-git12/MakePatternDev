@@ -5,6 +5,10 @@ import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import './index.css';
 import App from './App.tsx';
+import { UpdateToast } from './components/Common/UpdateToast';
+import { registerServiceWorker } from './pwa/registerServiceWorker';
+
+registerServiceWorker();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -12,6 +16,7 @@ createRoot(document.getElementById('root')!).render(
       <ThemeProvider>
         <AuthProvider>
           <App />
+          <UpdateToast />
         </AuthProvider>
       </ThemeProvider>
     </BrowserRouter>

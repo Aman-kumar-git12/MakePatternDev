@@ -58,6 +58,18 @@ const getTimezone = (): string => {
   }
 };
 
+/** Result of POST /reviews/batch. Every status other than "applied" is also final for the client. */
+export interface ReviewBatchResult {
+  applied: number;
+  skipped: number;
+  results: { client_id: string; status: 'applied' | 'duplicate' | 'not_found' | 'stale' }[];
+}
+
+/** True when a request never reached the server (offline, DNS, CORS/connection reset). */
+export function isNetworkError(err: unknown): boolean {
+  return err instanceof ApiError ? err.status === 0 : err instanceof TypeError;
+}
+
 export class ApiError extends Error {
   status: number;
   data: unknown;
@@ -555,6 +567,16 @@ class ApiService {
     return this.request<QuestionListItem>(`/reviews/${questionId}`, {
       method: 'POST',
       body: JSON.stringify({ rating }),
+    });
+  }
+
+  /** Flush reviews made offline. Idempotent per client_id on the server. */
+  async submitReviewBatch(
+    reviews: { client_id: string; question_id: string; rating: ReviewRating; reviewed_at: string }[]
+  ): Promise<ReviewBatchResult> {
+    return this.request<ReviewBatchResult>('/reviews/batch', {
+      method: 'POST',
+      body: JSON.stringify({ reviews }),
     });
   }
 

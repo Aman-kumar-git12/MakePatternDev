@@ -8,6 +8,8 @@ export function useAppData() {
   const [folders, setFolders] = useState<Folder[]>([]);
   const [questions, setQuestions] = useState<QuestionListItem[]>([]);
   const [summary, setSummary] = useState<ProgressSummary | null>(null);
+  // False until the first load settles, so empty states don't flash while data is in flight.
+  const [isLoaded, setIsLoaded] = useState(false);
   // Bumped whenever activity-affecting data changes so the heatmap refetches.
   const [activityKey, setActivityKey] = useState(0);
   const reviews = useReviewQueue();
@@ -25,6 +27,8 @@ export function useAppData() {
       setFolders(treeData);
       setSummary(summaryData);
       setQuestions(listData);
+      // Only after a successful load: a failed (e.g. offline) load must not show "workspace empty".
+      setIsLoaded(true);
     } catch (err) {
       console.error('Failed to load initial curriculum data:', err);
     }
@@ -45,6 +49,7 @@ export function useAppData() {
       setFolders(treeData);
       setSummary(summaryData);
       setQuestions(listData);
+      setIsLoaded(true);
     } catch (err) {
       console.error('Failed to refresh data:', err);
     }
@@ -53,6 +58,7 @@ export function useAppData() {
   }, [refreshReviews]);
 
   return {
+    isLoaded,
     folders,
     setFolders,
     questions,

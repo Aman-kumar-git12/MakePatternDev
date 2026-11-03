@@ -12,7 +12,7 @@ export const PublicRoute: React.FC<PublicRouteProps> = ({ children }) => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen w-full bg-[#080C14] flex items-center justify-center">
+      <div className="min-h-[100dvh] w-full bg-[#080C14] flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );

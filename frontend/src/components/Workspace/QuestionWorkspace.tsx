@@ -314,14 +314,15 @@ export const QuestionWorkspace: React.FC<QuestionWorkspaceProps> = ({
         </div>
 
         {/* Main Row: Title + Difficulty Tag + Tags (Left) and Actions (Right) */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-0.5">
+        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-2 pt-0.5">
           {/* Left: Title + Difficulty Tag + Tags */}
           <div className="flex items-center space-x-2 min-w-0 flex-1 flex-wrap gap-y-1">
             <input
               type="text"
               value={title}
               onChange={(e) => handleTitleChange(e.target.value)}
-              className="text-base sm:text-lg font-bold text-white bg-transparent border-b border-transparent hover:border-slate-700 focus:border-blue-500 focus:outline-none transition truncate max-w-full sm:max-w-md min-w-0 py-0 leading-tight"
+              className="text-base sm:text-lg font-bold text-white bg-transparent border-b border-transparent hover:border-slate-700 focus:border-blue-500 focus:outline-none transition truncate w-full sm:w-auto max-w-full sm:max-w-md min-w-0 py-0 leading-tight"
+              aria-label="Question title"
             />
             {/* Difficulty Tag right to question title */}
             <select
@@ -350,7 +351,7 @@ export const QuestionWorkspace: React.FC<QuestionWorkspaceProps> = ({
           </div>
 
           {/* Right: Actions in a single compact flex row */}
-          <div className="flex items-center space-x-1.5 flex-wrap flex-shrink-0">
+          <div className="flex items-center gap-1.5 flex-wrap min-w-0 xl:flex-shrink-0">
             {/* Problem URL: Combined Open Problem + Edit button */}
             {formattedProblemUrl ? (
               <div className="inline-flex items-center rounded-lg bg-[#fef08a]/20 border border-[#fef08a]/35 overflow-hidden shadow-sm">
@@ -564,7 +565,7 @@ export const QuestionWorkspace: React.FC<QuestionWorkspaceProps> = ({
 
       {/* Custom Edit URL Modal - replaces native browser prompt/alert */}
       {isUrlModalOpen && (
-        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="mp-modal-overlay fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="bg-[#0D1527] border border-slate-700 rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl animate-fade-in">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div className="flex items-center space-x-2.5">

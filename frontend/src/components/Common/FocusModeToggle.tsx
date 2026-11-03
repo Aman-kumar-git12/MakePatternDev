@@ -9,7 +9,7 @@ export const FocusModeToggle: React.FC<{ active: boolean; onToggle: () => void }
     aria-pressed={active}
     aria-label={active ? 'Exit focus mode (Esc)' : 'Enter focus mode (F)'}
     title={active ? 'Exit focus mode (Esc)' : 'Focus mode (F)'}
-    className="fixed z-40 bottom-4 right-4 inline-flex items-center gap-1.5 rounded-full border px-3 py-2 text-xs font-medium shadow-lg"
+    className="fixed z-40 bottom-[max(1rem,env(safe-area-inset-bottom))] right-4 inline-flex items-center gap-1.5 rounded-full border px-3 py-2 min-h-10 text-xs font-medium shadow-lg"
     style={{
       backgroundColor: active ? 'var(--accent-primary)' : 'var(--bg-card)',
       borderColor: active ? 'var(--accent-primary)' : 'var(--border-primary)',

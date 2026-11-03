@@ -404,7 +404,7 @@ export const SharedPatternView: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#070B14] flex flex-col items-center justify-center p-4">
+      <div className="min-h-[100dvh] bg-[#070B14] flex flex-col items-center justify-center p-4">
         <div className="w-12 h-12 rounded-2xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400 animate-pulse mb-4">
           <Layers className="w-6 h-6" />
         </div>
@@ -415,7 +415,7 @@ export const SharedPatternView: React.FC = () => {
 
   if (error || !data) {
     return (
-      <div className="min-h-screen bg-[#070B14] flex flex-col items-center justify-center p-4 text-center">
+      <div className="min-h-[100dvh] bg-[#070B14] flex flex-col items-center justify-center p-4 text-center">
         <div className="w-16 h-16 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 mb-4 shadow-xl">
           <Lock className="w-8 h-8" />
         </div>
@@ -436,26 +436,27 @@ export const SharedPatternView: React.FC = () => {
   const { owner_name } = data;
 
   return (
-    <div className="min-h-screen bg-[#070B14] text-slate-100 flex flex-col">
+    <div className="min-h-[100dvh] bg-[#070B14] text-slate-100 flex flex-col">
       {/* Top Navigation Bar */}
-      <header className="sticky top-0 z-40 bg-[#0A0F1D]/90 backdrop-blur-md border-b border-slate-800/80 px-4 lg:px-8 py-3.5 flex items-center justify-between">
-        <div className="flex items-center space-x-3">
-          <Link to="/" className="flex items-center space-x-2.5 group">
+      <header className="sticky top-0 z-40 bg-[#0A0F1D]/90 backdrop-blur-md border-b border-slate-800/80 px-3 sm:px-4 lg:px-8 py-2.5 sm:py-3.5 flex items-center justify-between gap-2">
+        <div className="flex items-center space-x-3 min-w-0">
+          <Link to="/" className="flex items-center space-x-2.5 group min-w-0">
             <div className="p-2 rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-600/30 group-hover:scale-105 transition">
               <Layers className="w-5 h-5" />
             </div>
-            <span className="font-bold text-lg text-white tracking-tight">MakePattern</span>
+            <span className="font-bold text-base sm:text-lg text-white tracking-tight truncate">MakePattern</span>
           </Link>
-          <div className="hidden sm:flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-300 text-xs font-medium">
+          <div className="hidden lg:flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-300 text-xs font-medium">
             <ShieldCheck className="w-3.5 h-3.5 text-purple-400" />
             <span>{isAllPatterns ? 'All Patterns (Read-Only)' : 'Shared Read-Only'}</span>
           </div>
         </div>
 
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           <button
             onClick={handleCopyLink}
-            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition border ${
+            aria-label={copiedLink ? 'Link copied' : 'Copy link'}
+            className={`h-10 min-w-10 inline-flex items-center justify-center gap-1.5 px-2.5 sm:px-3 rounded-xl text-xs font-medium transition border ${
               copiedLink
                 ? 'bg-emerald-600/20 text-emerald-300 border-emerald-500/30'
                 : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
@@ -464,12 +465,12 @@ export const SharedPatternView: React.FC = () => {
             {copiedLink ? (
               <>
                 <Check className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Link Copied!</span>
+                <span className="hidden sm:inline">Link Copied!</span>
               </>
             ) : (
               <>
                 <Copy className="w-3.5 h-3.5" />
-                <span>Copy Link</span>
+                <span className="hidden sm:inline">Copy Link</span>
               </>
             )}
           </button>
@@ -478,7 +479,7 @@ export const SharedPatternView: React.FC = () => {
             type="button"
             onClick={handleFork}
             disabled={forking}
-            className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-md shadow-blue-600/20 transition disabled:opacity-60"
+            className="h-10 inline-flex items-center gap-1.5 px-3 sm:px-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-md shadow-blue-600/20 transition disabled:opacity-60 whitespace-nowrap"
             title={isAuthenticated ? 'Copy this pattern into your workspace' : 'Sign in to copy this pattern'}
           >
             {forking ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CopyPlus className="w-3.5 h-3.5" />}
@@ -488,7 +489,7 @@ export const SharedPatternView: React.FC = () => {
           {!isAuthenticated && (
             <Link
               to="/register"
-              className="hidden sm:flex items-center space-x-1.5 px-3 py-1.5 rounded-xl border border-slate-700 text-slate-300 hover:text-white text-xs font-semibold transition"
+              className="hidden lg:flex items-center space-x-1.5 px-3 py-1.5 rounded-xl border border-slate-700 text-slate-300 hover:text-white text-xs font-semibold transition"
             >
               <Sparkles className="w-3.5 h-3.5" />
               <span>Build Your Own</span>
@@ -498,7 +499,7 @@ export const SharedPatternView: React.FC = () => {
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-5xl w-full mx-auto px-4 lg:px-8 py-8 space-y-6">
+      <main className="flex-1 max-w-5xl w-full mx-auto px-3 sm:px-4 lg:px-8 py-5 sm:py-8 space-y-5 sm:space-y-6 min-w-0">
         {forkMsg && (
           <div className="bg-[#0D1527] border border-slate-800 rounded-xl px-4 py-3 text-xs text-slate-200 flex flex-wrap items-center justify-between gap-2" role="status">
             <span>{forkMsg}</span>
@@ -510,7 +511,7 @@ export const SharedPatternView: React.FC = () => {
           </div>
         )}
         {/* Pattern Banner */}
-        <div className="bg-[#0D1527] border border-slate-800 rounded-2xl p-6 shadow-xl relative overflow-hidden">
+        <div className="bg-[#0D1527] border border-slate-800 rounded-2xl p-4 sm:p-6 shadow-xl relative overflow-hidden">
           <div className="absolute top-0 right-0 w-96 h-96 bg-purple-600/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20" />
 
           <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -519,7 +520,7 @@ export const SharedPatternView: React.FC = () => {
                 <User className="w-3.5 h-3.5" />
                 <span>Curated by {owner_name}</span>
               </div>
-              <h1 className="text-2xl lg:text-3xl font-extrabold text-white tracking-tight">
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-white tracking-tight mp-break">
                 {isAllPatterns ? 'All Topics & Patterns' : (data.pattern?.name || 'Shared Pattern')}
               </h1>
               <p className="text-sm text-slate-400 max-w-2xl">
@@ -586,18 +587,18 @@ export const SharedPatternView: React.FC = () => {
 
         {/* Filter and Search Bar */}
         <div className="flex items-center justify-between gap-4">
-          <div className="relative flex-1 max-w-md">
+          <div className="relative flex-1 min-w-0 md:max-w-md">
             <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               placeholder="Search questions by title, difficulty, or tag..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-[#0D1527] border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+              className="w-full bg-[#0D1527] border border-slate-800 rounded-xl pl-9 pr-4 py-2.5 text-sm sm:text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
             />
           </div>
 
-          <div className="text-xs text-slate-500">
+          <div className="hidden md:block text-xs text-slate-500 shrink-0">
             Click on any question to view its solution and details
           </div>
         </div>
@@ -682,7 +683,7 @@ export const SharedPatternView: React.FC = () => {
 
       {/* Read-Only Question Detail Modal */}
       {activeQuestionId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-sm animate-fade-in">
+        <div className="mp-modal-overlay fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-6 bg-black/80 backdrop-blur-sm animate-fade-in">
           <div className="bg-[#0D1527] border border-slate-800 rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl relative text-slate-100 overflow-hidden animate-scale-in">
             {/* Modal Header */}
             <div className="px-6 py-4 border-b border-slate-800/80 flex items-center justify-between bg-[#0A0F1D]/80">
@@ -900,7 +901,7 @@ export const SharedPatternView: React.FC = () => {
       {snackbarMessage && (
         <div
           role="alert"
-          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] max-w-lg w-[92vw] sm:w-auto px-4 py-3 rounded-2xl bg-[#121829]/95 backdrop-blur-md border border-amber-500/40 text-slate-100 shadow-[0_12px_40px_rgba(0,0,0,0.85)] flex items-center space-x-3 animate-fade-in"
+          className="fixed bottom-[max(1.5rem,env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-[100] max-w-lg w-[92vw] sm:w-auto px-4 py-3 rounded-2xl bg-[#121829]/95 backdrop-blur-md border border-amber-500/40 text-slate-100 shadow-[0_12px_40px_rgba(0,0,0,0.85)] flex items-center space-x-3 animate-fade-in"
           style={{
             boxShadow: '0 8px 30px rgba(245, 158, 11, 0.22), 0 4px 16px rgba(0,0,0,0.8)',
           }}

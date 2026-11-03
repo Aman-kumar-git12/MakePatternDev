@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { api } from '../services/api';
+import { api, isNetworkError } from '../services/api';
 import type { User } from '../types/dsa';
 
 interface AuthContextType {
@@ -18,6 +18,17 @@ interface AuthContextType {
 }
 
 const AUTH_TOKEN_KEY = 'mp_auth_token';
+/** Last known user, so the app (and offline reviews) still open when the server is unreachable. */
+const AUTH_USER_KEY = 'mp_auth_user';
+
+function readCachedUser(): User | null {
+  try {
+    const raw = localStorage.getItem(AUTH_USER_KEY);
+    return raw ? (JSON.parse(raw) as User) : null;
+  } catch {
+    return null;
+  }
+}
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -37,8 +48,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const currentUser = await api.getMe();
           setUser(currentUser);
         } catch (err) {
+          const cached = readCachedUser();
+          if (isNetworkError(err) && cached) {
+            // Offline or the server is waking up: keep the session; requests retry later.
+            console.warn('Server unreachable; continuing with the saved session.', err);
+            setUser(cached);
+            setIsLoading(false);
+            return;
+          }
           console.warn('Stored auth token invalid or expired. Logging out...', err);
           localStorage.removeItem(AUTH_TOKEN_KEY);
+          localStorage.removeItem(AUTH_USER_KEY);
           api.clearToken();
           setToken(null);
           setUser(null);
@@ -82,6 +102,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = useCallback(() => {
     localStorage.removeItem(AUTH_TOKEN_KEY);
+    localStorage.removeItem(AUTH_USER_KEY);
     api.clearToken();
     setToken(null);
     setUser(null);
@@ -95,6 +116,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const setCurrentUser = useCallback((next: User) => setUser(next), []);
 
+  // Remember the signed-in user for offline starts.
+  useEffect(() => {
+    if (!user) return;
+    try {
+      localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
+    } catch {
+      // ignore storage errors
+    }
+  }, [user]);
+
   const replaceToken = useCallback((next: string) => {
     localStorage.setItem(AUTH_TOKEN_KEY, next);
     api.setToken(next);
@@ -105,8 +136,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const currentUser = await api.getMe();
       setUser(currentUser);
-    } catch {
-      logout();
+    } catch (err) {
+      if (!isNetworkError(err)) logout();
     }
   };
 

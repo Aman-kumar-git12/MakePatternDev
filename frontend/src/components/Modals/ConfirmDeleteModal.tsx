@@ -35,7 +35,7 @@ export const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in">
+    <div className="mp-modal-overlay fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-sm animate-fade-in">
       <div className="bg-[#0D1527] border border-rose-500/30 rounded-2xl w-full max-w-md p-6 shadow-2xl relative text-slate-100">
         <button
           onClick={onClose}

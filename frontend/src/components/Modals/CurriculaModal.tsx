@@ -48,7 +48,7 @@ export const CurriculaModal: React.FC<CurriculaModalProps> = ({ isOpen, onClose,
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 backdrop-blur-sm animate-fade-in"
+      className="mp-modal-overlay fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 backdrop-blur-sm animate-fade-in"
       style={{ backgroundColor: 'var(--bg-overlay)' }}
       role="dialog"
       aria-modal="true"

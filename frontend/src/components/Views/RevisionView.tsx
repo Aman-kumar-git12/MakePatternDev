@@ -499,7 +499,7 @@ export const RevisionView: React.FC<RevisionViewProps> = ({
 
       {/* 5. GET RANDOM QUESTIONS MODAL */}
       {isRandomModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+        <div className="mp-modal-overlay fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
           <div
             className="bg-[#0D1527] border border-slate-800 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden p-6 relative animate-scale-in"
             onClick={(e) => e.stopPropagation()}
@@ -679,7 +679,7 @@ export const RevisionView: React.FC<RevisionViewProps> = ({
       {toastMessage && (
         <div
           role="alert"
-          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 max-w-md w-[92vw] sm:w-auto px-4 py-3 rounded-2xl bg-[#0D1527]/95 backdrop-blur-md border border-amber-500/40 text-slate-100 shadow-[0_12px_40px_rgba(0,0,0,0.85)] flex items-center space-x-3 animate-fade-in"
+          className="fixed bottom-[max(1.5rem,env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-50 max-w-md w-[92vw] sm:w-auto px-4 py-3 rounded-2xl bg-[#0D1527]/95 backdrop-blur-md border border-amber-500/40 text-slate-100 shadow-[0_12px_40px_rgba(0,0,0,0.85)] flex items-center space-x-3 animate-fade-in"
           style={{
             boxShadow: '0 8px 30px rgba(245, 158, 11, 0.22), 0 4px 16px rgba(0,0,0,0.8)',
           }}

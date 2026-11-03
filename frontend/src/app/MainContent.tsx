@@ -96,7 +96,8 @@ export function MainContent({
             onToggleBookmark={handleToggleBookmark}
             activeQuestionId={activeQuestion?.id}
             activityKey={activityKey}
-            dueCount={dueCount}
+            dataLoaded={data.isLoaded}
+            dueCount={data.reviews.loading ? undefined : dueCount}
             onQuestionTracked={async () => {
               await refreshData();
             }}

@@ -11,6 +11,8 @@ import { MainContent } from './MainContent';
 import { AppModals } from './AppModals';
 import { UndoToastStack } from '../components/Common/UndoToast';
 import { useShellShortcuts } from '../shortcuts/useShellShortcuts';
+import { OfflineBanner } from '../components/Common/OfflineBanner';
+import { useOfflineReviewSync } from '../offline/useOffline';
 
 /** Authenticated application shell: sidebar + header + routed view + global modals. */
 export function MainAppShell() {
@@ -27,9 +29,11 @@ export function MainAppShell() {
   const { isMobileMenuOpen, setIsMobileMenuOpen, setIsSearchOpen, handleOpenNewQuestion } = modals;
   // Keyboard shortcuts, focus mode (hides sidebar/header in a question), "?" help, preference sync.
   const shell = useShellShortcuts({ currentView, onSelectView: handleSelectNavView, modals, active, questionActions });
+  // Flush reviews rated offline: on start/login, when back online, when the tab is shown again.
+  useOfflineReviewSync(data.refreshData);
 
   return (
-    <div className="flex h-screen w-full overflow-hidden font-sans" style={{ backgroundColor: 'var(--bg-app)', color: 'var(--text-primary)' }}>
+    <div className="flex h-[100dvh] w-full overflow-hidden font-sans" style={{ backgroundColor: 'var(--bg-app)', color: 'var(--text-primary)' }}>
       {/* 1. Left Sidebar (hidden in focus mode; display:contents keeps layout otherwise) */}
       <div className={shell.focusActive ? 'hidden' : 'contents'}>
       <Sidebar
@@ -46,7 +50,7 @@ export function MainAppShell() {
       </div>
 
       {/* 2. Main Content Area */}
-      <div className="flex-1 min-w-0 flex flex-col h-screen overflow-hidden">
+      <div className="flex-1 min-w-0 flex flex-col h-[100dvh] overflow-hidden">
         {/* Top Header */}
         {!shell.focusActive && (
         <Header
@@ -57,6 +61,8 @@ export function MainAppShell() {
           onLogout={logout}
         />
         )}
+
+        <OfflineBanner />
 
         {/* View Switcher based on current URL */}
         <MainContent
