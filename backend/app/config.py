@@ -43,6 +43,17 @@ class Settings(BaseSettings):
 
     LEETCODE_GRAPHQL_URL: str = "https://leetcode.com/graphql"
 
+    # Optional Judge0 code execution (C++/Java). Python/JS run in the browser without it.
+    # RapidAPI: JUDGE0_URL=https://judge0-ce.p.rapidapi.com, JUDGE0_API_HOST=judge0-ce.p.rapidapi.com
+    # Self-hosted: JUDGE0_URL=https://judge0.example.com, JUDGE0_API_KEY sent as X-Auth-Token
+    JUDGE0_URL: Optional[str] = None
+    JUDGE0_API_KEY: Optional[str] = None
+    JUDGE0_API_HOST: Optional[str] = None
+
+    @property
+    def judge0_enabled(self) -> bool:
+        return bool(self.JUDGE0_URL)
+
     model_config = {"env_file": ".env", "extra": "ignore"}
 
     @property

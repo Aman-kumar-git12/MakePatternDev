@@ -16,6 +16,7 @@ from app.routers import (
     progress,
     questions,
     reviews,
+    run,
     search,
     shared,
     solutions,
@@ -85,7 +86,7 @@ async def security_headers(request, call_next):
     return response
 
 
-for r in (auth, folders, questions, solutions, bookmarks, progress, search, test_cases, shared, reviews, leetcode, curricula):
+for r in (auth, folders, questions, solutions, bookmarks, progress, search, test_cases, shared, reviews, leetcode, curricula, run):
     app.include_router(r.router, prefix="/api")
 
 

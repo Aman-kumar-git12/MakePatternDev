@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Plus, Trash2, Edit2, Check, FlaskConical, AlertCircle, Sparkles } from 'lucide-react';
-import type { TestCase } from '../../types/dsa';
+import type { Solution, TestCase } from '../../types/dsa';
+import { RunPanel } from './RunPanel';
 
 interface TestCasesSectionProps {
   questionId: string;
@@ -14,6 +15,8 @@ interface TestCasesSectionProps {
   }) => Promise<void>;
   onUpdateTestCase: (id: string, updates: Partial<TestCase>) => Promise<void>;
   onDeleteTestCase: (id: string) => Promise<void>;
+  /** When provided, a Run panel lets the user run a chosen solution against these cases. */
+  solutions?: Solution[];
 }
 
 export const TestCasesSection: React.FC<TestCasesSectionProps> = ({
@@ -21,7 +24,10 @@ export const TestCasesSection: React.FC<TestCasesSectionProps> = ({
   onAddTestCase,
   onUpdateTestCase,
   onDeleteTestCase,
+  solutions = [],
 }) => {
+  const [runSolutionId, setRunSolutionId] = useState<string>('');
+  const runSolution = solutions.find((s) => s.id === runSolutionId) || solutions[0];
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
   const [editInput, setEditInput] = useState('');
@@ -362,6 +368,35 @@ export const TestCasesSection: React.FC<TestCasesSectionProps> = ({
           })}
         </div>
       )}
+
+      {/* Run a solution against these test cases */}
+      {runSolution ? (
+        <div className="space-y-2 border-t border-slate-800/80 pt-3">
+          {solutions.length > 1 && (
+            <div className="flex items-center gap-2 text-[11px] text-slate-400">
+              <label htmlFor="run-solution-select">Solution to run:</label>
+              <select
+                id="run-solution-select"
+                value={runSolution.id}
+                onChange={(e) => setRunSolutionId(e.target.value)}
+                className="bg-[#0A0F1D] border border-slate-700 rounded-lg px-2 py-1 text-xs text-slate-200 max-w-[60vw]"
+              >
+                {solutions.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.title} ({s.language})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          <RunPanel
+            code={runSolution.code || ''}
+            language={runSolution.language}
+            testCases={testCases}
+            label={solutions.length === 1 ? `Run "${runSolution.title}"` : undefined}
+          />
+        </div>
+      ) : null}
     </div>
   );
 };

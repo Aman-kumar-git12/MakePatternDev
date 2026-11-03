@@ -18,7 +18,8 @@ import {
   X,
   RotateCcw,
 } from 'lucide-react';
-import type { Solution, SupportedLanguage, ComplexityAnalysisResult } from '../../types/dsa';
+import type { Solution, SupportedLanguage, ComplexityAnalysisResult, TestCase } from '../../types/dsa';
+import { RunPanel } from './RunPanel';
 import { api } from '../../services/api';
 import { useTheme } from '../../context/ThemeContext';
 
@@ -35,6 +36,8 @@ interface MonacoCodeEditorProps {
   ) => void;
   onUpdateSolution: (id: string, updates: Partial<Solution>) => void;
   onDeleteSolution: (id: string) => void;
+  /** Saved test cases, used by the Run panel. */
+  testCases?: TestCase[];
 }
 
 const STARTER_CODES: Record<SupportedLanguage, string> = {
@@ -99,6 +102,7 @@ export const MonacoCodeEditor: React.FC<MonacoCodeEditorProps> = ({
   onAddSolution,
   onUpdateSolution,
   onDeleteSolution,
+  testCases = [],
 }) => {
   const { isDark } = useTheme();
   const [activeSolutionId, setActiveSolutionId] = useState<string>(solutions[0]?.id || '');
@@ -784,6 +788,9 @@ export const MonacoCodeEditor: React.FC<MonacoCodeEditorProps> = ({
               </button>
             </div>
           </div>
+
+          {/* Run against saved test cases / custom input */}
+          <RunPanel code={code} language={activeSolution.language} testCases={testCases} />
 
           {/* 3. Solution Explanation / Notes (Beneath Code Editor) */}
           <div className="bg-[#0A0F1D] border border-slate-800 rounded-xl p-3.5 space-y-2 shadow-sm">

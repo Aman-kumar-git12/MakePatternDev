@@ -534,6 +534,7 @@ export const QuestionWorkspace: React.FC<QuestionWorkspaceProps> = ({
           onAddSolution={handleAddSolution}
           onUpdateSolution={handleUpdateSolution}
           onDeleteSolution={handleDeleteSolution}
+          testCases={testCases}
         />
       )}
 
@@ -553,6 +554,7 @@ export const QuestionWorkspace: React.FC<QuestionWorkspaceProps> = ({
           onAddTestCase={handleAddTestCase}
           onUpdateTestCase={handleUpdateTestCase}
           onDeleteTestCase={handleDeleteTestCase}
+          solutions={solutions}
         />
       )}
 

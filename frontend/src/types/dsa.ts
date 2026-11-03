@@ -300,3 +300,18 @@ export interface ImportedCollection {
   folder_name: string;
   questions_imported: number;
 }
+
+// Code execution
+export interface RunConfig {
+  judge0_enabled: boolean;
+  languages: SupportedLanguage[];
+}
+
+export interface Judge0Result {
+  status: string;
+  stdout: string;
+  stderr: string;
+  compile_output: string;
+  time: string | number | null;
+  memory: number | null;
+}

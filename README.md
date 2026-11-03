@@ -53,6 +53,7 @@ Inspired by the dark-themed structured course tracker layout with recursive fold
 - **Real LeetCode integration** (public GraphQL): search & import problems with real title, difficulty, tags, statement and example test cases; daily challenge; refresh a problem's statement; sync your recent accepted submissions by LeetCode username.
 - **Starter curricula** — "Core Interview Patterns" (118 problems) and "Beginner Foundations" (34), verified against LeetCode.
 - **Attempts & time tracking** per problem, with a stopwatch.
+- **Run your code against test cases** — Python (Pyodide) and JavaScript run in the browser with no setup; C++/Java run via Judge0 when the backend has a key.
 - **Copy a shared pattern** into your own workspace.
 - **Account settings** — change password (signs out other sessions), sign out everywhere, export all data as JSON, delete account.
 - Any email works for sign-up/login — emails are never verified, by design.
@@ -98,4 +99,12 @@ Set `VITE_API_BASE_URL` to point at a non-default backend.
 | `MONGODB_URI` | **Required.** No credentials are stored in code. |
 | `JWT_SECRET` | **Required**, ≥ 32 random chars. Startup aborts otherwise. |
 | `ENVIRONMENT` | Auto-detected as `production` on Render/Vercel/Fly/Railway. |
+| `JUDGE0_URL`, `JUDGE0_API_KEY`, `JUDGE0_API_HOST` | Optional. Enables C++/Java execution (RapidAPI or self-hosted Judge0). |
 | `CLIENT_URL`, `CORS_ORIGINS` | Allowed frontend origins (plus `make-pattern*.vercel.app` previews). |
+
+## 📦 Repository layout & deployment
+
+This is a monorepo: `backend/` (FastAPI) and `frontend/` (Vite). CI (`.github/workflows/ci.yml`) runs backend tests and frontend lint + build on every push.
+
+- **Vercel** (frontend): Project → Settings → Root Directory = `frontend`.
+- **Render** (backend): Root Directory = `backend`, build `pip install -r requirements.txt`, start `uvicorn app.main:app --host 0.0.0.0 --port $PORT`.

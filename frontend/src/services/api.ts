@@ -24,6 +24,8 @@ import type {
   LeetCodeProfile,
   Curriculum,
   ImportedCollection,
+  RunConfig,
+  Judge0Result,
 } from '../types/dsa';
 
 let rawBaseUrl = (
@@ -644,6 +646,18 @@ class ApiService {
     a.click();
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  // Code execution (Python/JS run in the browser; Judge0 is optional on the server)
+  async getRunConfig(): Promise<RunConfig> {
+    return this.request<RunConfig>('/run/config');
+  }
+
+  async runJudge0(language: SupportedLanguage, code: string, stdin: string): Promise<Judge0Result> {
+    return this.request<Judge0Result>('/run/judge0', {
+      method: 'POST',
+      body: JSON.stringify({ language, code, stdin }),
+    });
   }
 
   // Pre-warm background backend to eliminate cold-start lag
