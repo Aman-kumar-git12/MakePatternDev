@@ -1,15 +1,17 @@
 import React from 'react';
 import { Award, PieChart, Layers } from 'lucide-react';
 import type { ProgressSummary, Folder } from '../../types/dsa';
+import { ActivityHeatmap } from '../Progress/ActivityHeatmap';
 
 interface ProgressViewProps {
   summary: ProgressSummary | null;
   folders: Folder[];
   title?: string;
   onSelectFolder?: (folderId: string) => void;
+  activityKey?: number;
 }
 
-export const ProgressView: React.FC<ProgressViewProps> = ({ summary, folders: _folders, title = 'My Patterns' }) => {
+export const ProgressView: React.FC<ProgressViewProps> = ({ summary, folders: _folders, title = 'My Patterns', activityKey }) => {
   const total = summary?.total_questions || 0;
   const solved = summary?.solved_questions || 0;
   const overallPct = summary?.overall_percentage || 0;
@@ -23,7 +25,7 @@ export const ProgressView: React.FC<ProgressViewProps> = ({ summary, folders: _f
   const calculatePct = (s: number, t: number) => (t > 0 ? Math.round((s / t) * 100) : 0);
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6 animate-fade-in">
+    <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex items-center space-x-3 bg-[#0D1527] border border-slate-800 rounded-2xl p-6 shadow-xl">
         <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-400 shadow-md">
@@ -36,6 +38,8 @@ export const ProgressView: React.FC<ProgressViewProps> = ({ summary, folders: _f
           </p>
         </div>
       </div>
+
+      <ActivityHeatmap refreshKey={activityKey} summary={summary} />
 
       {/* Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">

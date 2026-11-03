@@ -62,6 +62,15 @@ export interface Question {
   folder_path?: string;
   solutions: Solution[];
   test_cases?: TestCase[];
+  leetcode_slug?: string | null;
+  leetcode_id?: string | null;
+  solved_at?: string | null;
+  attempts?: number;
+  time_spent_minutes?: number;
+  next_review_at?: string | null;
+  last_reviewed_at?: string | null;
+  review_count?: number;
+  review_interval_days?: number;
   created_at?: string;
   updated_at?: string;
 }
@@ -77,6 +86,15 @@ export interface QuestionListItem {
   is_bookmarked?: boolean;
   folder_path?: string;
   position?: number;
+  leetcode_slug?: string | null;
+  leetcode_id?: string | null;
+  solved_at?: string | null;
+  attempts?: number;
+  time_spent_minutes?: number;
+  next_review_at?: string | null;
+  last_reviewed_at?: string | null;
+  review_count?: number;
+  review_interval_days?: number;
   created_at?: string;
   updated_at: string;
 }
@@ -124,6 +142,12 @@ export interface ProgressSummary {
   recent_questions: QuestionListItem[];
   continue_learning: QuestionListItem[];
   folder_overview: FolderProgressItem[];
+  current_streak?: number;
+  longest_streak?: number;
+  solved_this_week?: number;
+  due_reviews?: number;
+  total_time_minutes?: number;
+  active_days?: number;
 }
 
 export interface SearchResult {
@@ -133,12 +157,13 @@ export interface SearchResult {
   total_results: number;
 }
 
-export type ViewMode = 'home' | 'patterns' | 'all-questions' | 'bookmarks' | 'progress' | 'workspace' | 'recent' | 'revision';
+export type ViewMode = 'home' | 'patterns' | 'all-questions' | 'bookmarks' | 'progress' | 'workspace' | 'recent' | 'revision' | 'settings';
 
 export interface User {
   id: string;
   email: string;
   full_name: string;
+  leetcode_username?: string | null;
   created_at?: string;
 }
 
@@ -164,4 +189,114 @@ export interface PublicSharedPatternResponse {
   share_type?: 'single' | 'all';
   pattern?: Folder | null;
   patterns?: Folder[];
+}
+
+// ---------------------------------------------------------------------------
+// Spaced repetition
+// ---------------------------------------------------------------------------
+export type ReviewRating = 'again' | 'hard' | 'good' | 'easy';
+
+export interface ReviewQueue {
+  due: QuestionListItem[];
+  upcoming: QuestionListItem[];
+  due_count: number;
+  reviewed_today: number;
+}
+
+// ---------------------------------------------------------------------------
+// Activity
+// ---------------------------------------------------------------------------
+export interface ActivityDay {
+  date: string; // YYYY-MM-DD
+  count: number;
+  solved: number;
+  reviewed: number;
+}
+
+export interface ActivityResponse {
+  days: ActivityDay[];
+  current_streak: number;
+  longest_streak: number;
+  total_active_days: number;
+}
+
+// ---------------------------------------------------------------------------
+// LeetCode
+// ---------------------------------------------------------------------------
+export interface LeetCodeSummary {
+  slug: string;
+  frontend_id: string;
+  title: string;
+  difficulty: Difficulty;
+  tags: string[];
+  url: string;
+  acceptance_rate: number | null;
+  is_paid_only: boolean;
+}
+
+export interface LeetCodeSearchItem extends LeetCodeSummary {
+  already_tracked: boolean;
+  question_id: string | null;
+}
+
+export interface LeetCodeExample {
+  input: string;
+  output: string;
+  explanation: string;
+}
+
+export interface LeetCodeProblem extends LeetCodeSummary {
+  statement_html: string;
+  hints: string[];
+  examples: LeetCodeExample[];
+  already_tracked: boolean;
+  question_id: string | null;
+}
+
+export interface LeetCodeDaily {
+  date: string;
+  problem: LeetCodeSummary;
+  already_tracked: boolean;
+  question_id: string | null;
+}
+
+export interface LeetCodeCounts {
+  All: number;
+  Easy: number;
+  Medium: number;
+  Hard: number;
+}
+
+export interface LeetCodeProfile {
+  real_name: string | null;
+  ranking: number | null;
+  avatar: string | null;
+  solved: LeetCodeCounts;
+  total: LeetCodeCounts;
+}
+
+export interface LeetCodeSyncResult {
+  username: string;
+  profile: LeetCodeProfile;
+  recent_accepted: Array<{ slug: string; title: string; timestamp: number | string }>;
+  newly_solved: string[];
+  imported: number;
+  already_solved: number;
+}
+
+// ---------------------------------------------------------------------------
+// Curricula & forking
+// ---------------------------------------------------------------------------
+export interface Curriculum {
+  id: string;
+  name: string;
+  description: string;
+  problem_count: number;
+  patterns: string[];
+}
+
+export interface ImportedCollection {
+  folder_id: string;
+  folder_name: string;
+  questions_imported: number;
 }

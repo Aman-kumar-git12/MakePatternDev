@@ -11,6 +11,10 @@ interface AuthContextType {
   register: (email: string, password: string, fullName: string) => Promise<User>;
   logout: () => void;
   refreshUser: () => Promise<void>;
+  /** Replace the cached user after a profile update. */
+  setCurrentUser: (user: User) => void;
+  /** Persist a newly issued token (e.g. after password change revokes the old one). */
+  replaceToken: (token: string) => void;
 }
 
 const AUTH_TOKEN_KEY = 'mp_auth_token';
@@ -83,6 +87,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
   }, []);
 
+  // Any authenticated 401 (expired/revoked token) logs the user out.
+  useEffect(() => {
+    api.onUnauthorized(() => logout());
+    return () => api.onUnauthorized(null);
+  }, [logout]);
+
+  const setCurrentUser = useCallback((next: User) => setUser(next), []);
+
+  const replaceToken = useCallback((next: string) => {
+    localStorage.setItem(AUTH_TOKEN_KEY, next);
+    api.setToken(next);
+    setToken(next);
+  }, []);
+
   const refreshUser = async () => {
     try {
       const currentUser = await api.getMe();
@@ -101,6 +119,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     register,
     logout,
     refreshUser,
+    setCurrentUser,
+    replaceToken,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

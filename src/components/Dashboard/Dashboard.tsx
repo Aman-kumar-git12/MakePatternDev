@@ -1,8 +1,10 @@
 import React from 'react';
 import { CompletionHeader } from './CompletionHeader';
 import { PatternTreeView } from './PatternTreeView';
-import { ArrowRight, Layers } from 'lucide-react';
-import type { ProgressSummary, Folder, QuestionListItem, ViewMode } from '../../types/dsa';
+import { ArrowRight, Layers, Link2, GraduationCap, Brain } from 'lucide-react';
+import type { ProgressSummary, Folder, QuestionListItem, ViewMode, Question } from '../../types/dsa';
+import { DailyChallengeCard } from './DailyChallengeCard';
+import { ActivityHeatmap } from '../Progress/ActivityHeatmap';
 
 interface DashboardProps {
   summary: ProgressSummary | null;
@@ -16,6 +18,10 @@ interface DashboardProps {
   onSelectView?: (view: ViewMode) => void;
   onToggleBookmark?: (questionId: string) => void;
   activeQuestionId?: string | null;
+  onOpenCurricula?: () => void;
+  activityKey?: number;
+  dueCount?: number;
+  onQuestionTracked?: (question: Question) => void | Promise<void>;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({
@@ -28,7 +34,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onToggleBookmark,
   onSelectView,
   activeQuestionId,
+  onOpenImportLeetCode,
+  onOpenCurricula,
+  activityKey,
+  dueCount = 0,
+  onQuestionTracked,
 }) => {
+  const isEmpty = folders.length === 0 && questions.length === 0;
+
   return (
     <div className="p-4 max-w-6xl mx-auto space-y-4 animate-fade-in">
       {/* Hero Banner */}
@@ -94,6 +107,58 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Quick actions */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+        <button type="button" onClick={() => onSelectView?.('revision')} className="mp-card p-3 flex items-center gap-3 text-left hover:border-[var(--border-hover)] transition">
+          <Brain className="w-5 h-5 shrink-0" style={{ color: '#facc15' }} />
+          <div className="min-w-0">
+            <div className="text-sm font-bold">{dueCount > 0 ? `${dueCount} review${dueCount === 1 ? '' : 's'} due` : 'No reviews due'}</div>
+            <div className="text-[11px] mp-muted">Spaced-repetition queue</div>
+          </div>
+        </button>
+        <button type="button" onClick={onOpenImportLeetCode} className="mp-card p-3 flex items-center gap-3 text-left hover:border-[var(--border-hover)] transition">
+          <Link2 className="w-5 h-5 shrink-0 text-emerald-400" />
+          <div className="min-w-0">
+            <div className="text-sm font-bold">Import from LeetCode</div>
+            <div className="text-[11px] mp-muted">Search or paste a problem link</div>
+          </div>
+        </button>
+        <button type="button" onClick={onOpenCurricula} className="mp-card p-3 flex items-center gap-3 text-left hover:border-[var(--border-hover)] transition">
+          <GraduationCap className="w-5 h-5 shrink-0" style={{ color: '#60a5fa' }} />
+          <div className="min-w-0">
+            <div className="text-sm font-bold">Starter curricula</div>
+            <div className="text-[11px] mp-muted">Pattern-ordered interview lists</div>
+          </div>
+        </button>
+      </div>
+
+      {isEmpty && (
+        <div className="mp-card p-5 sm:p-6 text-center space-y-3">
+          <GraduationCap className="w-10 h-10 mx-auto" style={{ color: '#60a5fa' }} />
+          <h2 className="text-base font-bold">Start with a curated list</h2>
+          <p className="text-xs mp-muted max-w-md mx-auto">
+            Your workspace is empty. Import a starter curriculum of real LeetCode problems grouped by pattern, or import problems one by one.
+          </p>
+          <div className="flex flex-wrap justify-center gap-2">
+            <button type="button" className="mp-btn mp-btn-primary" onClick={onOpenCurricula}>
+              <GraduationCap className="w-3.5 h-3.5" /> Browse curricula
+            </button>
+            <button type="button" className="mp-btn" onClick={onOpenImportLeetCode}>
+              <Link2 className="w-3.5 h-3.5" /> Import a problem
+            </button>
+          </div>
+        </div>
+      )}
+
+      <DailyChallengeCard
+        onOpenQuestion={onSelectQuestion}
+        onTracked={async (q) => {
+          await onQuestionTracked?.(q);
+        }}
+      />
+
+      <ActivityHeatmap refreshKey={activityKey} summary={summary} compact />
 
       {/* 1. OVERALL COMPLETION & STATS BAR */}
       <CompletionHeader summary={summary} onSelectView={onSelectView} />

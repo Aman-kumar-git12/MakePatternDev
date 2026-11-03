@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { Eye, Edit3, Sparkles } from 'lucide-react';
+import { SafeHtml } from '../Common/SafeHtml';
+import { looksLikeHtml } from '../../utils/html';
 
 interface NotesEditorProps {
   problemStatement: string;
@@ -15,6 +17,8 @@ export const NotesEditor: React.FC<NotesEditorProps> = ({
   onChangeNotes,
 }) => {
   const [activeTab, setActiveTab] = useState<'edit' | 'preview'>('edit');
+  const statementIsHtml = looksLikeHtml(problemStatement);
+  const [editStatement, setEditStatement] = useState(false);
 
   const defaultTemplate = `### 💡 Intuition
 Write down your initial thoughts and intuition when reading the problem.
@@ -50,16 +54,32 @@ i=1: num=7, complement=2, seen={2: 0} -> found! return [0, 1]
     <div className="space-y-3.5">
       {/* Problem Statement Card */}
       <div className="bg-[#0D1527] border border-slate-800 rounded-xl p-3.5 shadow-md">
-        <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 flex items-center space-x-2">
+        <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 flex items-center justify-between space-x-2">
           <span>Problem Statement</span>
+          {statementIsHtml && (
+            <button
+              type="button"
+              onClick={() => setEditStatement((v) => !v)}
+              className="normal-case tracking-normal text-[11px] text-blue-400 hover:text-blue-300 flex items-center space-x-1"
+            >
+              {editStatement ? <Eye className="w-3 h-3" /> : <Edit3 className="w-3 h-3" />}
+              <span>{editStatement ? 'View formatted' : 'Edit raw'}</span>
+            </button>
+          )}
         </h3>
+        {statementIsHtml && !editStatement ? (
+          <div className="max-h-[420px] overflow-y-auto custom-scrollbar rounded-lg p-3" style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-subtle)' }}>
+            <SafeHtml html={problemStatement} />
+          </div>
+        ) : (
         <textarea
-          rows={2}
+          rows={statementIsHtml ? 10 : 2}
           value={problemStatement}
           onChange={(e) => onChangeProblemStatement(e.target.value)}
           placeholder="Paste or write the complete problem statement, input/output formats, and constraints..."
           className="w-full bg-[#0A0F1D] border border-slate-700/80 rounded-lg p-2.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500 font-sans leading-relaxed resize-y"
         />
+        )}
       </div>
 
       {/* Solution Notes & Explanation Card */}

@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+import { SafeHtml } from '../Common/SafeHtml';
+import { looksLikeHtml } from '../../utils/html';
 import {
   Layers,
   ChevronDown,
@@ -15,7 +18,9 @@ import {
   FileText,
   User,
   Sparkles,
-  Link2Off
+  Link2Off,
+  CopyPlus,
+  Loader2
 } from 'lucide-react';
 import Editor from '@monaco-editor/react';
 import { api } from '../../services/api';
@@ -30,6 +35,29 @@ import type {
 
 export const SharedPatternView: React.FC = () => {
   const { shareId } = useParams<{ shareId: string }>();
+  const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
+  const [forking, setForking] = useState(false);
+  const [forkMsg, setForkMsg] = useState<string | null>(null);
+
+  // Copy this shared pattern into my own workspace (login first if needed, then come back).
+  const handleFork = async () => {
+    if (!shareId) return;
+    if (!isAuthenticated) {
+      navigate('/login', { state: { from: { pathname: `/shared/${shareId}` } } });
+      return;
+    }
+    setForking(true);
+    setForkMsg(null);
+    try {
+      const res = await api.forkSharedPattern(shareId);
+      setForkMsg(`Copied ${res.questions_imported} problems into “${res.folder_name}”.`);
+    } catch (err) {
+      setForkMsg(err instanceof Error ? err.message : 'Could not copy this pattern');
+    } finally {
+      setForking(false);
+    }
+  };
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -446,18 +474,41 @@ export const SharedPatternView: React.FC = () => {
             )}
           </button>
 
-          <Link
-            to="/register"
-            className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-md shadow-blue-600/20 transition"
+          <button
+            type="button"
+            onClick={handleFork}
+            disabled={forking}
+            className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-md shadow-blue-600/20 transition disabled:opacity-60"
+            title={isAuthenticated ? 'Copy this pattern into your workspace' : 'Sign in to copy this pattern'}
           >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Build Your Own</span>
-          </Link>
+            {forking ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CopyPlus className="w-3.5 h-3.5" />}
+            <span className="hidden sm:inline">Copy to my workspace</span>
+            <span className="sm:hidden">Copy</span>
+          </button>
+          {!isAuthenticated && (
+            <Link
+              to="/register"
+              className="hidden sm:flex items-center space-x-1.5 px-3 py-1.5 rounded-xl border border-slate-700 text-slate-300 hover:text-white text-xs font-semibold transition"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Build Your Own</span>
+            </Link>
+          )}
         </div>
       </header>
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-5xl w-full mx-auto px-4 lg:px-8 py-8 space-y-6">
+        {forkMsg && (
+          <div className="bg-[#0D1527] border border-slate-800 rounded-xl px-4 py-3 text-xs text-slate-200 flex flex-wrap items-center justify-between gap-2" role="status">
+            <span>{forkMsg}</span>
+            {isAuthenticated && (
+              <Link to="/patterns" className="text-yellow-300 hover:underline font-semibold">
+                Open My Patterns →
+              </Link>
+            )}
+          </div>
+        )}
         {/* Pattern Banner */}
         <div className="bg-[#0D1527] border border-slate-800 rounded-2xl p-6 shadow-xl relative overflow-hidden">
           <div className="absolute top-0 right-0 w-96 h-96 bg-purple-600/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20" />
@@ -718,9 +769,15 @@ export const SharedPatternView: React.FC = () => {
                       <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
                         Problem Statement
                       </h3>
-                      <div className="p-4 rounded-xl bg-[#0A0F1D] border border-slate-800 text-sm text-slate-300 leading-relaxed whitespace-pre-wrap">
-                        {activeQuestion.problem_statement}
-                      </div>
+                      {looksLikeHtml(activeQuestion.problem_statement) ? (
+                        <div className="p-4 rounded-xl bg-[#0A0F1D] border border-slate-800 text-slate-300">
+                          <SafeHtml html={activeQuestion.problem_statement} />
+                        </div>
+                      ) : (
+                        <div className="p-4 rounded-xl bg-[#0A0F1D] border border-slate-800 text-sm text-slate-300 leading-relaxed whitespace-pre-wrap">
+                          {activeQuestion.problem_statement}
+                        </div>
+                      )}
                     </div>
                   )}
 

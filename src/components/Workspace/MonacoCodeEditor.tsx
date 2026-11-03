@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useAutosave } from '../../hooks/useAutosave';
 import Editor from '@monaco-editor/react';
 import {
   Copy,
@@ -104,7 +105,6 @@ export const MonacoCodeEditor: React.FC<MonacoCodeEditorProps> = ({
   const [copied, setCopied] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isEditingComplexity, setIsEditingComplexity] = useState(false);
-  const [isSaved, setIsSaved] = useState(true);
   const [complexitySavedToast, setComplexitySavedToast] = useState(false);
   const [solutionToDelete, setSolutionToDelete] = useState<{ id: string; title: string } | null>(null);
 
@@ -118,22 +118,32 @@ export const MonacoCodeEditor: React.FC<MonacoCodeEditorProps> = ({
   const [manualSpace, setManualSpace] = useState(activeSolution?.manual_space_complexity || activeSolution?.space_complexity || '');
   const [customRationale, setCustomRationale] = useState(activeSolution?.analysis_explanation || '');
 
-  const saveDebounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Debounced, merged, serialized autosave. Previously switching solution cleared the
+  // pending timer and silently discarded the last edits; now they are flushed instead.
+  const persistSolution = useCallback(
+    async (id: string, updates: Partial<Solution>) => {
+      await onUpdateSolution(id, updates);
+    },
+    [onUpdateSolution]
+  );
+  const { queue, flush, status: saveStatus } = useAutosave<Solution>(
+    persistSolution,
+    (id) => `/solutions/${id}`
+  );
+  const isSaved = saveStatus === 'saved';
 
   // Keep local state in sync when active solution changes
   useEffect(() => {
     if (activeSolution) {
-      if (saveDebounceTimerRef.current) {
-        clearTimeout(saveDebounceTimerRef.current);
-      }
+      void flush();
       setActiveSolutionId(activeSolution.id);
       setCode(activeSolution.code || '');
       setExplanation(activeSolution.explanation || '');
       setManualTime(activeSolution.manual_time_complexity || activeSolution.time_complexity || '');
       setManualSpace(activeSolution.manual_space_complexity || activeSolution.space_complexity || '');
       setCustomRationale(activeSolution.analysis_explanation || '');
-      setIsSaved(true);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSolution?.id]);
 
   const handleCopyCode = async () => {
@@ -179,36 +189,17 @@ export const MonacoCodeEditor: React.FC<MonacoCodeEditorProps> = ({
   const handleCodeChange = (newCode: string | undefined) => {
     const val = newCode ?? '';
     setCode(val);
-    setIsSaved(false);
-
-    if (saveDebounceTimerRef.current) {
-      clearTimeout(saveDebounceTimerRef.current);
-    }
-
-    // Auto-save debounced to database
-    saveDebounceTimerRef.current = setTimeout(async () => {
-      if (activeSolution) {
-        try {
-          await onUpdateSolution(activeSolution.id, { code: val });
-          setIsSaved(true);
-        } catch (e) {
-          console.error('Failed to auto-save code:', e);
-        }
-      }
-    }, 700);
+    if (activeSolution) queue(activeSolution.id, { code: val });
   };
 
   const handleSaveAll = async () => {
     if (!activeSolution) return;
-    if (saveDebounceTimerRef.current) {
-      clearTimeout(saveDebounceTimerRef.current);
-    }
     setIsAnalyzing(true);
     try {
       const effTime = manualTime.trim(); // User adds it itself, empty if blank
       const effSpace = manualSpace.trim() || activeSolution.space_complexity || 'O(1)';
 
-      await onUpdateSolution(activeSolution.id, {
+      queue(activeSolution.id, {
         code,
         explanation,
         manual_time_complexity: effTime || null,
@@ -216,8 +207,8 @@ export const MonacoCodeEditor: React.FC<MonacoCodeEditorProps> = ({
         time_complexity: effTime,
         space_complexity: effSpace,
       });
+      await flush();
 
-      setIsSaved(true);
       setComplexitySavedToast(true);
       setTimeout(() => setComplexitySavedToast(false), 2000);
     } catch (err) {
@@ -410,7 +401,7 @@ export const MonacoCodeEditor: React.FC<MonacoCodeEditorProps> = ({
 
         {/* Right Action: Language Selector & Copy & Delete Solution */}
         {activeSolution && (
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center flex-wrap gap-2">
             {/* Approach Title Dropdown */}
             <select
               value={activeSolution.title}
@@ -430,11 +421,11 @@ export const MonacoCodeEditor: React.FC<MonacoCodeEditorProps> = ({
                 // Automatically switch boilerplate to new language template
                 const newBoilerplate = STARTER_CODES[newLang] || '';
                 setCode(newBoilerplate);
-                setIsSaved(false);
-                onUpdateSolution(activeSolution.id, {
+                queue(activeSolution.id, {
                   language: newLang,
                   code: newBoilerplate,
                 });
+                void flush();
               }}
               className="bg-[#0A0F1D] text-slate-200 border border-slate-700 rounded-lg px-2.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer font-mono"
             >
@@ -449,8 +440,8 @@ export const MonacoCodeEditor: React.FC<MonacoCodeEditorProps> = ({
               type="button"
               onClick={() => {
                 setCode('');
-                setIsSaved(false);
-                onUpdateSolution(activeSolution.id, { code: '' });
+                queue(activeSolution.id, { code: '' });
+                void flush();
               }}
               className="px-2 py-1 rounded-lg border border-slate-700 hover:border-slate-600 bg-slate-900/60 text-slate-400 hover:text-slate-200 text-xs transition"
               title="Clear editor code"
@@ -484,7 +475,7 @@ export const MonacoCodeEditor: React.FC<MonacoCodeEditorProps> = ({
       {activeSolution ? (
         <div className="space-y-4">
           {/* 2. Main Row: Code Editor on Left, Complexity Analysis on Right */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 [&>*]:min-w-0">
             {/* Left 8 Columns: Monaco Code Editor */}
             <div className="lg:col-span-8 bg-[#0A0F1D] border border-slate-800 rounded-xl overflow-hidden shadow-sm flex flex-col">
               <div className="px-4 py-2 bg-[#080D1A] border-b border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
@@ -814,7 +805,7 @@ export const MonacoCodeEditor: React.FC<MonacoCodeEditorProps> = ({
               value={explanation}
               onChange={(e) => {
                 setExplanation(e.target.value);
-                setIsSaved(false);
+                queue(activeSolution.id, { explanation: e.target.value });
               }}
               placeholder={`Explain the idea behind this ${activeSolution.title}: key variables, invariants, edge case handling, and why this time/space is achieved...`}
               className="w-full bg-[#0D1527] border border-slate-700/80 rounded-xl p-3 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500 font-sans leading-relaxed resize-y"

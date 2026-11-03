@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Home, Layers, FileText, Bookmark, RotateCcw, ChevronLeft, ChevronRight, X, LogOut, Sparkles } from 'lucide-react';
+import { Home, Layers, FileText, Bookmark, RotateCcw, ChevronLeft, ChevronRight, X, LogOut, Sparkles, BarChart3, Settings } from 'lucide-react';
 import type { ViewMode, User, Question } from '../../types/dsa';
+import { displayName } from '../../utils/user';
 
 interface SidebarProps {
   currentView: ViewMode;
@@ -40,10 +41,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
     },
     {
       id: 'revision' as ViewMode,
-      label: 'Revision',
+      label: 'Reviews',
       icon: RotateCcw,
+      // revisionCount = spaced-repetition reviews due today
       badge: revisionCount > 0 ? revisionCount : undefined,
     },
+    { id: 'progress' as ViewMode, label: 'Progress', icon: BarChart3 },
+    { id: 'settings' as ViewMode, label: 'Settings', icon: Settings },
   ];
 
   const isItemActive = (id: ViewMode) => {
@@ -63,7 +67,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }
   };
 
-  const userName = user?.full_name || 'Aman Kumar';
+  const userName = displayName(user);
 
   return (
     <>
@@ -228,7 +232,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   border: '1px solid var(--border-subtle)',
                 }}
               >
-                <div className="flex items-center space-x-2.5 min-w-0">
+                <button
+                  type="button"
+                  onClick={() => handleNavClick('settings')}
+                  className="flex items-center space-x-2.5 min-w-0 text-left"
+                  title="Account settings"
+                >
                   <div className="w-7 h-7 rounded-lg bg-[#fef08a] border border-[#fde047] text-[#18181b] font-bold text-xs flex items-center justify-center flex-shrink-0 shadow-sm">
                     {userName.charAt(0).toUpperCase()}
                   </div>
@@ -236,7 +245,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <div className="text-xs font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{userName}</div>
                     <div className="text-[10px] truncate" style={{ color: 'var(--text-muted)' }}>{user.email}</div>
                   </div>
-                </div>
+                </button>
                 {onLogout && (
                   <button
                     onClick={onLogout}

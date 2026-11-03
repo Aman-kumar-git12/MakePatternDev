@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation, useParams } from 'react-router-dom';
 import { Sidebar } from './components/Sidebar/Sidebar';
 import { Header } from './components/Header/Header';
@@ -9,7 +9,10 @@ import { AllQuestionsView } from './components/Views/AllQuestionsView';
 import { ProgressView } from './components/Views/ProgressView';
 import { MyPatternsView } from './components/Views/MyPatternsView';
 import { SharedPatternView } from './components/Views/SharedPatternView';
-import { RevisionView } from './components/Views/RevisionView';
+import { RevisionPage } from './components/Views/RevisionPage';
+import { SettingsView } from './components/Views/SettingsView';
+import { CurriculaModal } from './components/Modals/CurriculaModal';
+import { useReviewQueue } from './hooks/useReviewQueue';
 import { GlobalSearchModal } from './components/Header/GlobalSearchModal';
 import { CreateTopicModal } from './components/Modals/CreateTopicModal';
 import { CreateSubtopicModal } from './components/Modals/CreateSubtopicModal';
@@ -79,6 +82,13 @@ function MainAppShell() {
 
   const [editFolderData, setEditFolderData] = useState<Folder | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isCurriculaOpen, setIsCurriculaOpen] = useState(false);
+  // Bumped whenever activity-affecting data changes so the heatmap refetches.
+  const [activityKey, setActivityKey] = useState(0);
+  const reviews = useReviewQueue();
+  const refreshReviews = reviews.refresh;
+  // Latest save sequence per question; older responses are ignored (out-of-order protection).
+  const saveSeqRef = useRef<Record<string, number>>({});
 
   // Derive active view mode from pathname
   const currentView = useMemo<ViewMode>(() => {
@@ -90,6 +100,7 @@ function MainAppShell() {
     if (path === '/recent') return 'recent';
     if (path === '/revision') return 'revision';
     if (path === '/progress') return 'progress';
+    if (path === '/settings') return 'settings';
     return 'home';
   }, [location.pathname]);
 
@@ -127,6 +138,24 @@ function MainAppShell() {
   useEffect(() => {
     loadInitialData();
   }, [loadInitialData]);
+
+  /** Re-sync everything derived from questions: tree, summary, list, review queue, heatmap. */
+  const refreshData = useCallback(async () => {
+    try {
+      const [treeData, summaryData, listData] = await Promise.all([
+        api.getFolderTree(),
+        api.getProgressSummary(),
+        api.listQuestions(),
+      ]);
+      setFolders(treeData);
+      setSummary(summaryData);
+      setQuestions(listData);
+    } catch (err) {
+      console.error('Failed to refresh data:', err);
+    }
+    void refreshReviews();
+    setActivityKey((k) => k + 1);
+  }, [refreshReviews]);
 
   // Deep link sync for /question/:questionId
   useEffect(() => {
@@ -194,6 +223,9 @@ function MainAppShell() {
       case 'progress':
         navigate('/progress');
         break;
+      case 'settings':
+        navigate('/settings');
+        break;
       default:
         navigate('/');
     }
@@ -210,9 +242,7 @@ function MainAppShell() {
       );
 
       // Update active question if currently open
-      if (activeQuestion && activeQuestion.id === questionId) {
-        setActiveQuestion({ ...activeQuestion, is_bookmarked: res.is_bookmarked });
-      }
+      setActiveQuestion((prev) => (prev && prev.id === questionId ? { ...prev, is_bookmarked: res.is_bookmarked } : prev));
 
       // Refresh folder tree & summary
       const [updatedTree, updatedSummary] = await Promise.all([
@@ -235,9 +265,7 @@ function MainAppShell() {
       prev.map((q) => (q.id === questionId ? { ...q, status: nextStatus } : q))
     );
 
-    if (activeQuestion && activeQuestion.id === questionId) {
-      setActiveQuestion({ ...activeQuestion, status: nextStatus });
-    }
+    setActiveQuestion((prev) => (prev && prev.id === questionId ? { ...prev, status: nextStatus } : prev));
 
     setSummary((prev) => {
       if (!prev) return prev;
@@ -259,6 +287,7 @@ function MainAppShell() {
       ]);
       setSummary(updatedSummary);
       setFolders(updatedTree);
+      void refreshReviews();
     } catch (err) {
       console.error('Failed to toggle revision status:', err);
       loadInitialData();
@@ -444,25 +473,70 @@ function MainAppShell() {
     navigate('/patterns');
   };
 
-  const handleSaveQuestion = async (updates: Partial<Question>) => {
-    if (!activeQuestion) return;
-    const updated = await api.updateQuestion(activeQuestion.id, updates);
-    setActiveQuestion(updated);
+  /**
+   * Autosave target. The question id is explicit (a late save for question A can no longer
+   * overwrite question B), responses older than the latest save for that question are ignored,
+   * and only the saved fields + server-computed metadata are merged (so a save of one field can't
+   * clobber newer local values of another).
+   */
+  const handleSaveQuestion = useCallback(
+    async (questionId: string, updates: Partial<Question>) => {
+      const seq = (saveSeqRef.current[questionId] || 0) + 1;
+      saveSeqRef.current[questionId] = seq;
+      const updated = await api.updateQuestion(questionId, updates);
+      if (saveSeqRef.current[questionId] !== seq) return; // a newer save superseded this one
 
-    // Sync in list
-    setQuestions((prev) =>
-      prev.map((q) => (q.id === updated.id ? { ...q, ...updated } : q))
-    );
+      const serverFields: Partial<Question> = {
+        updated_at: updated.updated_at,
+        solved_at: updated.solved_at,
+        next_review_at: updated.next_review_at,
+        last_reviewed_at: updated.last_reviewed_at,
+        review_count: updated.review_count,
+        review_interval_days: updated.review_interval_days,
+        folder_id: updated.folder_id,
+        folder_path: updated.folder_path,
+      };
+      const saved: Partial<Question> = {};
+      (Object.keys(updates) as Array<keyof Question>).forEach((k) => {
+        (saved as Record<string, unknown>)[k] = updated[k];
+      });
 
-    // Refresh summary & folder counts if status changed
-    if (updates.status || updates.difficulty || updates.title) {
-      const [updatedTree, updatedSummary] = await Promise.all([
-        api.getFolderTree(),
-        api.getProgressSummary(),
-      ]);
-      setFolders(updatedTree);
-      setSummary(updatedSummary);
-    }
+      setActiveQuestion((prev) => (prev && prev.id === questionId ? { ...prev, ...saved, ...serverFields } : prev));
+      setQuestions((prev) =>
+        prev.map((q) => (q.id === questionId ? ({ ...q, ...saved, ...serverFields } as QuestionListItem) : q))
+      );
+
+      // Refresh summary, folder counts, review queue & heatmap if progress-relevant fields changed
+      if (updates.status || updates.difficulty || updates.title) {
+        const [updatedTree, updatedSummary] = await Promise.all([
+          api.getFolderTree(),
+          api.getProgressSummary(),
+        ]);
+        setFolders(updatedTree);
+        setSummary(updatedSummary);
+        if (updates.status) {
+          void refreshReviews();
+          setActivityKey((k) => k + 1);
+        }
+      }
+    },
+    [refreshReviews]
+  );
+
+  /** A fresh server copy arrived (attempt logged / LeetCode refresh): sync everything derived from it. */
+  const handleQuestionUpdated = useCallback(
+    (updated: Question) => {
+      setActiveQuestion((prev) => (prev && prev.id === updated.id ? { ...prev, ...updated } : prev));
+      void refreshData();
+    },
+    [refreshData]
+  );
+
+  const handleImportedQuestion = async (created: Question) => {
+    await refreshData();
+    setIsImportModalOpen(false);
+    setActiveQuestion(created);
+    navigate(`/question/${created.id}`);
   };
 
   const handleRenameQuestion = (questionId: string, currentTitle: string) => {
@@ -477,9 +551,7 @@ function MainAppShell() {
         ]);
         setFolders(updatedTree);
         setQuestions(updatedQuestions);
-        if (activeQuestion && activeQuestion.id === questionId) {
-          setActiveQuestion({ ...activeQuestion, title: newTitle });
-        }
+        setActiveQuestion((prev) => (prev && prev.id === questionId ? { ...prev, title: newTitle } : prev));
       },
     });
   };
@@ -570,7 +642,7 @@ function MainAppShell() {
     if (moveData.type === 'folder') {
       await api.moveFolder(moveData.id, targetId);
     } else {
-      if (!targetId) throw new Error('A question must belong to a folder.');
+      // null target = "no folder" (unfiled)
       await api.moveQuestion(moveData.id, targetId);
     }
 
@@ -583,14 +655,14 @@ function MainAppShell() {
     setSummary(updatedSummary);
     setQuestions(updatedQuestions);
 
-    if (activeQuestion && activeQuestion.id === moveData.id && targetId) {
+    if (activeQuestion && activeQuestion.id === moveData.id) {
       const refreshedQ = await api.getQuestion(activeQuestion.id);
       setActiveQuestion(refreshedQ);
     }
   };
 
   const bookmarkedQuestions = questions.filter((q) => q.is_bookmarked);
-  const revisionCount = questions.filter((q) => q.status === 'Needs Revision').length;
+  const dueCount = reviews.queue.due_count;
 
   return (
     <div className="flex h-screen w-full overflow-hidden font-sans" style={{ backgroundColor: 'var(--bg-app)', color: 'var(--text-primary)' }}>
@@ -599,7 +671,7 @@ function MainAppShell() {
         currentView={currentView}
         onSelectView={handleSelectNavView}
         bookmarkCount={bookmarkedQuestions.length}
-        revisionCount={revisionCount}
+        revisionCount={dueCount}
         isMobileOpen={isMobileMenuOpen}
         onCloseMobile={() => setIsMobileMenuOpen(false)}
         user={user}
@@ -608,7 +680,7 @@ function MainAppShell() {
       />
 
       {/* 2. Main Content Area */}
-      <div className="flex-1 flex flex-col h-screen overflow-hidden">
+      <div className="flex-1 min-w-0 flex flex-col h-screen overflow-hidden">
         {/* Top Header */}
         <Header
           onOpenSearch={() => setIsSearchOpen(true)}
@@ -619,7 +691,7 @@ function MainAppShell() {
         />
 
         {/* View Switcher based on current URL */}
-        <main className="flex-1 overflow-y-auto custom-scrollbar">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar">
           {currentView === 'home' && (
             <Dashboard
               summary={summary}
@@ -630,9 +702,15 @@ function MainAppShell() {
               onOpenNewQuestion={(folderId) => handleOpenNewQuestion(folderId)}
               onDeleteFolder={handleDeleteFolder}
               onOpenImportLeetCode={() => setIsImportModalOpen(true)}
+              onOpenCurricula={() => setIsCurriculaOpen(true)}
               onSelectView={handleSelectNavView}
               onToggleBookmark={handleToggleBookmark}
               activeQuestionId={activeQuestion?.id}
+              activityKey={activityKey}
+              dueCount={dueCount}
+              onQuestionTracked={async () => {
+                await refreshData();
+              }}
             />
           )}
 
@@ -645,6 +723,7 @@ function MainAppShell() {
               onUpdateSolution={handleUpdateSolution}
               onDeleteSolution={handleDeleteSolution}
               onDeleteQuestion={handleDeleteQuestion}
+              onQuestionUpdated={handleQuestionUpdated}
               onBackToDashboard={() => {
                 setActiveQuestion(null);
                 navigate('/');
@@ -691,11 +770,16 @@ function MainAppShell() {
           )}
 
           {currentView === 'revision' && (
-            <RevisionView
+            <RevisionPage
+              reviews={reviews}
               questions={questions}
               onSelectQuestion={handleSelectQuestion}
               onToggleRevision={handleToggleRevision}
               onToggleBookmark={handleToggleBookmark}
+              onReviewed={() => {
+                setActivityKey((k) => k + 1);
+                void api.getProgressSummary().then(setSummary).catch(() => {});
+              }}
             />
           )}
 
@@ -726,6 +810,15 @@ function MainAppShell() {
               summary={summary}
               folders={folders}
               title="Progress Overview"
+              activityKey={activityKey}
+            />
+          )}
+
+          {currentView === 'settings' && (
+            <SettingsView
+              folders={folders}
+              onDataChanged={refreshData}
+              onOpenCurricula={() => setIsCurriculaOpen(true)}
             />
           )}
         </main>
@@ -777,7 +870,19 @@ function MainAppShell() {
         isOpen={isImportModalOpen}
         onClose={() => setIsImportModalOpen(false)}
         folders={folders}
-        onImport={handleCreateQuestion}
+        onImported={handleImportedQuestion}
+        onOpenExisting={(questionId) => {
+          setIsImportModalOpen(false);
+          void handleSelectQuestion(questionId);
+        }}
+      />
+
+      <CurriculaModal
+        isOpen={isCurriculaOpen}
+        onClose={() => setIsCurriculaOpen(false)}
+        onImported={async () => {
+          await refreshData();
+        }}
       />
 
       {moveData && (
@@ -897,6 +1002,14 @@ function App() {
       />
       <Route
         path="/progress"
+        element={
+          <ProtectedRoute>
+            <MainAppShell />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/settings"
         element={
           <ProtectedRoute>
             <MainAppShell />

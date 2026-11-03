@@ -73,11 +73,6 @@ export const MoveModal: React.FC<MoveModalProps> = ({
       return;
     }
 
-    if (type === 'question' && !targetId) {
-      setErrorMsg('A question must belong to a folder.');
-      return;
-    }
-
     try {
       setIsSubmitting(true);
       await onSubmit(targetId);
@@ -129,6 +124,7 @@ export const MoveModal: React.FC<MoveModalProps> = ({
               className="w-full bg-[#0A0F1D] border border-slate-700/80 rounded-xl px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-yellow-300 transition"
             >
               {type === 'folder' && <option value="">(Root Level)</option>}
+              {type === 'question' && <option value="">(No folder — Unfiled)</option>}
               {flatList.map((f) => {
                 const isForbidden = forbiddenIds.has(f.id);
                 return (

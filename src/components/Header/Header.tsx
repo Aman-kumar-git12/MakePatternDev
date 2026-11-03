@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Search, Sun, Moon, Bell, ChevronDown, Plus, Menu, LogOut, User as UserIcon, ShieldCheck } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import type { User } from '../../types/dsa';
+import { displayName } from '../../utils/user';
 
 interface HeaderProps {
   onOpenSearch: () => void;
@@ -22,8 +23,8 @@ export const Header: React.FC<HeaderProps> = ({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { toggleTheme, isDark } = useTheme();
 
-  const userName = user?.full_name || 'Aman Kumar';
-  const userEmail = user?.email || 'aman@makepattern.dev';
+  const userName = displayName(user);
+  const userEmail = user?.email || '';
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -49,7 +50,7 @@ export const Header: React.FC<HeaderProps> = ({
       }}
     >
       {/* Mobile Menu & Search Bar */}
-      <div className="flex items-center space-x-3 w-full max-w-xl">
+      <div className="flex items-center space-x-3 w-full max-w-xl min-w-0">
         {onToggleMobileMenu && (
           <button
             onClick={onToggleMobileMenu}
@@ -70,10 +71,10 @@ export const Header: React.FC<HeaderProps> = ({
             color: 'var(--text-tertiary)',
           }}
         >
-          <div className="flex items-center space-x-2.5">
+          <div className="flex items-center space-x-2.5 min-w-0">
             <Search className="w-4 h-4 group-hover:text-yellow-300 transition" style={{ color: 'var(--text-tertiary)' }} />
             <span className="transition text-[13px] truncate" style={{ color: 'var(--text-tertiary)' }}>
-              Search questions, topics, or folders...
+              Search questions, topics…
             </span>
           </div>
           <span
@@ -90,7 +91,7 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* Right controls */}
-      <div className="flex items-center space-x-3.5">
+      <div className="flex items-center space-x-2 sm:space-x-3.5 shrink-0 ml-2">
         {/* Quick New Question Button */}
         {onOpenNewQuestion && (
           <button
@@ -99,7 +100,7 @@ export const Header: React.FC<HeaderProps> = ({
             title="Create New Question"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>New Question</span>
+            <span className="hidden sm:inline">New Question</span>
           </button>
         )}
 

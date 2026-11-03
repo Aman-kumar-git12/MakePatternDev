@@ -13,7 +13,17 @@ import type {
   User,
   AuthResponse,
   ShareResponse,
-  PublicSharedPatternResponse
+  PublicSharedPatternResponse,
+  ReviewQueue,
+  ReviewRating,
+  ActivityResponse,
+  LeetCodeProblem,
+  LeetCodeDaily,
+  LeetCodeSearchItem,
+  LeetCodeSyncResult,
+  LeetCodeProfile,
+  Curriculum,
+  ImportedCollection,
 } from '../types/dsa';
 
 let rawBaseUrl = (
@@ -29,6 +39,15 @@ if (!rawBaseUrl.endsWith('/api')) {
 }
 
 const API_BASE_URL = rawBaseUrl;
+
+/** IANA timezone of the browser, sent with every request so streaks/"today" match the user's day. */
+const getTimezone = (): string => {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  } catch {
+    return 'UTC';
+  }
+};
 
 export class ApiError extends Error {
   status: number;
@@ -46,6 +65,12 @@ export class ApiError extends Error {
 
 class ApiService {
   private token: string | null = null;
+  private unauthorizedHandler: (() => void) | null = null;
+
+  /** Called when an authenticated request comes back 401 (expired or revoked token). */
+  onUnauthorized(handler: (() => void) | null) {
+    this.unauthorizedHandler = handler;
+  }
 
   setToken(token: string | null) {
     this.token = token;
@@ -86,15 +111,39 @@ class ApiService {
     return this.request<User>('/auth/me');
   }
 
-  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  private buildHeaders(extra?: Record<string, string>): Record<string, string> {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      ...(options.headers as Record<string, string> || {}),
+      'X-Timezone': getTimezone(),
+      ...(extra || {}),
     };
-
     if (this.token) {
       headers['Authorization'] = `Bearer ${this.token}`;
     }
+    return headers;
+  }
+
+  /**
+   * Fire-and-forget PUT that survives page unload (fetch keepalive). Used to flush
+   * pending autosaves on tab close / navigation. Body must stay under ~64KB.
+   */
+  flushKeepalive(endpoint: string, body: unknown): void {
+    try {
+      const payload = JSON.stringify(body);
+      fetch(`${API_BASE_URL}${endpoint}`, {
+        method: 'PUT',
+        headers: this.buildHeaders(),
+        body: payload,
+        keepalive: payload.length < 60000,
+      }).catch(() => {});
+    } catch {
+      // best effort
+    }
+  }
+
+  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+    const headers = this.buildHeaders(options.headers as Record<string, string> | undefined);
+    const sentWithToken = Boolean(this.token);
 
     let res: Response;
     try {
@@ -103,11 +152,25 @@ class ApiService {
         headers,
       });
     } catch (networkErr: unknown) {
-      const isConnectionIssue = networkErr instanceof TypeError;
-      const message = isConnectionIssue
-        ? 'Server connection failed. Please ensure the backend server is running and accessible.'
-        : (networkErr instanceof Error ? networkErr.message : 'Network error occurred');
-      throw new ApiError(message, 0, null);
+      // If transient connection issue occurred (e.g. backend reloaded/restarting), retry once after a short delay
+      if (networkErr instanceof TypeError) {
+        try {
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          res = await fetch(`${API_BASE_URL}${endpoint}`, {
+            ...options,
+            headers,
+          });
+        } catch {
+          throw new ApiError(
+            'Server connection failed. Please ensure the backend server is running and accessible.',
+            0,
+            null
+          );
+        }
+      } else {
+        const message = networkErr instanceof Error ? networkErr.message : 'Network error occurred';
+        throw new ApiError(message, 0, null);
+      }
     }
 
     if (!res.ok) {
@@ -168,6 +231,8 @@ class ApiService {
         if (!cleanErrorMessage || /not authenticated|unauthorized|invalid token/i.test(cleanErrorMessage)) {
           cleanErrorMessage = 'Invalid email or password. Please verify your credentials.';
         }
+      } else if (res.status === 429) {
+        cleanErrorMessage = cleanErrorMessage || 'Too many attempts. Please wait a minute and try again.';
       } else if (res.status === 403) {
         cleanErrorMessage = cleanErrorMessage || 'Access forbidden: You do not have permission for this action.';
       } else if (res.status === 404) {
@@ -180,6 +245,11 @@ class ApiService {
         cleanErrorMessage = `Server error (${res.status}): The backend encountered an unexpected error. Please check your backend logs or try again.`;
       } else if (!cleanErrorMessage) {
         cleanErrorMessage = `Request failed with HTTP status ${res.status}`;
+      }
+
+      // An authenticated request rejected with 401 means the session expired or was revoked.
+      if (res.status === 401 && sentWithToken && !endpoint.startsWith('/auth/login') && this.unauthorizedHandler) {
+        this.unauthorizedHandler();
       }
 
       throw new ApiError(cleanErrorMessage, res.status, errorData, fieldErrors);
@@ -305,7 +375,7 @@ class ApiService {
     });
   }
 
-  async moveQuestion(questionId: string, targetFolderId: string): Promise<void> {
+  async moveQuestion(questionId: string, targetFolderId: string | null): Promise<void> {
     return this.request<void>(`/questions/${questionId}/move`, {
       method: 'POST',
       body: JSON.stringify({ target_folder_id: targetFolderId }),
@@ -426,10 +496,20 @@ class ApiService {
   }
 
   async updateFolderShare(folderId: string, isActive: boolean): Promise<ShareResponse> {
-    return this.request<ShareResponse>(`/folders/${folderId}/share`, {
-      method: 'PATCH',
-      body: JSON.stringify({ is_active: isActive }),
-    });
+    try {
+      return await this.request<ShareResponse>(`/folders/${folderId}/share`, {
+        method: 'PATCH',
+        body: JSON.stringify({ is_active: isActive }),
+      });
+    } catch (err: unknown) {
+      if (err instanceof ApiError && (err.status === 405 || err.status === 0)) {
+        return this.request<ShareResponse>(`/folders/${folderId}/share`, {
+          method: 'PUT',
+          body: JSON.stringify({ is_active: isActive }),
+        });
+      }
+      throw err;
+    }
   }
 
   async revokeFolderShare(folderId: string): Promise<ShareResponse> {
@@ -445,6 +525,125 @@ class ApiService {
 
   async getSharedQuestion(shareId: string, questionId: string): Promise<Question> {
     return this.request<Question>(`/shared/${shareId}/questions/${questionId}`);
+  }
+
+  // Attempts / time tracking
+  async logAttempt(questionId: string, minutes: number, solved?: boolean): Promise<Question> {
+    return this.request<Question>(`/questions/${questionId}/attempt`, {
+      method: 'POST',
+      body: JSON.stringify({ minutes: Math.max(0, Math.min(600, Math.round(minutes))), solved }),
+    });
+  }
+
+  // Spaced repetition
+  async getDueReviews(): Promise<ReviewQueue> {
+    return this.request<ReviewQueue>('/reviews/due');
+  }
+
+  async submitReview(questionId: string, rating: ReviewRating): Promise<QuestionListItem> {
+    return this.request<QuestionListItem>(`/reviews/${questionId}`, {
+      method: 'POST',
+      body: JSON.stringify({ rating }),
+    });
+  }
+
+  // Activity heatmap & streaks
+  async getActivity(days: number = 365): Promise<ActivityResponse> {
+    return this.request<ActivityResponse>(`/progress/activity?days=${days}`);
+  }
+
+  // LeetCode
+  async getLeetCodeProblem(q: string): Promise<LeetCodeProblem> {
+    return this.request<LeetCodeProblem>(`/leetcode/problem?q=${encodeURIComponent(q)}`);
+  }
+
+  async importLeetCode(q: string, folderId?: string | null, status?: QuestionStatus): Promise<Question> {
+    return this.request<Question>('/leetcode/import', {
+      method: 'POST',
+      body: JSON.stringify({ q, folder_id: folderId || null, ...(status ? { status } : {}) }),
+    });
+  }
+
+  async refreshFromLeetCode(questionId: string): Promise<Question> {
+    return this.request<Question>(`/leetcode/refresh/${questionId}`, { method: 'POST' });
+  }
+
+  async getLeetCodeDaily(): Promise<LeetCodeDaily> {
+    return this.request<LeetCodeDaily>('/leetcode/daily');
+  }
+
+  async searchLeetCode(q: string, limit: number = 10): Promise<LeetCodeSearchItem[]> {
+    return this.request<LeetCodeSearchItem[]>(`/leetcode/search?q=${encodeURIComponent(q)}&limit=${limit}`);
+  }
+
+  async syncLeetCode(params: { username?: string; import_missing?: boolean; folder_id?: string | null }): Promise<LeetCodeSyncResult> {
+    return this.request<LeetCodeSyncResult>('/leetcode/sync', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
+  }
+
+  async getLeetCodeProfile(username: string): Promise<LeetCodeProfile> {
+    return this.request<LeetCodeProfile>(`/leetcode/profile/${encodeURIComponent(username)}`);
+  }
+
+  // Curricula
+  async getCurricula(): Promise<Curriculum[]> {
+    return this.request<Curriculum[]>('/curricula');
+  }
+
+  async importCurriculum(id: string): Promise<ImportedCollection> {
+    return this.request<ImportedCollection>(`/curricula/${encodeURIComponent(id)}/import`, { method: 'POST' });
+  }
+
+  // Fork a shared pattern into my workspace
+  async forkSharedPattern(shareId: string): Promise<ImportedCollection> {
+    return this.request<ImportedCollection>(`/shared/${encodeURIComponent(shareId)}/fork`, { method: 'POST' });
+  }
+
+  // Account
+  async updateMe(updates: { full_name?: string; leetcode_username?: string | null }): Promise<User> {
+    return this.request<User>('/auth/me', {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    });
+  }
+
+  async changePassword(currentPassword: string, newPassword: string): Promise<{ message: string; access_token: string }> {
+    const res = await this.request<{ message: string; access_token: string }>('/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+    });
+    if (res.access_token) this.setToken(res.access_token);
+    return res;
+  }
+
+  async logoutAll(): Promise<{ message: string }> {
+    return this.request<{ message: string }>('/auth/logout-all', { method: 'POST' });
+  }
+
+  async deleteAccount(password: string): Promise<{ message: string }> {
+    return this.request<{ message: string }>('/auth/delete-account', {
+      method: 'POST',
+      body: JSON.stringify({ password }),
+    });
+  }
+
+  /** Downloads the full account export as a JSON file. */
+  async downloadExport(): Promise<void> {
+    const res = await fetch(`${API_BASE_URL}/auth/export`, { headers: this.buildHeaders() });
+    if (!res.ok) {
+      throw new ApiError(`Export failed (HTTP ${res.status})`, res.status);
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `makepattern-export-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
   // Pre-warm background backend to eliminate cold-start lag

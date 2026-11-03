@@ -326,7 +326,7 @@ export const RegisterPage: React.FC = () => {
                       setFullName(e.target.value);
                       clearFieldError('fullName');
                     }}
-                    placeholder="e.g. Aman Kumar"
+                    placeholder="e.g. Ada Lovelace (optional)"
                     autoComplete="name"
                     className={getInputClassName(Boolean(fieldErrors.fullName))}
                     style={inputStyle(Boolean(fieldErrors.fullName))}

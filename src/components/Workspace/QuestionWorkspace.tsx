@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { RefreshCw } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import {
   Star,
@@ -21,12 +22,17 @@ import { NotesEditor } from './NotesEditor';
 import { MonacoCodeEditor } from './MonacoCodeEditor';
 import { TestCasesSection } from './TestCasesSection';
 import { ComplexityTab } from './ComplexityTab';
+import { AttemptLogger } from './AttemptLogger';
+import { useAutosave } from '../../hooks/useAutosave';
 import type { Question, Solution, TestCase, Difficulty, QuestionStatus, SupportedLanguage } from '../../types/dsa';
 import { api } from '../../services/api';
 
 interface QuestionWorkspaceProps {
   question: Question;
-  onSaveQuestion: (updated: Partial<Question>) => Promise<void>;
+  /** Persist edits for a specific question id (id is explicit so late saves never hit the wrong question). */
+  onSaveQuestion: (questionId: string, updated: Partial<Question>) => Promise<void>;
+  /** Server returned a fresh copy (attempt logged, LeetCode refresh) — sync lists/summary. */
+  onQuestionUpdated?: (question: Question) => void;
   onToggleBookmark: (questionId: string) => void;
   onAddSolution: (
     questionId: string,
@@ -53,6 +59,7 @@ export const QuestionWorkspace: React.FC<QuestionWorkspaceProps> = ({
   onDeleteSolution,
   onDeleteQuestion,
   onBackToDashboard,
+  onQuestionUpdated,
 }) => {
   const [activeTab, setActiveTab] = useState<'code' | 'notes' | 'testcases' | 'complexity'>('code');
   const [title, setTitle] = useState(question.title);
@@ -64,11 +71,27 @@ export const QuestionWorkspace: React.FC<QuestionWorkspaceProps> = ({
   const [tags, setTags] = useState<string[]>(question.tags || []);
   const [solutions, setSolutions] = useState<Solution[]>(question.solutions || []);
   const [testCases, setTestCases] = useState<TestCase[]>(question.test_cases || []);
-  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved');
+  const [lcBusy, setLcBusy] = useState(false);
+  const [lcError, setLcError] = useState<string | null>(null);
+  const autoRefreshedRef = useRef<Set<string>>(new Set());
   const [isUrlModalOpen, setIsUrlModalOpen] = useState(false);
   const [tempUrl, setTempUrl] = useState(question.problem_url || '');
 
-  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveQuestion = useCallback(
+    (id: string, updates: Partial<Question>) => onSaveQuestion(id, updates),
+    [onSaveQuestion]
+  );
+  const { queue, flush, status: saveStatus } = useAutosave<Question>(
+    saveQuestion,
+    (id) => `/questions/${id}`
+  );
+
+  // Send any pending edits for the previous question before switching to another one.
+  useEffect(() => {
+    return () => {
+      void flush();
+    };
+  }, [question.id, flush]);
 
   // Sync state when switching questions
   useEffect(() => {
@@ -82,8 +105,54 @@ export const QuestionWorkspace: React.FC<QuestionWorkspaceProps> = ({
     setTags(question.tags || []);
     setSolutions(question.solutions || []);
     setTestCases(question.test_cases || []);
-    setSaveStatus('saved');
+    setLcError(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [question.id]);
+
+  const isLeetCode = Boolean(
+    question.leetcode_slug || /leetcode\.(com|cn)\/problems\//i.test(question.problem_url || '')
+  );
+
+  // Apply a fresh server copy to local editable state (only server-managed fields).
+  const applyServerQuestion = useCallback(
+    (updated: Question, fields: Array<keyof Question>) => {
+      if (fields.includes('title')) setTitle(updated.title);
+      if (fields.includes('difficulty')) setDifficulty(updated.difficulty);
+      if (fields.includes('status')) setStatus(updated.status);
+      if (fields.includes('tags')) setTags(updated.tags || []);
+      if (fields.includes('problem_statement')) setProblemStatement(updated.problem_statement || '');
+      if (fields.includes('problem_url')) {
+        setProblemUrl(updated.problem_url || '');
+        setTempUrl(updated.problem_url || '');
+      }
+      if (fields.includes('test_cases') && updated.test_cases) setTestCases(updated.test_cases);
+      onQuestionUpdated?.(updated);
+    },
+    [onQuestionUpdated]
+  );
+
+  const handleRefreshFromLeetCode = useCallback(async () => {
+    setLcBusy(true);
+    setLcError(null);
+    try {
+      await flush();
+      const updated = await api.refreshFromLeetCode(question.id);
+      applyServerQuestion(updated, ['title', 'difficulty', 'tags', 'problem_statement', 'problem_url', 'test_cases']);
+    } catch (err) {
+      setLcError(err instanceof Error ? err.message : 'LeetCode fetch failed');
+    } finally {
+      setLcBusy(false);
+    }
+  }, [applyServerQuestion, flush, question.id]);
+
+  // Auto-fetch the statement once for LeetCode questions that don't have one yet.
+  useEffect(() => {
+    if (!isLeetCode || (question.problem_statement || '').trim()) return;
+    if (autoRefreshedRef.current.has(question.id)) return;
+    autoRefreshedRef.current.add(question.id);
+    void handleRefreshFromLeetCode();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [question.id, isLeetCode]);
 
   // Load test cases if not attached
   useEffect(() => {
@@ -98,25 +167,8 @@ export const QuestionWorkspace: React.FC<QuestionWorkspaceProps> = ({
     };
   }, [question.id]);
 
-  // Debounced autosave
-  const triggerAutosave = useCallback(
-    (updates: Partial<Question>) => {
-      setSaveStatus('unsaved');
-      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
-
-      debounceTimerRef.current = setTimeout(async () => {
-        try {
-          setSaveStatus('saving');
-          await onSaveQuestion(updates);
-          setSaveStatus('saved');
-        } catch (err) {
-          console.error('Autosave error:', err);
-          setSaveStatus('unsaved');
-        }
-      }, 700);
-    },
-    [onSaveQuestion]
-  );
+  // Debounced, merged, serialized autosave (see useAutosave)
+  const triggerAutosave = (updates: Partial<Question>) => queue(question.id, updates);
 
   const handleTitleChange = (newTitle: string) => {
     setTitle(newTitle);
@@ -143,6 +195,7 @@ export const QuestionWorkspace: React.FC<QuestionWorkspaceProps> = ({
       });
     }
     triggerAutosave({ status: newStatus });
+    void flush();
   };
 
   const handleProblemStatementChange = (val: string) => {
@@ -268,7 +321,7 @@ export const QuestionWorkspace: React.FC<QuestionWorkspaceProps> = ({
               type="text"
               value={title}
               onChange={(e) => handleTitleChange(e.target.value)}
-              className="text-base sm:text-lg font-bold text-white bg-transparent border-b border-transparent hover:border-slate-700 focus:border-blue-500 focus:outline-none transition truncate max-w-md py-0 leading-tight"
+              className="text-base sm:text-lg font-bold text-white bg-transparent border-b border-transparent hover:border-slate-700 focus:border-blue-500 focus:outline-none transition truncate max-w-full sm:max-w-md min-w-0 py-0 leading-tight"
             />
             {/* Difficulty Tag right to question title */}
             <select
@@ -338,6 +391,19 @@ export const QuestionWorkspace: React.FC<QuestionWorkspaceProps> = ({
               </button>
             )}
 
+            {isLeetCode && (
+              <button
+                type="button"
+                onClick={handleRefreshFromLeetCode}
+                disabled={lcBusy}
+                className="flex items-center space-x-1 px-2 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-yellow-300 border border-slate-700 text-xs transition disabled:opacity-50"
+                title="Re-fetch statement, difficulty and tags from LeetCode (notes and solutions are untouched)"
+              >
+                <RefreshCw className={`w-3 h-3 ${lcBusy ? 'animate-spin' : ''}`} />
+                <span className="hidden sm:inline">{lcBusy ? 'Fetching…' : 'Fetch from LeetCode'}</span>
+              </button>
+            )}
+
             {/* Autosave Indicator */}
             <div className="flex items-center space-x-1 text-xs text-slate-400 px-1">
               {saveStatus === 'saving' && (
@@ -357,6 +423,11 @@ export const QuestionWorkspace: React.FC<QuestionWorkspaceProps> = ({
                   <span className="w-1.5 h-1.5 rounded-full bg-[#fef08a]" />
                   <span className="text-[10px]">Unsaved</span>
                 </>
+              )}
+              {saveStatus === 'error' && (
+                <button type="button" onClick={() => void flush()} className="text-[10px] text-rose-400 hover:underline" title="Retry save">
+                  Save failed · retry
+                </button>
               )}
             </div>
 
@@ -395,11 +466,21 @@ export const QuestionWorkspace: React.FC<QuestionWorkspaceProps> = ({
         </div>
       </div>
 
+      <AttemptLogger
+        question={{ ...question, status }}
+        onLogged={(updated) => applyServerQuestion(updated, ['status'])}
+      />
+      {lcError && (
+        <div className="text-xs text-rose-400 px-1" role="alert">
+          LeetCode: {lcError}
+        </div>
+      )}
+
       {/* 2. WORKSPACE TABS */}
-      <div className="flex items-center space-x-1.5 border-b border-slate-800 pb-1">
+      <div className="flex items-center space-x-1.5 border-b border-slate-800 pb-1 overflow-x-auto custom-scrollbar">
         <button
           onClick={() => setActiveTab('code')}
-          className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+          className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition shrink-0 ${
             activeTab === 'code'
               ? 'bg-[#fef08a] text-[#18181b] shadow-md shadow-yellow-200/30'
               : 'text-slate-400 hover:text-white hover:bg-slate-900/60'
@@ -411,7 +492,7 @@ export const QuestionWorkspace: React.FC<QuestionWorkspaceProps> = ({
 
         <button
           onClick={() => setActiveTab('notes')}
-          className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+          className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition shrink-0 ${
             activeTab === 'notes'
               ? 'bg-[#fef08a] text-[#18181b] shadow-md shadow-yellow-200/30'
               : 'text-slate-400 hover:text-white hover:bg-slate-900/60'
@@ -423,7 +504,7 @@ export const QuestionWorkspace: React.FC<QuestionWorkspaceProps> = ({
 
         <button
           onClick={() => setActiveTab('testcases')}
-          className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+          className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition shrink-0 ${
             activeTab === 'testcases'
               ? 'bg-[#fef08a] text-[#18181b] shadow-md shadow-yellow-200/30'
               : 'text-slate-400 hover:text-white hover:bg-slate-900/60'
@@ -435,7 +516,7 @@ export const QuestionWorkspace: React.FC<QuestionWorkspaceProps> = ({
 
         <button
           onClick={() => setActiveTab('complexity')}
-          className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+          className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition shrink-0 ${
             activeTab === 'complexity'
               ? 'bg-[#fef08a] text-[#18181b] shadow-md shadow-yellow-200/30'
               : 'text-slate-400 hover:text-white hover:bg-slate-900/60'
