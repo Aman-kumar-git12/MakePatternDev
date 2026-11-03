@@ -1,3 +1,4 @@
+import type { Preferences } from '../context/preferencesCore';
 import type {
   Folder,
   Question,
@@ -26,6 +27,12 @@ import type {
   ImportedCollection,
   RunConfig,
   Judge0Result,
+  TrashItem,
+  TrashRestoreResult,
+  DeleteResult,
+  BulkActionRequest,
+  BulkActionResult,
+  DataImportResult,
 } from '../types/dsa';
 
 let rawBaseUrl = (
@@ -306,8 +313,9 @@ class ApiService {
     });
   }
 
-  async deleteFolder(folderId: string): Promise<void> {
-    return this.request<void>(`/folders/${folderId}`, {
+  /** Soft delete: the folder (and its contents) goes to the trash; `trash_id` restores it. */
+  async deleteFolder(folderId: string): Promise<DeleteResult> {
+    return this.request<DeleteResult>(`/folders/${folderId}`, {
       method: 'DELETE',
     });
   }
@@ -384,8 +392,9 @@ class ApiService {
     });
   }
 
-  async deleteQuestion(id: string): Promise<void> {
-    return this.request<void>(`/questions/${id}`, {
+  /** Soft delete: the question goes to the trash; `trash_id` restores it. */
+  async deleteQuestion(id: string): Promise<DeleteResult> {
+    return this.request<DeleteResult>(`/questions/${id}`, {
       method: 'DELETE',
     });
   }
@@ -611,6 +620,18 @@ class ApiService {
     });
   }
 
+  /** Display/accessibility preferences (theme, editor, focus mode, shortcuts). */
+  async getPreferences(): Promise<Preferences> {
+    return this.request<Preferences>('/auth/preferences');
+  }
+
+  async updatePreferences(updates: Partial<Preferences>): Promise<Preferences> {
+    return this.request<Preferences>('/auth/preferences', {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    });
+  }
+
   async changePassword(currentPassword: string, newPassword: string): Promise<{ message: string; access_token: string }> {
     const res = await this.request<{ message: string; access_token: string }>('/auth/change-password', {
       method: 'POST',
@@ -657,6 +678,39 @@ class ApiService {
     return this.request<Judge0Result>('/run/judge0', {
       method: 'POST',
       body: JSON.stringify({ language, code, stdin }),
+    });
+  }
+
+  // Bulk actions on many questions at once
+  async bulkQuestions(body: BulkActionRequest): Promise<BulkActionResult> {
+    return this.request<BulkActionResult>('/questions/bulk', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  }
+
+  // Trash (soft-deleted items, purged after 30 days)
+  async listTrash(): Promise<TrashItem[]> {
+    return this.request<TrashItem[]>('/trash');
+  }
+
+  async restoreTrashItem(trashId: string): Promise<TrashRestoreResult> {
+    return this.request<TrashRestoreResult>(`/trash/${trashId}/restore`, { method: 'POST' });
+  }
+
+  async deleteTrashItem(trashId: string): Promise<{ message: string }> {
+    return this.request<{ message: string }>(`/trash/${trashId}`, { method: 'DELETE' });
+  }
+
+  async emptyTrash(): Promise<{ deleted: number }> {
+    return this.request<{ deleted: number }>('/trash', { method: 'DELETE' });
+  }
+
+  /** Restore a JSON backup produced by downloadExport (imported under a new root folder). */
+  async importData(payload: unknown): Promise<DataImportResult> {
+    return this.request<DataImportResult>('/auth/import', {
+      method: 'POST',
+      body: JSON.stringify(payload),
     });
   }
 

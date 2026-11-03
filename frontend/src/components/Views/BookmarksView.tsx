@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Bookmark,
   Star,
@@ -14,18 +14,25 @@ import {
   Circle,
   ExternalLink,
 } from 'lucide-react';
-import type { QuestionListItem } from '../../types/dsa';
+import type { QuestionListItem, Folder, BulkActionRequest } from '../../types/dsa';
+import { useSelection } from '../../hooks/useSelection';
+import { BulkActionBar } from '../Common/BulkActionBar';
 
 interface BookmarksViewProps {
   questions: QuestionListItem[];
   onSelectQuestion: (questionId: string) => void;
   onRemoveBookmark: (questionId: string) => void;
+  /** Enables multi-select (list view) + the bulk action bar when provided. */
+  onBulkAction?: (request: BulkActionRequest) => Promise<unknown>;
+  folders?: Folder[];
 }
 
 export const BookmarksView: React.FC<BookmarksViewProps> = ({
   questions,
   onSelectQuestion,
   onRemoveBookmark,
+  onBulkAction,
+  folders = [],
 }) => {
   const [search, setSearch] = useState('');
   const [filterDifficulty, setFilterDifficulty] = useState<string>('all');
@@ -44,6 +51,19 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
 
     return matchesSearch && matchesDiff && matchesStatus;
   });
+
+  const bulkEnabled = Boolean(onBulkAction) && viewMode === 'list';
+  const visibleIds = useMemo(() => filtered.map((q) => q.id), [filtered]);
+  const selection = useSelection(bulkEnabled ? visibleIds : []);
+  const selectedTags = useMemo(
+    () => Array.from(new Set(filtered.filter((q) => selection.selected.has(q.id)).flatMap((q) => q.tags))).sort(),
+    [filtered, selection.selected]
+  );
+  const handleBulk = async (payload: Omit<BulkActionRequest, 'question_ids'>) => {
+    if (!onBulkAction || selection.count === 0) return;
+    await onBulkAction({ ...payload, question_ids: selection.selectedIds });
+    if (payload.action === 'delete' || payload.action === 'unbookmark') selection.clear();
+  };
 
   const difficultyColors = {
     Easy: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
@@ -65,7 +85,7 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6 animate-fade-in font-sans">
+    <div className={`p-6 max-w-7xl mx-auto space-y-6 animate-fade-in font-sans ${selection.count > 0 ? 'pb-48 sm:pb-6' : ''}`}>
       {/* View Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#0D1527] border border-slate-800 rounded-2xl p-6 shadow-xl">
         <div className="flex items-center space-x-3">
@@ -171,7 +191,24 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
         /* 1. LIST VIEW (Default) */
         <div className="bg-[#0D1527] border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
           <div className="p-3.5 border-b border-slate-800/80 bg-slate-900/40 flex items-center justify-between text-xs text-slate-400">
-            <span className="font-medium">Showing {filtered.length} bookmarked items</span>
+            <span className="font-medium flex items-center gap-3">
+              {bulkEnabled && (
+                <input
+                  type="checkbox"
+                  checked={selection.allSelected}
+                  ref={(el) => {
+                    if (el) el.indeterminate = selection.someSelected;
+                  }}
+                  onChange={selection.toggleAll}
+                  className="w-4 h-4 cursor-pointer accent-[#fef08a]"
+                  aria-label={selection.allSelected ? 'Deselect all bookmarks' : 'Select all bookmarks'}
+                />
+              )}
+              <span>
+                Showing {filtered.length} bookmarked items
+                {selection.count > 0 && <span className="text-yellow-300"> · {selection.count} selected</span>}
+              </span>
+            </span>
             <span className="text-[11px] text-slate-500">Click any row to open workspace</span>
           </div>
 
@@ -180,10 +217,24 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
               <div
                 key={q.id}
                 onClick={() => onSelectQuestion(q.id)}
+                data-nav-id={q.id}
                 className="p-4 hover:bg-slate-800/40 cursor-pointer transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 group"
               >
                 {/* Left: Status icon, Title, Path */}
                 <div className="flex items-center space-x-3.5 min-w-0 flex-1">
+                  {bulkEnabled && (
+                    <input
+                      type="checkbox"
+                      checked={selection.isSelected(q.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        selection.toggle(q.id, e.shiftKey);
+                      }}
+                      onChange={() => {}}
+                      className="w-4 h-4 shrink-0 cursor-pointer accent-[#fef08a]"
+                      aria-label={`Select ${q.title}`}
+                    />
+                  )}
                   <div className="flex-shrink-0" title={`Status: ${q.status}`}>
                     {renderStatusIcon(q.status)}
                   </div>
@@ -278,6 +329,7 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
             <div
               key={q.id}
               onClick={() => onSelectQuestion(q.id)}
+              data-nav-id={q.id}
               className="bg-[#0D1527] border border-slate-800 hover:border-blue-500/40 rounded-2xl p-5 shadow-lg shadow-black/20 hover:shadow-blue-500/5 cursor-pointer transition flex flex-col justify-between group"
             >
               <div>
@@ -342,6 +394,10 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
             </div>
           ))}
         </div>
+      )}
+
+      {bulkEnabled && (
+        <BulkActionBar count={selection.count} folders={folders} selectedTags={selectedTags} onAction={handleBulk} onClear={selection.clear} />
       )}
     </div>
   );

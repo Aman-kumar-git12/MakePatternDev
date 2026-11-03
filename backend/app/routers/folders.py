@@ -16,7 +16,8 @@ from app.schemas.folder import (
 )
 from app.services import share_service
 from app.services.folder_service import build_tree_for_user, folder_summary, validate_folder_move
-from app.services.repo import delete_folder_cascade, get_owned_folder, new_folder_doc, next_position
+from app.services.repo import get_owned_folder, new_folder_doc, next_position
+from app.services.trash import trash_folder
 
 router = APIRouter(prefix="/folders", tags=["folders"])
 
@@ -108,10 +109,10 @@ def move_folder(folder_id: str, move_in: FolderMove, db: Database = Depends(get_
 def delete_folder(folder_id: str, db: Database = Depends(get_db), current_user: CurrentUser = Depends(get_current_user)):
     if not get_owned_folder(db, current_user.id, folder_id):
         raise HTTPException(status_code=404, detail="Folder not found")
-    deleted = delete_folder_cascade(db, current_user.id, folder_id)
+    trash_id, deleted = trash_folder(db, current_user.id, folder_id)
     for fid in deleted:
         share_service.disable_share(db, current_user.id, fid)
-    return {"message": "Folder and contents deleted successfully", "deleted_folder_ids": sorted(deleted)}
+    return {"message": "Folder moved to trash", "deleted_folder_ids": sorted(deleted), "trash_id": trash_id}
 
 
 # ---------------------------------------------------------------------------

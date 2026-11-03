@@ -28,6 +28,9 @@ export const RevisionPage = lazy(() =>
 export const SettingsView = lazy(() =>
   import('../components/Views/SettingsView').then((m) => ({ default: m.SettingsView }))
 );
+export const TrashView = lazy(() =>
+  import('../components/Views/TrashView').then((m) => ({ default: m.TrashView }))
+);
 
 // Modals
 export const GlobalSearchModal = lazy(() =>

@@ -4,6 +4,8 @@ import { useAuth } from '../../context/AuthContext';
 import { api } from '../../services/api';
 import type { Folder, LeetCodeSyncResult } from '../../types/dsa';
 import { LeetCodeSyncPanel } from '../Settings/LeetCodeSyncPanel';
+import { ImportPanel } from '../Settings/ImportPanel';
+import { AppearancePanel } from '../Settings/AppearancePanel';
 import { displayName } from '../../utils/user';
 
 interface SettingsViewProps {
@@ -169,6 +171,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ folders, onDataChang
         <p className="text-xs mp-muted">Signed in as {user?.email}</p>
       </div>
 
+      <AppearancePanel />
+
       <Section title="Profile" icon={UserIcon}>
         <form onSubmit={saveProfile} className="flex flex-col sm:flex-row gap-2">
           <input
@@ -226,6 +230,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ folders, onDataChang
         </div>
         <Feedback err={exportErr} />
       </Section>
+
+      <Section title="Import a backup" icon={Download}><ImportPanel onImported={onDataChanged} /></Section>
 
       <Section title="Delete account" icon={Trash2} danger>
         <p className="text-xs mp-muted">

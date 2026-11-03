@@ -1,6 +1,6 @@
 import re
 from datetime import datetime
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -73,3 +73,36 @@ class Token(BaseModel):
     access_token: str
     token_type: str
     user: UserResponse
+
+
+class Preferences(BaseModel):
+    theme: Literal["dark", "light", "system"] = "dark"
+    editor_theme: Literal["vs-dark", "vs", "hc-black", "hc-light"] = "vs-dark"
+    editor_font_size: int = Field(default=14, ge=10, le=28)
+    ui_scale: Literal["sm", "md", "lg"] = "md"
+    font_family: Literal["default", "readable", "dyslexic"] = "default"
+    high_contrast: bool = False
+    reduced_motion: bool = False
+    focus_mode: bool = False
+    shortcuts_enabled: bool = True
+
+
+class PreferencesUpdate(BaseModel):
+    theme: Optional[Literal["dark", "light", "system"]] = None
+    editor_theme: Optional[Literal["vs-dark", "vs", "hc-black", "hc-light"]] = None
+    editor_font_size: Optional[int] = Field(default=None, ge=10, le=28)
+    ui_scale: Optional[Literal["sm", "md", "lg"]] = None
+    font_family: Optional[Literal["default", "readable", "dyslexic"]] = None
+    high_contrast: Optional[bool] = None
+    reduced_motion: Optional[bool] = None
+    focus_mode: Optional[bool] = None
+    shortcuts_enabled: Optional[bool] = None
+
+
+class ImportResult(BaseModel):
+    root_folder_id: str
+    root_folder_name: str
+    folders: int
+    questions: int
+    solutions: int
+    test_cases: int

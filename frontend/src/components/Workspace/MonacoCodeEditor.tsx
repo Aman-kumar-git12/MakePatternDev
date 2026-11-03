@@ -22,6 +22,8 @@ import type { Solution, SupportedLanguage, ComplexityAnalysisResult, TestCase } 
 import { RunPanel } from './RunPanel';
 import { api } from '../../services/api';
 import { useTheme } from '../../context/ThemeContext';
+import { usePreferences } from '../../context/usePreferences';
+import { resolveEditorTheme } from '../../context/preferencesCore';
 
 interface MonacoCodeEditorProps {
   solutions: Solution[];
@@ -105,6 +107,8 @@ export const MonacoCodeEditor: React.FC<MonacoCodeEditorProps> = ({
   testCases = [],
 }) => {
   const { isDark } = useTheme();
+  const { prefs } = usePreferences();
+  const editorTheme = resolveEditorTheme(prefs, isDark);
   const [activeSolutionId, setActiveSolutionId] = useState<string>(solutions[0]?.id || '');
   const [copied, setCopied] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -498,11 +502,11 @@ export const MonacoCodeEditor: React.FC<MonacoCodeEditorProps> = ({
                 <Editor
                   height="100%"
                   language={monacoLanguage(activeSolution.language)}
-                  theme={isDark ? 'vs-dark' : 'light'}
+                  theme={editorTheme}
                   value={code}
                   onChange={handleCodeChange}
                   options={{
-                    fontSize: 13,
+                    fontSize: prefs.editor_font_size,
                     minimap: { enabled: false },
                     scrollBeyondLastLine: false,
                     automaticLayout: true,

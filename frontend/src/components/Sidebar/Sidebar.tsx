@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Home, Layers, FileText, Bookmark, RotateCcw, ChevronLeft, ChevronRight, X, LogOut, Sparkles, BarChart3, Settings } from 'lucide-react';
+import { Home, Layers, FileText, Bookmark, RotateCcw, ChevronLeft, ChevronRight, X, LogOut, Sparkles, BarChart3, Settings, Trash2 } from 'lucide-react';
 import type { ViewMode, User, Question } from '../../types/dsa';
 import { displayName } from '../../utils/user';
 
@@ -48,6 +48,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     },
     { id: 'progress' as ViewMode, label: 'Progress', icon: BarChart3 },
     { id: 'settings' as ViewMode, label: 'Settings', icon: Settings },
+    { id: 'trash' as ViewMode, label: 'Trash', icon: Trash2 },
   ];
 
   const isItemActive = (id: ViewMode) => {

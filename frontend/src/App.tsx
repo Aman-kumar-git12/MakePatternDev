@@ -18,6 +18,7 @@ const PROTECTED_PATHS = [
   '/revision',
   '/progress',
   '/settings',
+  '/trash',
   '/question/:questionId',
 ];
 

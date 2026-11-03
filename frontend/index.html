@@ -6,13 +6,42 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MakePattern - DSA Curriculum</title>
     <script>
+      // Apply saved display preferences before first paint (no theme/font flash).
       (function() {
+        var root = document.documentElement;
         try {
-          var theme = localStorage.getItem('mp-theme') || 'dark';
-          document.documentElement.classList.remove('light', 'dark');
-          document.documentElement.classList.add(theme);
+          var prefs = JSON.parse(localStorage.getItem('mp-prefs') || 'null') || {};
+          var theme = prefs.theme || localStorage.getItem('mp-theme') || 'dark';
+          if (theme === 'system') {
+            theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+          }
+          root.classList.remove('light', 'dark');
+          root.classList.add(theme === 'light' ? 'light' : 'dark');
+          if (prefs.high_contrast) root.classList.add('mp-hc');
+          var reduce = typeof prefs.reduced_motion === 'boolean'
+            ? prefs.reduced_motion
+            : !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+          if (reduce) root.classList.add('mp-reduce-motion');
+          root.setAttribute('data-mp-scale', prefs.ui_scale || 'md');
+          var fonts = {
+            readable: ['https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap'],
+            dyslexic: [
+              'https://cdn.jsdelivr.net/npm/@fontsource/opendyslexic@5.2.5/400.css',
+              'https://cdn.jsdelivr.net/npm/@fontsource/opendyslexic@5.2.5/700.css'
+            ]
+          };
+          if (fonts[prefs.font_family]) {
+            root.classList.add('mp-font-' + prefs.font_family);
+            fonts[prefs.font_family].forEach(function(href) {
+              var link = document.createElement('link');
+              link.rel = 'stylesheet';
+              link.href = href;
+              link.setAttribute('data-mp-font', prefs.font_family);
+              document.head.appendChild(link);
+            });
+          }
         } catch (e) {
-          document.documentElement.classList.add('dark');
+          root.classList.add('dark');
         }
       })();
     </script>

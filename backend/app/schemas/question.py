@@ -115,3 +115,26 @@ class QuestionListItem(QuestionTracking):
     position: Optional[int] = 0
     created_at: Optional[datetime] = None
     updated_at: datetime
+
+
+BulkActionName = Literal["move", "set_status", "set_difficulty", "add_tags", "remove_tags", "bookmark", "unbookmark", "delete"]
+
+
+class BulkAction(BaseModel):
+    question_ids: List[str] = Field(min_length=1, max_length=500)
+    action: BulkActionName
+    folder_id: Optional[str] = None
+    status: Optional[Status] = None
+    difficulty: Optional[Difficulty] = None
+    tags: Optional[List[str]] = None
+
+    @field_validator("tags")
+    @classmethod
+    def validate_tags(cls, v: Optional[List[str]]) -> Optional[List[str]]:
+        return _clean_tags(v)
+
+
+class BulkActionResponse(BaseModel):
+    action: str
+    updated: int
+    trash_id: Optional[str] = None

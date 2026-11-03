@@ -157,7 +157,7 @@ export interface SearchResult {
   total_results: number;
 }
 
-export type ViewMode = 'home' | 'patterns' | 'all-questions' | 'bookmarks' | 'progress' | 'workspace' | 'recent' | 'revision' | 'settings';
+export type ViewMode = 'home' | 'patterns' | 'all-questions' | 'bookmarks' | 'progress' | 'workspace' | 'recent' | 'revision' | 'settings' | 'trash';
 
 export interface User {
   id: string;
@@ -314,4 +314,69 @@ export interface Judge0Result {
   compile_output: string;
   time: string | number | null;
   memory: number | null;
+}
+
+// ---------------------------------------------------------------------------
+// Trash / undo, bulk actions, JSON import
+// ---------------------------------------------------------------------------
+
+export type TrashKind = 'question' | 'folder' | 'bulk';
+
+export interface TrashItem {
+  id: string;
+  kind: TrashKind;
+  title: string;
+  deleted_at: string;
+  expires_at: string;
+  question_count: number;
+  folder_count: number;
+}
+
+export interface DeleteResult {
+  message?: string;
+  id?: string;
+  deleted_folder_ids?: string[];
+  trash_id: string;
+}
+
+export interface TrashRestoreResult {
+  kind: TrashKind;
+  restored_questions: number;
+  restored_folders: number;
+  folder_id: string | null;
+  question_ids: string[];
+}
+
+export type BulkActionType =
+  | 'move'
+  | 'set_status'
+  | 'set_difficulty'
+  | 'add_tags'
+  | 'remove_tags'
+  | 'bookmark'
+  | 'unbookmark'
+  | 'delete';
+
+export interface BulkActionRequest {
+  question_ids: string[];
+  action: BulkActionType;
+  folder_id?: string | null;
+  status?: QuestionStatus;
+  difficulty?: Difficulty;
+  tags?: string[];
+}
+
+export interface BulkActionResult {
+  action: BulkActionType;
+  updated: number;
+  trash_id: string | null;
+}
+
+export interface DataImportResult {
+  root_folder_id: string;
+  root_folder_name: string;
+  folders: number;
+  questions: number;
+  solutions: number;
+  test_cases: number;
 }

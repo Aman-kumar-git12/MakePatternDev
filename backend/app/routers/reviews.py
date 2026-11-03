@@ -5,10 +5,12 @@ from zoneinfo import ZoneInfo
 from fastapi import APIRouter, Depends, HTTPException
 from pymongo.database import Database
 
-from app.db import get_db, now_iso
+from datetime import timezone
+
+from app.db import get_db, now_iso, now_utc, parse_dt, to_iso
 from app.routers.auth import CurrentUser, get_current_user
 from app.schemas.question import QuestionListItem
-from app.schemas.review import DueReviewsResponse, ReviewRequest
+from app.schemas.review import DueReviewsResponse, ReviewBatchRequest, ReviewBatchResponse, ReviewBatchResult, ReviewRequest
 from app.services.repo import FolderPaths, bookmarked_ids, get_owned_question, to_list_item
 from app.services.tracking import (
     end_of_local_day_iso,
@@ -41,6 +43,37 @@ def due_reviews(db: Database = Depends(get_db), current_user: CurrentUser = Depe
         due_count=db.questions.count_documents({"user_id": uid, "next_review_at": {"$ne": None, "$lte": cutoff}}),
         reviewed_today=reviewed_today,
     )
+
+
+@router.post("/batch", response_model=ReviewBatchResponse)
+def sync_offline_reviews(body: ReviewBatchRequest, db: Database = Depends(get_db), current_user: CurrentUser = Depends(get_current_user)):
+    """Apply reviews done offline, in the order they happened. Idempotent per client_id."""
+    uid = current_user.id
+    now = now_utc()
+    results = []
+    for r in sorted(body.reviews, key=lambda r: r.reviewed_at):
+        if db.activity.find_one({"user_id": uid, "client_id": r.client_id}, {"_id": 1}):
+            results.append(ReviewBatchResult(client_id=r.client_id, status="duplicate"))
+            continue
+        q = get_owned_question(db, uid, r.question_id)
+        if not q:
+            results.append(ReviewBatchResult(client_id=r.client_id, status="not_found"))
+            continue
+        at = r.reviewed_at if r.reviewed_at.tzinfo else r.reviewed_at.replace(tzinfo=timezone.utc)
+        at = min(max(at, now - timedelta(days=30)), now)
+        last = parse_dt(q.get("last_reviewed_at"))
+        if last and last > at:
+            # A newer review already happened on another device; don't roll the schedule back.
+            record_activity(db, uid, "review", r.question_id, at=at, client_id=r.client_id)
+            results.append(ReviewBatchResult(client_id=r.client_id, status="stale"))
+            continue
+        updates = review_updates(q, r.rating, now=at)
+        updates["updated_at"] = to_iso(now)
+        db.questions.update_one({"id": q["id"], "user_id": uid}, {"$set": updates})
+        record_activity(db, uid, "review", r.question_id, at=at, client_id=r.client_id)
+        results.append(ReviewBatchResult(client_id=r.client_id, status="applied"))
+    applied = sum(1 for x in results if x.status == "applied")
+    return ReviewBatchResponse(applied=applied, skipped=len(results) - applied, results=results)
 
 
 @router.post("/{question_id}", response_model=QuestionListItem)

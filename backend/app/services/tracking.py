@@ -99,15 +99,26 @@ def review_updates(q: Dict[str, Any], rating: str, now: Optional[datetime] = Non
 # Activity log
 # ---------------------------------------------------------------------------
 
-def record_activity(db: Database, user_id: str, kind: str, question_id: Optional[str] = None, minutes: int = 0) -> None:
-    db.activity.insert_one({
+def record_activity(
+    db: Database,
+    user_id: str,
+    kind: str,
+    question_id: Optional[str] = None,
+    minutes: int = 0,
+    at: Optional[datetime] = None,
+    client_id: Optional[str] = None,
+) -> None:
+    doc = {
         "id": new_id(),
         "user_id": user_id,
         "type": kind,  # solved | review | attempt
         "question_id": question_id,
         "minutes": minutes,
-        "at": to_iso(now_utc()),
-    })
+        "at": to_iso(at or now_utc()),
+    }
+    if client_id:
+        doc["client_id"] = client_id
+    db.activity.insert_one(doc)
 
 
 def daily_activity(db: Database, user_id: str, tz: ZoneInfo, days: int) -> Dict[str, Dict[str, int]]:

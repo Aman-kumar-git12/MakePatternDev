@@ -1,48 +1,28 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { useCallback } from 'react';
+import { PreferencesProvider } from './PreferencesContext';
+import { usePreferences } from './usePreferences';
 
 type Theme = 'dark' | 'light';
 
 interface ThemeContextType {
+  /** Resolved theme currently shown. */
   theme: Theme;
   toggleTheme: () => void;
   isDark: boolean;
 }
 
-const ThemeContext = createContext<ThemeContextType>({
-  theme: 'dark',
-  toggleTheme: () => {},
-  isDark: true,
-});
-
-export const useTheme = () => useContext(ThemeContext);
-
-export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [theme, setTheme] = useState<Theme>(() => {
-    const stored = localStorage.getItem('mp-theme');
-    return (stored === 'light' || stored === 'dark') ? stored : 'dark';
-  });
-
-  const isDark = theme === 'dark';
-
-  useEffect(() => {
-    localStorage.setItem('mp-theme', theme);
-    const root = document.documentElement;
-    if (theme === 'dark') {
-      root.classList.add('dark');
-      root.classList.remove('light');
-    } else {
-      root.classList.add('light');
-      root.classList.remove('dark');
-    }
-  }, [theme]);
-
+/**
+ * Backwards-compatible theme API on top of the full preferences store
+ * (which also supports "system", high contrast, fonts, scale, motion, …).
+ */
+export const useTheme = (): ThemeContextType => {
+  const { isDark, setPrefs } = usePreferences();
   const toggleTheme = useCallback(() => {
-    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
-  }, []);
-
-  return (
-    <ThemeContext.Provider value={{ theme, toggleTheme, isDark }}>
-      {children}
-    </ThemeContext.Provider>
-  );
+    setPrefs({ theme: isDark ? 'light' : 'dark' });
+  }, [isDark, setPrefs]);
+  return { theme: isDark ? 'dark' : 'light', toggleTheme, isDark };
 };
+
+export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <PreferencesProvider>{children}</PreferencesProvider>
+);

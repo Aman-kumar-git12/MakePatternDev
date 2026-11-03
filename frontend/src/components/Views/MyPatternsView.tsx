@@ -401,6 +401,7 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
       <div
         key={q.id}
         onClick={() => onSelectQuestion(q.id)}
+        data-nav-id={q.id}
         onDragOver={(e) => {
           if (
             dragState &&

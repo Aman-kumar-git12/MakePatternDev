@@ -21,6 +21,7 @@ from app.routers import (
     shared,
     solutions,
     test_cases,
+    trash,
 )
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -86,7 +87,7 @@ async def security_headers(request, call_next):
     return response
 
 
-for r in (auth, folders, questions, solutions, bookmarks, progress, search, test_cases, shared, reviews, leetcode, curricula, run):
+for r in (auth, folders, questions, solutions, bookmarks, progress, search, test_cases, shared, reviews, leetcode, curricula, run, trash):
     app.include_router(r.router, prefix="/api")
 
 

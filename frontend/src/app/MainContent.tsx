@@ -16,6 +16,7 @@ import {
   MyPatternsView,
   RevisionPage,
   SettingsView,
+  TrashView,
   ViewFallback,
 } from './lazyViews';
 
@@ -71,6 +72,7 @@ export function MainContent({
     handleRenameQuestion,
     handleMoveQuestion,
     handleDeleteQuestion,
+    handleBulkAction,
     handleAddSolution,
     handleUpdateSolution,
     handleDeleteSolution,
@@ -123,6 +125,8 @@ export function MainContent({
             questions={bookmarkedQuestions}
             onSelectQuestion={handleSelectQuestion}
             onRemoveBookmark={handleToggleBookmark}
+            folders={folders}
+            onBulkAction={handleBulkAction}
           />
         )}
 
@@ -138,6 +142,8 @@ export function MainContent({
             title="All Questions"
             subtitle="Browse, filter, and track questions across your entire curriculum"
             sortBy="order"
+            folders={folders}
+            onBulkAction={handleBulkAction}
           />
         )}
 
@@ -153,6 +159,8 @@ export function MainContent({
             title="Recently Updated"
             subtitle="Questions sorted by most recently modified solutions and notes"
             sortBy="updated"
+            folders={folders}
+            onBulkAction={handleBulkAction}
           />
         )}
 
@@ -208,6 +216,8 @@ export function MainContent({
             onOpenCurricula={() => setIsCurriculaOpen(true)}
           />
         )}
+
+        {currentView === 'trash' && <TrashView onDataChanged={refreshData} />}
       </Suspense>
     </main>
   );

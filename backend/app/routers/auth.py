@@ -12,6 +12,9 @@ from pymongo.errors import DuplicateKeyError
 from app.db import get_db, new_id, now_iso, parse_dt, strip_mongo_id, EPOCH_ISO
 from app.schemas.user import (
     AccountDelete,
+    ImportResult,
+    Preferences,
+    PreferencesUpdate,
     PasswordChange,
     Token,
     UserCreate,
@@ -228,3 +231,40 @@ def export_data(current_user: CurrentUser = Depends(get_current_user), db: Datab
         media_type="application/json",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+@router.get("/preferences", response_model=Preferences)
+def get_preferences(current_user: CurrentUser = Depends(get_current_user), db: Database = Depends(get_db)):
+    doc = db.users.find_one(user_filter(current_user.id), {"preferences": 1}) or {}
+    return Preferences(**{k: v for k, v in (doc.get("preferences") or {}).items() if k in Preferences.model_fields})
+
+
+@router.put("/preferences", response_model=Preferences)
+def update_preferences(body: PreferencesUpdate, current_user: CurrentUser = Depends(get_current_user), db: Database = Depends(get_db)):
+    changes = body.model_dump(exclude_none=True)
+    if changes:
+        db.users.update_one(user_filter(current_user.id), {"$set": {f"preferences.{k}": v for k, v in changes.items()}})
+    return get_preferences(current_user, db)
+
+
+MAX_IMPORT_BYTES = 10 * 1024 * 1024
+
+
+@router.post("/import", response_model=ImportResult)
+async def import_data(request: Request, current_user: CurrentUser = Depends(get_current_user), db: Database = Depends(get_db)):
+    check_rate_limit(f"import:{current_user.id}", limit=10, window_seconds=3600)
+    declared = request.headers.get("content-length")
+    if declared and declared.isdigit() and int(declared) > MAX_IMPORT_BYTES:
+        raise HTTPException(status_code=413, detail="Import file is larger than 10 MB.")
+    raw = b""
+    async for chunk in request.stream():
+        raw += chunk
+        if len(raw) > MAX_IMPORT_BYTES:
+            raise HTTPException(status_code=413, detail="Import file is larger than 10 MB.")
+    try:
+        payload = json.loads(raw)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="The file is not valid JSON.")
+    from starlette.concurrency import run_in_threadpool
+    from app.services.importer import import_export
+    return await run_in_threadpool(import_export, db, current_user.id, payload)

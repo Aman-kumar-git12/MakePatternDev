@@ -94,6 +94,10 @@ def init_indexes(db: Database) -> None:
     db.share_snapshots.create_index("share_id", unique=True, name="unique_snapshot_share_id")
     db.share_snapshots.create_index([("user_id", 1), ("folder_id", 1)], name="snapshot_user_folder_idx")
     db.activity.create_index([("user_id", 1), ("at", 1)], name="activity_user_at_idx")
+    db.activity.create_index([("user_id", 1), ("client_id", 1)], name="activity_client_id_idx", sparse=True)
+    db.trash.create_index("id", unique=True, name="unique_trash_id_idx")
+    db.trash.create_index([("user_id", 1), ("deleted_at", -1)], name="trash_user_idx")
+    db.trash.create_index("expires_at", expireAfterSeconds=0, name="trash_ttl_idx")
 
 
 # ---------------------------------------------------------------------------

@@ -16,7 +16,9 @@ import {
   LayoutGrid,
   Tag,
 } from 'lucide-react';
-import type { QuestionListItem, QuestionStatus } from '../../types/dsa';
+import type { QuestionListItem, QuestionStatus, Folder, BulkActionRequest } from '../../types/dsa';
+import { useSelection } from '../../hooks/useSelection';
+import { BulkActionBar } from '../Common/BulkActionBar';
 
 interface AllQuestionsViewProps {
   questions: QuestionListItem[];
@@ -30,6 +32,10 @@ interface AllQuestionsViewProps {
   onRenameQuestion?: (questionId: string, currentTitle: string) => void;
   onMoveQuestion?: (questionId: string, questionTitle: string) => void;
   onDeleteQuestion?: (questionId: string, questionTitle: string) => void;
+  /** Enables multi-select + the bulk action bar when provided. */
+  onBulkAction?: (request: BulkActionRequest) => Promise<unknown>;
+  /** Folder tree for the bulk "Move to" picker. */
+  folders?: Folder[];
 }
 
 export const AllQuestionsView: React.FC<AllQuestionsViewProps> = ({
@@ -42,6 +48,8 @@ export const AllQuestionsView: React.FC<AllQuestionsViewProps> = ({
   initialStatus = 'all',
   sortBy = 'updated',
   onDeleteQuestion,
+  onBulkAction,
+  folders = [],
 }) => {
   const [search, setSearch] = useState('');
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>('all');
@@ -93,6 +101,45 @@ export const AllQuestionsView: React.FC<AllQuestionsViewProps> = ({
       });
   }, [questions, search, selectedDifficulty, selectedStatus, sortOption]);
 
+  const bulkEnabled = Boolean(onBulkAction);
+  const visibleIds = useMemo(() => filtered.map((q) => q.id), [filtered]);
+  const selection = useSelection(visibleIds);
+  const selectedTags = useMemo(() => {
+    const tags = new Set<string>();
+    filtered.forEach((q) => {
+      if (selection.selected.has(q.id)) q.tags.forEach((t) => tags.add(t));
+    });
+    return Array.from(tags).sort();
+  }, [filtered, selection.selected]);
+
+  const handleBulk = async (payload: Omit<BulkActionRequest, 'question_ids'>) => {
+    if (!onBulkAction || selection.count === 0) return;
+    await onBulkAction({ ...payload, question_ids: selection.selectedIds });
+    if (payload.action === 'delete') selection.clear();
+  };
+
+  const renderCheckbox = (q: QuestionListItem) =>
+    bulkEnabled ? (
+      <input
+        type="checkbox"
+        checked={selection.isSelected(q.id)}
+        onClick={(e) => {
+          e.stopPropagation();
+          selection.toggle(q.id, e.shiftKey);
+        }}
+        onChange={() => {}}
+        onKeyDown={(e) => {
+          if (e.key === ' ') {
+            e.preventDefault();
+            e.stopPropagation();
+            selection.toggle(q.id, e.shiftKey);
+          }
+        }}
+        className="w-4 h-4 shrink-0 cursor-pointer accent-[#fef08a]"
+        aria-label={`Select ${q.title}`}
+      />
+    ) : null;
+
   const difficultyColors = {
     Easy: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
     Medium: 'text-yellow-300 bg-[#fef08a]/15 border border-[#fef08a]/30',
@@ -113,7 +160,7 @@ export const AllQuestionsView: React.FC<AllQuestionsViewProps> = ({
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6 animate-fade-in font-sans">
+    <div className={`p-6 max-w-7xl mx-auto space-y-6 animate-fade-in font-sans ${selection.count > 0 ? 'pb-48 sm:pb-6' : ''}`}>
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#0D1527] border border-slate-800 rounded-2xl p-6 shadow-xl">
         <div className="flex items-center space-x-3">
@@ -224,7 +271,25 @@ export const AllQuestionsView: React.FC<AllQuestionsViewProps> = ({
         /* 1. LIST VIEW (Default) */
         <div className="bg-[#0D1527] border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
           <div className="p-4 border-b border-slate-800 flex items-center justify-between text-xs text-slate-400 bg-slate-900/40">
-            <span>Showing {filtered.length} questions</span>
+            <span className="flex items-center gap-3">
+              {bulkEnabled && filtered.length > 0 && (
+                <input
+                  type="checkbox"
+                  checked={selection.allSelected}
+                  ref={(el) => {
+                    if (el) el.indeterminate = selection.someSelected;
+                  }}
+                  onChange={selection.toggleAll}
+                  className="w-4 h-4 cursor-pointer accent-[#fef08a]"
+                  aria-label={selection.allSelected ? 'Deselect all visible questions' : 'Select all visible questions'}
+                  title="Select all (shift-click rows to select a range)"
+                />
+              )}
+              <span>
+                Showing {filtered.length} questions
+                {selection.count > 0 && <span className="text-yellow-300"> · {selection.count} selected</span>}
+              </span>
+            </span>
             {selectedStatus !== 'all' && (
               <button
                 onClick={() => setSelectedStatus('all')}
@@ -245,9 +310,11 @@ export const AllQuestionsView: React.FC<AllQuestionsViewProps> = ({
                 <div
                   key={q.id}
                   onClick={() => onSelectQuestion(q.id)}
+                  data-nav-id={q.id}
                   className="p-4 hover:bg-slate-800/40 cursor-pointer transition flex items-center justify-between group"
                 >
                   <div className="flex items-center space-x-3.5 min-w-0 pr-4">
+                    {renderCheckbox(q)}
                     <div className="flex-shrink-0" title={`Status: ${q.status}`}>
                       {renderStatusIcon(q.status)}
                     </div>
@@ -351,12 +418,16 @@ export const AllQuestionsView: React.FC<AllQuestionsViewProps> = ({
               <div
                 key={q.id}
                 onClick={() => onSelectQuestion(q.id)}
+                data-nav-id={q.id}
                 className="bg-[#0D1527] border border-slate-800 hover:border-blue-500/40 rounded-2xl p-5 shadow-lg shadow-black/20 hover:shadow-blue-500/5 cursor-pointer transition flex flex-col justify-between group"
               >
                 <div>
                   <div className="flex items-center justify-between mb-3">
-                    <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
-                      {q.status}
+                    <span className="flex items-center gap-2">
+                      {renderCheckbox(q)}
+                      <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
+                        {q.status}
+                      </span>
                     </span>
 
                     <div className="flex items-center space-x-1">
@@ -433,6 +504,16 @@ export const AllQuestionsView: React.FC<AllQuestionsViewProps> = ({
             ))
           )}
         </div>
+      )}
+
+      {bulkEnabled && (
+        <BulkActionBar
+          count={selection.count}
+          folders={folders}
+          selectedTags={selectedTags}
+          onAction={handleBulk}
+          onClear={selection.clear}
+        />
       )}
     </div>
   );

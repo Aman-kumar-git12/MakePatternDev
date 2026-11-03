@@ -266,7 +266,6 @@ def delete_questions_cascade(db: Database, question_ids: List[str]) -> None:
     db.solutions.delete_many({"question_id": {"$in": question_ids}})
     db.test_cases.delete_many({"question_id": {"$in": question_ids}})
     db.bookmarks.delete_many({"question_id": {"$in": question_ids}})
-    db.activity.delete_many({"question_id": {"$in": question_ids}})
     db.questions.delete_many({"id": {"$in": question_ids}})
 
 
@@ -302,4 +301,5 @@ def delete_user_cascade(db: Database, user_id: str) -> None:
     db.bookmarks.delete_many({"user_id": user_id})
     db.activity.delete_many({"user_id": user_id})
     db.share_snapshots.delete_many({"user_id": user_id})
+    db.trash.delete_many({"user_id": user_id})
     db.users.delete_many({"$or": [{"id": user_id}, {"_id": user_id}]})

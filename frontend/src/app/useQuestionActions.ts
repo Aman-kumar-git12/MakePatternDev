@@ -8,16 +8,21 @@ import type {
   QuestionStatus,
   SupportedLanguage,
   Solution,
+  BulkActionRequest,
+  BulkActionResult,
 } from '../types/dsa';
+import { pushToast, pushUndoToast } from '../hooks/useUndoToasts';
 import type { AppData } from './useAppData';
 import type { ModalState } from './useModalState';
 import type { ActiveQuestionState } from './useActiveQuestion';
+
+const truncate = (s: string, n = 40) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 
 /** Question-level actions: bookmarks, revision flag, create/save/rename/move/delete, solutions. */
 export function useQuestionActions(data: AppData, modals: ModalState, active: ActiveQuestionState) {
   const navigate = useNavigate();
   const { setFolders, setQuestions, setSummary, setActivityKey, refreshReviews, loadInitialData, refreshData } = data;
-  const { setIsImportModalOpen, setRenameData, setMoveData, setDeleteData } = modals;
+  const { setIsImportModalOpen, setRenameData, setMoveData } = modals;
   const { activeQuestion, setActiveQuestion } = active;
   // Latest save sequence per question; older responses are ignored (out-of-order protection).
   const saveSeqRef = useRef<Record<string, number>>({});
@@ -208,27 +213,54 @@ export function useQuestionActions(data: AppData, modals: ModalState, active: Ac
     });
   };
 
-  const handleDeleteQuestion = (questionId: string, questionTitle: string) => {
-    setDeleteData({
-      title: `Delete question "${questionTitle}"?`,
-      message: 'This will permanently remove this question along with all its code solutions, step-by-step notes, complexity estimates, and test cases.',
-      itemType: 'question',
-      onConfirm: async () => {
-        await api.deleteQuestion(questionId);
-        const [updatedTree, updatedSummary, updatedQuestions] = await Promise.all([
-          api.getFolderTree(),
-          api.getProgressSummary(),
-          api.listQuestions(),
-        ]);
-        setFolders(updatedTree);
-        setSummary(updatedSummary);
-        setQuestions(updatedQuestions);
-        if (activeQuestion && activeQuestion.id === questionId) {
-          setActiveQuestion(null);
-          navigate('/');
-        }
-      },
-    });
+  /**
+   * Soft delete with undo: no confirm dialog — the question goes to the trash and a 10-second
+   * "Undo" toast restores it (it also stays restorable from the Trash view for 30 days).
+   */
+  const handleDeleteQuestion = async (questionId: string, questionTitle: string) => {
+    // Optimistically hide it so the UI reacts instantly.
+    setQuestions((prev) => prev.filter((q) => q.id !== questionId));
+    const wasActive = activeQuestion?.id === questionId;
+    if (wasActive) {
+      setActiveQuestion(null);
+      navigate('/');
+    }
+    try {
+      const res = await api.deleteQuestion(questionId);
+      pushUndoToast(`Deleted “${truncate(questionTitle)}”`, async () => {
+        await api.restoreTrashItem(res.trash_id);
+        await refreshData();
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Delete failed';
+      pushToast({ message: msg, tone: 'error' });
+    }
+    await refreshData();
+  };
+
+  /** Apply one action to many selected questions; deletes get an undo toast. */
+  const handleBulkAction = async (request: BulkActionRequest): Promise<BulkActionResult> => {
+    const res = await api.bulkQuestions(request);
+    const n = request.question_ids.length;
+    const label = `${n} question${n === 1 ? '' : 's'}`;
+    if (request.action === 'delete') {
+      if (activeQuestion && request.question_ids.includes(activeQuestion.id)) setActiveQuestion(null);
+      const trashId = res.trash_id;
+      if (trashId) {
+        pushUndoToast(`Deleted ${label}`, async () => {
+          await api.restoreTrashItem(trashId);
+          await refreshData();
+        });
+      }
+    } else {
+      pushToast({ message: `Updated ${res.updated} of ${label}`, tone: 'success', duration: 3000 });
+      // Keep an open workspace in sync with server-side changes.
+      if (activeQuestion && request.question_ids.includes(activeQuestion.id)) {
+        api.getQuestion(activeQuestion.id).then(setActiveQuestion).catch(() => {});
+      }
+    }
+    await refreshData();
+    return res;
   };
 
   // Solutions Operations
@@ -271,6 +303,7 @@ export function useQuestionActions(data: AppData, modals: ModalState, active: Ac
     handleRenameQuestion,
     handleMoveQuestion,
     handleDeleteQuestion,
+    handleBulkAction,
     handleAddSolution,
     handleUpdateSolution,
     handleDeleteSolution,

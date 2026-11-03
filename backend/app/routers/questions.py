@@ -4,11 +4,13 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pymongo.database import Database
 
-from app.db import get_db, now_iso
+from app.db import get_db, new_id, now_iso, parse_tags
 from app.routers.auth import CurrentUser, get_current_user
 from app.schemas.folder import ReorderItem
 from app.schemas.question import (
     AttemptLog,
+    BulkAction,
+    BulkActionResponse,
     Difficulty,
     QuestionCreate,
     QuestionListItem,
@@ -30,6 +32,7 @@ from app.services.repo import (
     to_response,
 )
 from app.services.tracking import record_activity, status_change_updates
+from app.services.trash import trash_questions
 
 router = APIRouter(prefix="/questions", tags=["questions"])
 
@@ -153,6 +156,53 @@ def create_question(q_in: QuestionCreate, db: Database = Depends(get_db), curren
     return to_response(db, doc, current_user.id)
 
 
+@router.post("/bulk", response_model=BulkActionResponse)
+def bulk_action(body: BulkAction, db: Database = Depends(get_db), current_user: CurrentUser = Depends(get_current_user)):
+    uid = current_user.id
+    owned = list(db.questions.find({"user_id": uid, "id": {"$in": list(dict.fromkeys(body.question_ids))}}, {"_id": 0}))
+    ids = [q["id"] for q in owned]
+    now = now_iso()
+    if not ids:
+        raise HTTPException(status_code=404, detail="None of the selected questions were found")
+    a = body.action
+    if a == "delete":
+        return BulkActionResponse(action=a, updated=len(ids), trash_id=trash_questions(db, uid, ids))
+    if a == "move":
+        target = _resolve_folder(db, uid, body.folder_id)
+        start = next_position(db, "questions", {"user_id": uid, "folder_id": target})
+        for i, qid in enumerate(ids):
+            db.questions.update_one({"id": qid, "user_id": uid}, {"$set": {"folder_id": target, "position": start + i, "updated_at": now}})
+    elif a == "set_status":
+        if not body.status:
+            raise HTTPException(status_code=422, detail="status is required")
+        for q in owned:
+            updates: Dict[str, Any] = {"updated_at": now}
+            apply_status(db, uid, q, body.status, updates)
+            db.questions.update_one({"id": q["id"], "user_id": uid}, {"$set": updates})
+    elif a == "set_difficulty":
+        if not body.difficulty:
+            raise HTTPException(status_code=422, detail="difficulty is required")
+        db.questions.update_many({"user_id": uid, "id": {"$in": ids}}, {"$set": {"difficulty": body.difficulty, "updated_at": now}})
+    elif a in ("add_tags", "remove_tags"):
+        if not body.tags:
+            raise HTTPException(status_code=422, detail="tags are required")
+        for q in owned:
+            tags = parse_tags(q.get("tags"))
+            if a == "add_tags":
+                tags = (tags + [t for t in body.tags if t not in tags])[:30]
+            else:
+                tags = [t for t in tags if t not in body.tags]
+            db.questions.update_one({"id": q["id"], "user_id": uid}, {"$set": {"tags": tags, "updated_at": now}})
+    elif a == "bookmark":
+        existing = bookmarked_ids(db, uid)
+        new = [{"id": new_id(), "user_id": uid, "question_id": qid, "created_at": now} for qid in ids if qid not in existing]
+        if new:
+            db.bookmarks.insert_many(new)
+    elif a == "unbookmark":
+        db.bookmarks.delete_many({"user_id": uid, "question_id": {"$in": ids}})
+    return BulkActionResponse(action=a, updated=len(ids))
+
+
 @router.post("/reorder")
 def reorder_questions(items: List[ReorderItem], db: Database = Depends(get_db), current_user: CurrentUser = Depends(get_current_user)):
     now = now_iso()
@@ -237,5 +287,5 @@ def delete_question(question_id: str, db: Database = Depends(get_db), current_us
     q = get_owned_question(db, current_user.id, question_id)
     if not q:
         raise HTTPException(status_code=404, detail="Question not found")
-    delete_questions_cascade(db, [question_id])
-    return {"message": "Question deleted successfully", "id": question_id}
+    trash_id = trash_questions(db, current_user.id, [question_id])
+    return {"message": "Question moved to trash", "id": question_id, "trash_id": trash_id}
