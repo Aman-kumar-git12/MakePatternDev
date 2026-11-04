@@ -135,11 +135,16 @@ export function parseInput(input: string): InputArg[] {
   });
 }
 
-/** Deep equality with float tolerance. */
+/**
+ * Deep equality. Integers must match exactly; a tolerance applies only when a float is involved
+ * (absolute 1e-5, or relative for large-magnitude floats), as LeetCode does for float answers.
+ */
 export function deepEqual(a: unknown, b: unknown, tol = 1e-5): boolean {
   if (typeof a === 'number' && typeof b === 'number') {
     if (Number.isNaN(a) && Number.isNaN(b)) return true;
-    return Math.abs(a - b) <= tol * Math.max(1, Math.abs(a), Math.abs(b));
+    if (Number.isInteger(a) && Number.isInteger(b)) return a === b;
+    const diff = Math.abs(a - b);
+    return diff <= tol || diff <= tol * Math.max(Math.abs(a), Math.abs(b)) * 1e-4;
   }
   if (Array.isArray(a) && Array.isArray(b)) {
     return a.length === b.length && a.every((x, i) => deepEqual(x, b[i], tol));
@@ -229,9 +234,7 @@ function parseParams(list: string): string[] {
 
 /** Find the entry function of LeetCode-style JS code, preferring the last JSDoc'd top-level function. */
 export function detectJsSignature(code: string): JsSignature | { design: true } | null {
-  if (/\.prototype\.[A-Za-z_$][\w$]*\s*=\s*function/.test(code) || /^\s*class\s+(?!ListNode\b|TreeNode\b)\w+/m.test(code)) {
-    return { design: true };
-  }
+  const hasClass = /^\s*class\s+(?!ListNode\b|TreeNode\b)\w+/m.test(code);
   const found: { name: string; params: string[]; index: number }[] = [];
   for (const re of JS_FN_PATTERNS) {
     re.lastIndex = 0;
@@ -240,7 +243,7 @@ export function detectJsSignature(code: string): JsSignature | { design: true } 
       if (!HELPER_NAMES.has(m[1])) found.push({ name: m[1], params: parseParams(m[2]), index: m.index });
     }
   }
-  if (found.length === 0) return null;
+  if (found.length === 0) return hasClass ? { design: true } : null;
   // Top-level functions only: those not nested inside braces.
   const depthAt = (idx: number) => {
     let d = 0;
@@ -251,7 +254,16 @@ export function detectJsSignature(code: string): JsSignature | { design: true } 
     return d;
   };
   const top = found.filter((f) => depthAt(f.index) === 0).sort((a, b) => a.index - b.index);
-  const pick = (top.length ? top : found)[0];
+  // A design problem: methods attached to a constructor (`MinStack.prototype.push = function`).
+  // A helper class (heap, trie, DSU) next to a plain solution function is NOT a design problem.
+  const ctorNames = new Set([...code.matchAll(/([A-Za-z_$][\w$]*)\.prototype\.[A-Za-z_$][\w$]*\s*=\s*function/g)].map((m) => m[1]));
+  const entries = top.filter((f) => !ctorNames.has(f.name));
+  if (ctorNames.size && entries.length === 0) return { design: true };
+  const candidates = entries.length ? entries : top.length ? top : found;
+  // LeetCode's template puts a JSDoc @param/@return block right above the entry point; helpers
+  // (gcd, dfs…) usually don't have one. Otherwise take the last top-level function.
+  const docAbove = (idx: number) => /\/\*\*(?:(?!\*\/)[\s\S])*@(?:param|returns?)\b(?:(?!\*\/)[\s\S])*\*\/\s*$/.test(code.slice(0, idx));
+  const pick = candidates.find((f) => docAbove(f.index)) ?? candidates[candidates.length - 1];
 
   // JSDoc block immediately before the function.
   const before = code.slice(0, pick.index);

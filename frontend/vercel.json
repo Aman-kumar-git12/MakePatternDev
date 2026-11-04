@@ -21,7 +21,7 @@
   ],
   "rewrites": [
     {
-      "source": "/((?!sw\\.js|manifest\\.webmanifest|icons/).*)",
+      "source": "/((?!sw\\.js|manifest\\.webmanifest|icons/|assets/).*)",
       "destination": "/index.html"
     }
   ]

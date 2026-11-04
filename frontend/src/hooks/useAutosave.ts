@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../services/api';
+import { registerPendingWrites } from '../services/pendingWrites';
 
 export type SaveStatus = 'saved' | 'saving' | 'unsaved' | 'error';
 
@@ -11,13 +12,13 @@ interface Pending<T> {
 /**
  * Debounced, field-merging, serialized autosave.
  *
- * - Edits to different fields within the debounce window are merged into one
- *   payload (previously only the last field edited was sent, dropping the rest).
- * - Saves for the same entity are serialized, so an older request can never land
- *   on the server after a newer one.
- * - `flush()` sends whatever is pending immediately; it runs automatically on
- *   unmount, and on `pagehide` / tab hide it is sent with `fetch keepalive` so a
- *   tab close doesn't lose the last ~second of typing.
+ * - Edits to different fields within the debounce window are merged into one payload.
+ * - Saves for the same entity are serialized, so an older request can never land on the
+ *   server after a newer one.
+ * - If a save fails, only fields that no later save has taken are re-queued, so a failure
+ *   can never resurrect older text over newer text.
+ * - `flush()` sends whatever is pending immediately; it runs on unmount and when the tab is
+ *   hidden. On `pagehide` (tab close) the edits go out with `fetch keepalive`.
  */
 export function useAutosave<T>(
   save: (id: string, updates: Partial<T>) => Promise<unknown>,
@@ -31,6 +32,9 @@ export function useAutosave<T>(
   const saveRef = useRef(save);
   const endpointRef = useRef(keepaliveEndpoint);
   const mountedRef = useRef(true);
+  /** Monotonic flush counter, and the latest flush that took each `${id}:${field}`. */
+  const seqRef = useRef(0);
+  const takenRef = useRef(new Map<string, number>());
 
   useEffect(() => {
     saveRef.current = save;
@@ -50,6 +54,10 @@ export function useAutosave<T>(
     if (!pending) return chainRef.current;
     pendingRef.current = null;
 
+    const seq = ++seqRef.current;
+    const fields = Object.keys(pending.updates);
+    for (const f of fields) takenRef.current.set(`${pending.id}:${f}`, seq);
+
     setStatusSafe('saving');
     const next = chainRef.current
       .catch(() => undefined)
@@ -59,15 +67,28 @@ export function useAutosave<T>(
       })
       .catch((err) => {
         console.error('Autosave failed:', err);
-        // Re-queue the failed fields underneath any newer edits so they are retried on the next flush.
+        // Re-queue only the fields no later flush has taken (those carry newer values), and
+        // never over newer edits that are still waiting.
         const newer = pendingRef.current;
-        if (!newer || newer.id === pending.id) {
+        if (newer && newer.id !== pending.id) {
+          setStatusSafe('error');
+          return;
+        }
+        const retry: Record<string, unknown> = {};
+        const src = pending.updates as Record<string, unknown>;
+        for (const f of fields) {
+          const stillOurs = takenRef.current.get(`${pending.id}:${f}`) === seq;
+          const hasNewer = newer ? f in (newer.updates as Record<string, unknown>) : false;
+          if (stillOurs && !hasNewer) retry[f] = src[f];
+        }
+        if (Object.keys(retry).length || newer) {
           pendingRef.current = {
             id: pending.id,
-            updates: { ...pending.updates, ...(newer?.updates || {}) },
+            updates: { ...(retry as Partial<T>), ...(newer?.updates || {}) },
           };
+          setStatusSafe('error');
         }
-        setStatusSafe('error');
+        // Otherwise a later save already carries newer values for every field; its result decides the status.
       });
     chainRef.current = next;
     return next;
@@ -92,9 +113,13 @@ export function useAutosave<T>(
     [delayMs, flush]
   );
 
-  // Unload / background flush using keepalive so the request outlives the page.
   useEffect(() => {
-    const flushOnLeave = () => {
+    // Tab hidden: the page is still alive, so use the normal ordered save (with retry on failure).
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') void flush();
+    };
+    // Tab closing: the page is going away, so only a keepalive request can still be delivered.
+    const flushOnUnload = () => {
       const pending = pendingRef.current;
       if (!pending) return;
       if (timerRef.current) {
@@ -104,23 +129,22 @@ export function useAutosave<T>(
       pendingRef.current = null;
       api.flushKeepalive(endpointRef.current(pending.id), pending.updates);
     };
-    const onVisibility = () => {
-      if (document.visibilityState === 'hidden') flushOnLeave();
-    };
-    window.addEventListener('pagehide', flushOnLeave);
-    window.addEventListener('beforeunload', flushOnLeave);
     document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('pagehide', flushOnUnload);
+    window.addEventListener('beforeunload', flushOnUnload);
     return () => {
-      window.removeEventListener('pagehide', flushOnLeave);
-      window.removeEventListener('beforeunload', flushOnLeave);
       document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('pagehide', flushOnUnload);
+      window.removeEventListener('beforeunload', flushOnUnload);
     };
-  }, []);
+  }, [flush]);
 
-  // Flush on unmount (navigating away from the workspace, switching tabs, etc.).
+  // Register for logout, and flush on unmount (navigating away from the workspace, etc.).
   useEffect(() => {
     mountedRef.current = true;
+    const unregister = registerPendingWrites(flush);
     return () => {
+      unregister();
       mountedRef.current = false;
       void flush();
     };

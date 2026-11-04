@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import type { QuestionListItem, Difficulty } from '../../types/dsa';
 import { api } from '../../services/api';
+import { asButton } from '../Common/asButton';
 
 interface RevisionViewProps {
   questions: QuestionListItem[];
@@ -38,6 +39,9 @@ export const RevisionView: React.FC<RevisionViewProps> = ({
   const [isRandomModalOpen, setIsRandomModalOpen] = useState(false);
   const [randomCount, setRandomCount] = useState<number>(3);
   const [randomSource, setRandomSource] = useState<'all' | 'not_revised' | 'revision'>('all');
+  // The source of the set on screen, kept apart from the modal's draft choice (a cancelled
+  // modal used to relabel the banner and change what Reroll drew from).
+  const [appliedSource, setAppliedSource] = useState<'all' | 'not_revised' | 'revision'>('all');
   const [isLoadingRandom, setIsLoadingRandom] = useState(false);
   const [randomQuestions, setRandomQuestions] = useState<QuestionListItem[] | null>(null);
   const [randomError, setRandomError] = useState<string | null>(null);
@@ -118,26 +122,28 @@ export const RevisionView: React.FC<RevisionViewProps> = ({
     }
   };
 
-  const handleFindRandomQuestions = async () => {
+  const handleFindRandomQuestions = async (sourceOverride?: 'all' | 'not_revised' | 'revision') => {
+    const source = sourceOverride ?? randomSource;
     setIsLoadingRandom(true);
     setRandomError(null);
     try {
       const res = await api.getRandomQuestions({
         count: randomCount,
-        pool: randomSource,
-        only_revision: randomSource === 'revision',
+        pool: source,
+        only_revision: source === 'revision',
       });
       if (!res || res.length === 0) {
         setRandomError(
-          randomSource === 'revision'
+          source === 'revision'
             ? 'No questions found in Revision Queue. Flag questions for revision first, or choose "All Questions".'
-            : randomSource === 'not_revised'
+            : source === 'not_revised'
             ? 'No unrevised questions found. All questions are currently in the Revision Queue.'
             : 'No questions available in the tracker.'
         );
         return;
       }
       setRandomQuestions(res);
+      setAppliedSource(source);
       setIsRandomModalOpen(false);
       showToast(`Selected ${res.length} random question${res.length > 1 ? 's' : ''}`);
     } catch (err: any) {
@@ -212,7 +218,7 @@ export const RevisionView: React.FC<RevisionViewProps> = ({
           <button
             onClick={() => {
               setRandomCount(Math.min(5, Math.max(1, totalCount > 0 ? Math.min(totalCount, 5) : 3)));
-              setRandomSource('all');
+              setRandomSource(randomQuestions ? appliedSource : 'all');
               setRandomError(null);
               setIsRandomModalOpen(true);
             }}
@@ -248,9 +254,9 @@ export const RevisionView: React.FC<RevisionViewProps> = ({
                   {randomQuestions.length} Questions
                 </span>
                 <span className="text-xs text-slate-400 font-normal">
-                  ({randomSource === 'all'
+                  ({appliedSource === 'all'
                     ? 'from All Questions'
-                    : randomSource === 'not_revised'
+                    : appliedSource === 'not_revised'
                     ? 'from Not Revised Questions'
                     : 'from Revision Queue'})
                 </span>
@@ -262,7 +268,7 @@ export const RevisionView: React.FC<RevisionViewProps> = ({
           </div>
           <div className="flex items-center space-x-2 shrink-0">
             <button
-              onClick={handleFindRandomQuestions}
+              onClick={() => void handleFindRandomQuestions(appliedSource)}
               disabled={isLoadingRandom}
               className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/30 text-xs font-semibold transition active:scale-95 disabled:opacity-50 cursor-pointer"
             >
@@ -367,8 +373,9 @@ export const RevisionView: React.FC<RevisionViewProps> = ({
           return (
             <div
               key={q.id}
-              onClick={() => onSelectQuestion(q.id)}
-              className={`p-3.5 sm:p-4 rounded-2xl bg-[#0D1527] border transition-all duration-150 flex items-center justify-between gap-3 group cursor-pointer ${
+              data-nav-id={q.id}
+              {...asButton(() => onSelectQuestion(q.id))}
+              className={`focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 p-3.5 sm:p-4 rounded-2xl bg-[#0D1527] border transition-all duration-150 flex items-center justify-between gap-3 group cursor-pointer ${
                 isRevision
                   ? 'border-amber-500/40 bg-amber-950/[0.08] shadow-[0_0_15px_rgba(245,158,11,0.06)]'
                   : 'border-slate-800/80 hover:border-slate-700 hover:bg-[#10182C]'
@@ -655,7 +662,7 @@ export const RevisionView: React.FC<RevisionViewProps> = ({
               <button
                 type="button"
                 disabled={isLoadingRandom}
-                onClick={handleFindRandomQuestions}
+                onClick={() => void handleFindRandomQuestions()}
                 className="flex items-center space-x-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-zinc-950 font-bold text-xs sm:text-sm shadow-lg shadow-amber-500/25 active:scale-95 disabled:opacity-50 transition cursor-pointer"
               >
                 {isLoadingRandom ? (

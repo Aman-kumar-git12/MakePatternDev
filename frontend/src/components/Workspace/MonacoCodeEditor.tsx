@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAutosave } from '../../hooks/useAutosave';
 import Editor from '@monaco-editor/react';
 import {
@@ -24,6 +24,7 @@ import { api } from '../../services/api';
 import { useTheme } from '../../context/ThemeContext';
 import { usePreferences } from '../../context/usePreferences';
 import { resolveEditorTheme } from '../../context/preferencesCore';
+import { asButton } from '../Common/asButton';
 
 interface MonacoCodeEditorProps {
   solutions: Solution[];
@@ -35,7 +36,7 @@ interface MonacoCodeEditorProps {
     code?: string,
     solutionType?: string,
     explanation?: string
-  ) => void;
+  ) => void | Promise<void>;
   onUpdateSolution: (id: string, updates: Partial<Solution>) => void;
   onDeleteSolution: (id: string) => void;
   /** Saved test cases, used by the Run panel. */
@@ -111,6 +112,8 @@ export const MonacoCodeEditor: React.FC<MonacoCodeEditorProps> = ({
   const editorTheme = resolveEditorTheme(prefs, isDark);
   const [activeSolutionId, setActiveSolutionId] = useState<string>(solutions[0]?.id || '');
   const [copied, setCopied] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const addingRef = useRef(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isEditingComplexity, setIsEditingComplexity] = useState(false);
   const [complexitySavedToast, setComplexitySavedToast] = useState(false);
@@ -277,22 +280,29 @@ export const MonacoCodeEditor: React.FC<MonacoCodeEditorProps> = ({
     }
   };
 
-  const handleCreateDefaultSolution = (approachType: 'Brute Force' | 'Better Approach' | 'Optimized Approach') => {
-    // Strictly max 3 solutions allowed
-    if (solutions.length >= 3) return;
+  const handleCreateDefaultSolution = async (approachType: 'Brute Force' | 'Better Approach' | 'Optimized Approach') => {
+    // Strictly max 3 solutions allowed; one create at a time so double clicks can't exceed it.
+    if (solutions.length >= 3 || addingRef.current) return;
+    addingRef.current = true;
+    setAdding(true);
 
     const defaultLang: SupportedLanguage = activeSolution ? activeSolution.language : 'python';
 
     // In every case, new solution code starts empty, and time complexity starts empty
-    onAddSolution(
-      approachType,
-      defaultLang,
-      '', // Time complexity starts empty
-      'O(1)',
-      '', // Code starts completely empty
-      approachType,
-      ''
-    );
+    try {
+      await onAddSolution(
+        approachType,
+        defaultLang,
+        '', // Time complexity starts empty
+        'O(1)',
+        '', // Code starts completely empty
+        approachType,
+        ''
+      );
+    } finally {
+      addingRef.current = false;
+      setAdding(false);
+    }
   };
 
   const handleExecuteDelete = () => {
@@ -333,7 +343,7 @@ export const MonacoCodeEditor: React.FC<MonacoCodeEditorProps> = ({
             return (
               <div
                 key={sol.id}
-                onClick={() => setActiveSolutionId(sol.id)}
+                {...asButton(() => setActiveSolutionId(sol.id))}
                 className={`flex items-center space-x-2 px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer transition flex-shrink-0 group ${
                   isActive
                     ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
@@ -368,7 +378,8 @@ export const MonacoCodeEditor: React.FC<MonacoCodeEditorProps> = ({
           {/* Quick preset add buttons only if solutions.length < 3 */}
           {solutions.length < 3 && !hasBrute && (
             <button
-              onClick={() => handleCreateDefaultSolution('Brute Force')}
+              disabled={adding}
+              onClick={() => void handleCreateDefaultSolution('Brute Force')}
               className="flex items-center space-x-1 px-2.5 py-1 rounded-xl text-xs border border-dashed border-slate-700 hover:border-slate-500 text-slate-400 hover:text-white transition flex-shrink-0"
               title="Add Brute Force solution"
             >
@@ -379,7 +390,8 @@ export const MonacoCodeEditor: React.FC<MonacoCodeEditorProps> = ({
 
           {solutions.length < 3 && !hasBetter && (
             <button
-              onClick={() => handleCreateDefaultSolution('Better Approach')}
+              disabled={adding}
+              onClick={() => void handleCreateDefaultSolution('Better Approach')}
               className="flex items-center space-x-1 px-2.5 py-1 rounded-xl text-xs border border-dashed border-slate-700 hover:border-slate-500 text-slate-400 hover:text-white transition flex-shrink-0"
               title="Add Better Approach solution"
             >
@@ -390,7 +402,8 @@ export const MonacoCodeEditor: React.FC<MonacoCodeEditorProps> = ({
 
           {solutions.length < 3 && !hasOptimized && (
             <button
-              onClick={() => handleCreateDefaultSolution('Optimized Approach')}
+              disabled={adding}
+              onClick={() => void handleCreateDefaultSolution('Optimized Approach')}
               className="flex items-center space-x-1 px-2.5 py-1 rounded-xl text-xs border border-dashed border-slate-700 hover:border-slate-500 text-slate-400 hover:text-white transition flex-shrink-0"
               title="Add Optimized solution"
             >
@@ -426,13 +439,16 @@ export const MonacoCodeEditor: React.FC<MonacoCodeEditorProps> = ({
               value={activeSolution.language}
               onChange={(e) => {
                 const newLang = e.target.value as SupportedLanguage;
-                // Automatically switch boilerplate to new language template
                 const newBoilerplate = STARTER_CODES[newLang] || '';
-                setCode(newBoilerplate);
-                queue(activeSolution.id, {
-                  language: newLang,
-                  code: newBoilerplate,
-                });
+                const oldTemplate = STARTER_CODES[activeSolution.language] || '';
+                // Only swap in the new template when there's nothing of the user's to lose;
+                // otherwise ask, and keep the code if they decline (e.g. fixing a mislabelled language).
+                const untouched = !code.trim() || code.trim() === oldTemplate.trim();
+                const replace =
+                  untouched ||
+                  window.confirm(`Replace your code with the ${newLang} starter template?\n\nOK = replace (your current code is discarded)\nCancel = keep your code and just change the language`);
+                if (replace) setCode(newBoilerplate);
+                queue(activeSolution.id, replace ? { language: newLang, code: newBoilerplate } : { language: newLang });
                 void flush();
               }}
               className="bg-[#0A0F1D] text-slate-200 border border-slate-700 rounded-lg px-2.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer font-mono"
@@ -447,6 +463,7 @@ export const MonacoCodeEditor: React.FC<MonacoCodeEditorProps> = ({
             <button
               type="button"
               onClick={() => {
+                if (code.trim() && !window.confirm('Clear all code in this solution? This cannot be undone.')) return;
                 setCode('');
                 queue(activeSolution.id, { code: '' });
                 void flush();
@@ -794,7 +811,8 @@ export const MonacoCodeEditor: React.FC<MonacoCodeEditorProps> = ({
           </div>
 
           {/* Run against saved test cases / custom input */}
-          <RunPanel code={code} language={activeSolution.language} testCases={testCases} />
+          {/* Keyed by solution: results from another solution/question must not stay on screen. */}
+          <RunPanel key={activeSolution.id} code={code} language={activeSolution.language} testCases={testCases} />
 
           {/* 3. Solution Explanation / Notes (Beneath Code Editor) */}
           <div className="bg-[#0A0F1D] border border-slate-800 rounded-xl p-3.5 space-y-2 shadow-sm">

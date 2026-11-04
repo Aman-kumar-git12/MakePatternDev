@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Play, Loader2, CheckCircle2, XCircle, AlertTriangle, Clock, Terminal, ChevronDown, ChevronRight, Info } from 'lucide-react';
 import type { RunConfig, SupportedLanguage, TestCase } from '../../types/dsa';
 import { api } from '../../services/api';
-import { runTests, supportsInBrowser, type CaseResult, type RunSummary } from '../../runner';
+import { cancelRuns, runTests, supportsInBrowser, type CaseResult, type RunSummary } from '../../runner';
 
 let configPromise: Promise<RunConfig> | null = null;
 function loadRunConfig(): Promise<RunConfig> {
@@ -98,6 +98,7 @@ export const RunPanel: React.FC<RunPanelProps> = ({ code, language, testCases, l
     loadRunConfig().then((c) => mounted.current && setConfig(c));
     return () => {
       mounted.current = false;
+      cancelRuns(); // a run from a panel that's gone must not keep using the shared worker
     };
   }, []);
 

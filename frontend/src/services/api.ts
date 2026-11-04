@@ -70,6 +70,16 @@ export function isNetworkError(err: unknown): boolean {
   return err instanceof ApiError ? err.status === 0 : err instanceof TypeError;
 }
 
+/**
+ * The backend treats a missing/null field as "unchanged" and "" as "clear". Callers naturally
+ * write `null` to mean "clear", so translate it for the fields where clearing is meaningful.
+ */
+function nullMeansClear<T extends Record<string, unknown>>(updates: T, fields: string[]): T {
+  const out: Record<string, unknown> = { ...updates };
+  for (const f of fields) if (f in out && out[f] === null) out[f] = '';
+  return out as T;
+}
+
 export class ApiError extends Error {
   status: number;
   data: unknown;
@@ -164,7 +174,10 @@ class ApiService {
 
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const headers = this.buildHeaders(options.headers as Record<string, string> | undefined);
-    const sentWithToken = Boolean(this.token);
+    const sentToken = this.token;
+    const method = (options.method || 'GET').toUpperCase();
+    // Only retry requests that are safe to repeat: a POST may already have been applied.
+    const retryable = method === 'GET' || method === 'HEAD' || method === 'PUT';
 
     let res: Response;
     try {
@@ -174,7 +187,7 @@ class ApiService {
       });
     } catch (networkErr: unknown) {
       // If transient connection issue occurred (e.g. backend reloaded/restarting), retry once after a short delay
-      if (networkErr instanceof TypeError) {
+      if (networkErr instanceof TypeError && retryable) {
         try {
           await new Promise((resolve) => setTimeout(resolve, 500));
           res = await fetch(`${API_BASE_URL}${endpoint}`, {
@@ -188,6 +201,12 @@ class ApiService {
             null
           );
         }
+      } else if (networkErr instanceof TypeError) {
+        throw new ApiError(
+          'Server connection failed. Please check your connection and try again.',
+          0,
+          null
+        );
       } else {
         const message = networkErr instanceof Error ? networkErr.message : 'Network error occurred';
         throw new ApiError(message, 0, null);
@@ -269,7 +288,17 @@ class ApiService {
       }
 
       // An authenticated request rejected with 401 means the session expired or was revoked.
-      if (res.status === 401 && sentWithToken && !endpoint.startsWith('/auth/login') && this.unauthorizedHandler) {
+      // Password checks (change password, delete account) are not session failures, and a 401 for a
+      // token that has since been replaced (e.g. after a password change) must not sign out the new one.
+      const passwordCheck = endpoint.startsWith('/auth/change-password') || endpoint.startsWith('/auth/delete-account');
+      if (
+        res.status === 401 &&
+        sentToken &&
+        sentToken === this.token &&
+        !endpoint.startsWith('/auth/login') &&
+        !passwordCheck &&
+        this.unauthorizedHandler
+      ) {
         this.unauthorizedHandler();
       }
 
@@ -314,7 +343,7 @@ class ApiService {
   ): Promise<Folder> {
     return this.request<Folder>(`/folders/${folderId}`, {
       method: 'PUT',
-      body: JSON.stringify(updates),
+      body: JSON.stringify(nullMeansClear(updates, ['parent_id'])),
     });
   }
 
@@ -386,7 +415,7 @@ class ApiService {
   async updateQuestion(id: string, updates: Partial<Question>): Promise<Question> {
     return this.request<Question>(`/questions/${id}`, {
       method: 'PUT',
-      body: JSON.stringify(updates),
+      body: JSON.stringify(nullMeansClear(updates as Record<string, unknown>, ['folder_id'])),
     });
   }
 
@@ -638,7 +667,7 @@ class ApiService {
   async updateMe(updates: { full_name?: string; leetcode_username?: string | null }): Promise<User> {
     return this.request<User>('/auth/me', {
       method: 'PUT',
-      body: JSON.stringify(updates),
+      body: JSON.stringify(nullMeansClear(updates, ['leetcode_username'])),
     });
   }
 

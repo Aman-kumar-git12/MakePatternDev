@@ -58,6 +58,13 @@ export const CreateQuestionModal: React.FC<CreateQuestionModalProps> = ({
       } else {
         setSelectedFolderId('');
       }
+      // Start every opening fresh (the modal stays mounted between uses).
+      setTitle('');
+      setProblemUrl('');
+      setDifficulty('Medium');
+      setStatus('Not Started');
+      setError(null);
+      setIsSubmitting(false);
     }
   }, [isOpen, initialFolderId]);
 

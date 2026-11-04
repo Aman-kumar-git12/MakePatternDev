@@ -66,6 +66,13 @@ export function useFolderActions(data: AppData, modals: ModalState, active: Acti
     setQuestions(updatedQuestions);
   };
 
+  /** An optimistic reorder that failed to save: put the server's order back and say so. */
+  const revertReorder = (err: unknown) => {
+    console.error('Failed to save the new order:', err);
+    pushToast({ message: "Couldn't save the new order — it has been restored.", tone: 'error' });
+    void refreshData().catch(() => undefined);
+  };
+
   const handleReorderFolders = async (reorderedFolders: Folder[]) => {
     setFolders(reorderedFolders);
     try {
@@ -83,7 +90,7 @@ export function useFolderActions(data: AppData, modals: ModalState, active: Acti
       const freshTree = await api.getFolderTree();
       setFolders(freshTree);
     } catch (err) {
-      console.error('Failed to persist folder reordering:', err);
+      revertReorder(err);
     }
   };
 
@@ -96,7 +103,7 @@ export function useFolderActions(data: AppData, modals: ModalState, active: Acti
       const payload = reorderedQuestions.map((q, idx) => ({ id: q.id, position: idx }));
       await api.reorderQuestions(payload);
     } catch (err) {
-      console.error('Failed to persist question reordering:', err);
+      revertReorder(err);
     }
   };
 
@@ -137,7 +144,7 @@ export function useFolderActions(data: AppData, modals: ModalState, active: Acti
         questionPayload.length > 0 ? api.reorderQuestions(questionPayload) : Promise.resolve(),
       ]);
     } catch (err) {
-      console.error('Failed to persist interleaved children reordering:', err);
+      revertReorder(err);
     }
   };
 

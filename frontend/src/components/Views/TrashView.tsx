@@ -43,6 +43,8 @@ export const TrashView: React.FC<TrashViewProps> = ({ onDataChanged }) => {
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [confirmEmpty, setConfirmEmpty] = useState(false);
+  /** Item awaiting a second click to delete permanently (this can't be undone). */
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [emptying, setEmptying] = useState(false);
 
   const load = useCallback(async () => {
@@ -93,6 +95,7 @@ export const TrashView: React.FC<TrashViewProps> = ({ onDataChanged }) => {
   };
 
   const handleDeleteForever = async (item: TrashItem) => {
+    setConfirmDeleteId(null);
     setBusyId(item.id);
     try {
       await api.deleteTrashItem(item.id);
@@ -203,16 +206,35 @@ export const TrashView: React.FC<TrashViewProps> = ({ onDataChanged }) => {
                     {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
                     Restore
                   </button>
-                  <button
-                    type="button"
-                    className="mp-btn mp-btn-danger"
-                    onClick={() => handleDeleteForever(item)}
-                    disabled={busy}
-                    aria-label={`Delete ${item.title} forever`}
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">Delete forever</span>
-                  </button>
+                  {confirmDeleteId === item.id ? (
+                    <>
+                      <button
+                        type="button"
+                        className="mp-btn mp-btn-danger"
+                        onClick={() => handleDeleteForever(item)}
+                        disabled={busy}
+                        aria-label={`Confirm: delete ${item.title} forever`}
+                        autoFocus
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        Confirm
+                      </button>
+                      <button type="button" className="mp-btn" onClick={() => setConfirmDeleteId(null)} disabled={busy}>
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      className="mp-btn mp-btn-danger"
+                      onClick={() => setConfirmDeleteId(item.id)}
+                      disabled={busy}
+                      aria-label={`Delete ${item.title} forever`}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">Delete forever</span>
+                    </button>
+                  )}
                 </div>
               </li>
             );

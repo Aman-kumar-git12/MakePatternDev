@@ -12,6 +12,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import type { Folder, QuestionListItem, Difficulty, QuestionStatus } from '../../types/dsa';
+import { problemHref } from '../../utils/url';
 
 interface PatternTreeViewProps {
   folders: Folder[];
@@ -44,7 +45,7 @@ export const PatternTreeView: React.FC<PatternTreeViewProps> = ({
   const toggleFolder = (folderId: string) => {
     setExpandedFolders((prev) => ({
       ...prev,
-      [folderId]: !prev[folderId],
+      [folderId]: prev[folderId] === false,
     }));
   };
 
@@ -97,7 +98,8 @@ export const PatternTreeView: React.FC<PatternTreeViewProps> = ({
 
   // Helper to render tree nodes recursively
   const renderFolderNode = (folder: Folder, isRoot = false) => {
-    const isExpanded = !!expandedFolders[folder.id];
+    // Missing entry = expanded (folders load after mount, and new folders appear later).
+    const isExpanded = expandedFolders[folder.id] !== false;
     const folderQuestions = getQuestionsForFolder(folder.id);
     const subfolders = sortFolders(folder.subfolders || []);
     const hasChildren = subfolders.length > 0 || folderQuestions.length > 0;
@@ -202,7 +204,7 @@ export const PatternTreeView: React.FC<PatternTreeViewProps> = ({
             <div className="w-6 flex items-center justify-center shrink-0">
               {q.problem_url && q.problem_url.trim() ? (
                 <a
-                  href={q.problem_url.trim()}
+                  href={problemHref(q.problem_url)}
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={(e) => e.stopPropagation()}
@@ -280,7 +282,7 @@ export const PatternTreeView: React.FC<PatternTreeViewProps> = ({
                 e.stopPropagation();
                 onOpenNewQuestion(folder.id);
               }}
-              className="opacity-0 group-hover:opacity-100 p-1 rounded-lg transition"
+              className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus:opacity-100 pointer-coarse:opacity-100 p-1 rounded-lg transition"
               style={{ color: 'var(--text-tertiary)' }}
               title="Add Question to this topic"
             >
@@ -293,7 +295,7 @@ export const PatternTreeView: React.FC<PatternTreeViewProps> = ({
                   e.stopPropagation();
                   onDeleteFolder(folder.id, folder.name);
                 }}
-                className="opacity-0 group-hover:opacity-100 p-1 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition"
+                className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus:opacity-100 pointer-coarse:opacity-100 p-1 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition"
                 title={`Delete pattern "${folder.name}"`}
               >
                 <Trash2 className="w-3.5 h-3.5" />

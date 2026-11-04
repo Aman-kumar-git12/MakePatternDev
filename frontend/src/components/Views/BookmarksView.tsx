@@ -17,6 +17,7 @@ import {
 import type { QuestionListItem, Folder, BulkActionRequest } from '../../types/dsa';
 import { useSelection } from '../../hooks/useSelection';
 import { BulkActionBar } from '../Common/BulkActionBar';
+import { problemHref } from '../../utils/url';
 
 interface BookmarksViewProps {
   questions: QuestionListItem[];
@@ -298,7 +299,7 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
                   <div className="w-10 sm:w-7 flex items-center justify-center shrink-0">
                     {q.problem_url && q.problem_url.trim() ? (
                       <a
-                        href={q.problem_url.trim()}
+                        href={problemHref(q.problem_url)}
                         target="_blank"
                         rel="noreferrer"
                         onClick={(e) => e.stopPropagation()}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { X, ArrowRightLeft, AlertCircle } from 'lucide-react';
 import type { Folder } from '../../types/dsa';
 
@@ -24,6 +24,15 @@ export const MoveModal: React.FC<MoveModalProps> = ({
   const [targetId, setTargetId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // The modal stays mounted between uses: start every opening fresh.
+  useEffect(() => {
+    if (isOpen) {
+      setTargetId(null);
+      setErrorMsg(null);
+      setIsSubmitting(false);
+    }
+  }, [isOpen, itemId]);
 
   if (!isOpen) return null;
 

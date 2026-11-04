@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { asButton } from '../Common/asButton';
 import { Search, X, Folder, FileText, ChevronRight, Star } from 'lucide-react';
 import { api } from '../../services/api';
 import type { SearchResult } from '../../types/dsa';
@@ -34,19 +35,24 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
       return;
     }
 
+    // A response for an older query must not overwrite the current one's results.
+    let stale = false;
     const timer = setTimeout(async () => {
       try {
         setIsLoading(true);
         const res = await api.search(query.trim());
-        setResults(res);
+        if (!stale) setResults(res);
       } catch (err) {
         console.error(err);
       } finally {
-        setIsLoading(false);
+        if (!stale) setIsLoading(false);
       }
     }, 250);
 
-    return () => clearTimeout(timer);
+    return () => {
+      stale = true;
+      clearTimeout(timer);
+    };
   }, [query]);
 
   // Handle escape key
@@ -69,7 +75,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center p-2 pt-2 sm:p-4 sm:pt-20 bg-black/75 backdrop-blur-md animate-fade-in">
+    <div role="dialog" aria-modal="true" aria-label="Search" className="fixed inset-0 z-50 flex items-start justify-center p-2 pt-2 sm:p-4 sm:pt-20 bg-black/75 backdrop-blur-md animate-fade-in">
       <div className="bg-[#0D1527] border border-slate-700/80 rounded-2xl w-full max-w-2xl shadow-2xl relative text-slate-100 overflow-hidden">
         {/* Search Input Bar */}
         <div className="p-4 border-b border-slate-800 flex items-center space-x-3 bg-[#0A0F1D]">
@@ -79,6 +85,15 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              // Enter opens the top question; Tab then moves through the results.
+              const first = results?.questions[0];
+              if (e.key === 'Enter' && first) {
+                e.preventDefault();
+                onSelectQuestion(first.id);
+                onClose();
+              }
+            }}
             placeholder="Search questions, topics, notes, or folders... (Esc to close)"
             className="flex-1 bg-transparent text-sm text-white placeholder-slate-500 focus:outline-none"
           />
@@ -121,11 +136,11 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                     {results.questions.map((q) => (
                       <div
                         key={q.id}
-                        onClick={() => {
+                        {...asButton(() => {
                           onSelectQuestion(q.id);
                           onClose();
-                        }}
-                        className="p-3 rounded-xl bg-slate-900/60 hover:bg-blue-600/10 border border-slate-800/80 hover:border-blue-500/30 cursor-pointer transition flex items-center justify-between group"
+                        })}
+                        className="focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 p-3 rounded-xl bg-slate-900/60 hover:bg-blue-600/10 border border-slate-800/80 hover:border-blue-500/30 cursor-pointer transition flex items-center justify-between group"
                       >
                         <div className="flex items-center space-x-3 min-w-0">
                           <div className="p-2 rounded-lg bg-blue-500/10 text-blue-400 group-hover:bg-blue-600 group-hover:text-white transition">

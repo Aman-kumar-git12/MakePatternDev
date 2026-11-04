@@ -19,9 +19,10 @@ export const RenameModal: React.FC<RenameModalProps> = ({
   const [val, setVal] = useState(initialValue);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Reset on every opening, not only when initialValue changes (a cancelled edit lingered).
   useEffect(() => {
-    setVal(initialValue);
-  }, [initialValue]);
+    if (isOpen) setVal(initialValue);
+  }, [isOpen, initialValue]);
 
   if (!isOpen) return null;
 

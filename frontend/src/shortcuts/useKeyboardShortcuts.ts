@@ -115,7 +115,9 @@ export function useKeyboardShortcuts(handlers: ShortcutHandlers): void {
       if (!h.enabled) return;
       if (e.metaKey || e.ctrlKey || e.altKey) return; // Cmd/Ctrl+K is handled by the modal state hook
       if (isTypingTarget(e.target)) return;
-      if (document.querySelector('[role="dialog"][aria-modal="true"]')) return; // let open dialogs own the keyboard
+      // Let open dialogs own the keyboard. Most modals use the shared overlay class rather than
+      // aria-modal, so check both (otherwise `g d`, `n`, `b`… acted on the page underneath).
+      if (document.querySelector('[role="dialog"][aria-modal="true"], .mp-modal-overlay, [data-modal-open]')) return;
 
       const key = e.key;
 

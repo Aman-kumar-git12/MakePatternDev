@@ -113,9 +113,18 @@ export const QuestionWorkspace: React.FC<QuestionWorkspaceProps> = ({
     question.leetcode_slug || /leetcode\.(com|cn)\/problems\//i.test(question.problem_url || '')
   );
 
+  // The question currently on screen. A response for a question the user has since left must
+  // not be written into this one's editors (it would then autosave into the wrong question).
+  const currentIdRef = useRef(question.id);
+  currentIdRef.current = question.id;
+
   // Apply a fresh server copy to local editable state (only server-managed fields).
   const applyServerQuestion = useCallback(
     (updated: Question, fields: Array<keyof Question>) => {
+      if (updated.id !== currentIdRef.current) {
+        onQuestionUpdated?.(updated); // keep lists in sync, but leave the open editor alone
+        return;
+      }
       if (fields.includes('title')) setTitle(updated.title);
       if (fields.includes('difficulty')) setDifficulty(updated.difficulty);
       if (fields.includes('status')) setStatus(updated.status);
@@ -134,16 +143,23 @@ export const QuestionWorkspace: React.FC<QuestionWorkspaceProps> = ({
   const handleRefreshFromLeetCode = useCallback(async () => {
     setLcBusy(true);
     setLcError(null);
+    const requestedId = question.id;
     try {
       await flush();
-      const updated = await api.refreshFromLeetCode(question.id);
+      const updated = await api.refreshFromLeetCode(requestedId);
       applyServerQuestion(updated, ['title', 'difficulty', 'tags', 'problem_statement', 'problem_url', 'test_cases']);
     } catch (err) {
-      setLcError(err instanceof Error ? err.message : 'LeetCode fetch failed');
+      if (requestedId === currentIdRef.current) setLcError(err instanceof Error ? err.message : 'LeetCode fetch failed');
     } finally {
-      setLcBusy(false);
+      if (requestedId === currentIdRef.current) setLcBusy(false);
     }
   }, [applyServerQuestion, flush, question.id]);
+
+  // A refresh started for the previous question must not leave this one showing busy/error.
+  useEffect(() => {
+    setLcBusy(false);
+    setLcError(null);
+  }, [question.id]);
 
   // Auto-fetch the statement once for LeetCode questions that don't have one yet.
   useEffect(() => {
@@ -228,7 +244,9 @@ export const QuestionWorkspace: React.FC<QuestionWorkspaceProps> = ({
       solutionType,
       explanation
     );
-    setSolutions([...solutions, created]);
+    // Functional update: two quick adds must both appear (a stale `solutions` dropped one).
+    // Skip if the user has since switched to another question.
+    if (created && created.question_id === currentIdRef.current) setSolutions((prev) => [...prev, created]);
   };
 
   const handleUpdateSolution = async (id: string, updates: Partial<Solution>) => {

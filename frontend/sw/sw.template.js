@@ -62,7 +62,9 @@ async function cacheFirstAsset(request) {
   const cached = await caches.match(request);
   if (cached) return cached;
   const res = await fetch(request);
-  if (res.ok) {
+  // Never cache an HTML fallback under a .js/.css URL (a missing old chunk after a deploy).
+  const type = res.headers.get('content-type') || '';
+  if (res.ok && !type.includes('text/html')) {
     const assets = await caches.open(ASSET_CACHE);
     await assets.put(request, res.clone());
   }

@@ -19,6 +19,7 @@ import {
 import type { QuestionListItem, QuestionStatus, Folder, BulkActionRequest } from '../../types/dsa';
 import { useSelection } from '../../hooks/useSelection';
 import { BulkActionBar } from '../Common/BulkActionBar';
+import { problemHref } from '../../utils/url';
 
 interface AllQuestionsViewProps {
   questions: QuestionListItem[];
@@ -337,7 +338,7 @@ export const AllQuestionsView: React.FC<AllQuestionsViewProps> = ({
                         )}
                         {q.problem_url && (
                           <a
-                            href={q.problem_url}
+                            href={problemHref(q.problem_url)}
                             target="_blank"
                             rel="noreferrer"
                             onClick={(e) => e.stopPropagation()}

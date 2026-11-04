@@ -1,5 +1,6 @@
 import { useCallback, useContext, useEffect, useRef } from 'react';
 import { api, ApiError } from '../services/api';
+import { registerPendingWrites } from '../services/pendingWrites';
 import { isDirty, sanitizePreferences, setDirty } from './preferencesCore';
 import { PreferencesContext, type PreferencesContextType } from './preferencesContextObject';
 
@@ -60,6 +61,19 @@ export function usePreferencesServerSync(): void {
       cancelled = true;
     };
   }, [push, setPrefs]);
+
+  // Let logout send a change made inside the debounce window.
+  useEffect(
+    () =>
+      registerPendingWrites(async () => {
+        if (timerRef.current) {
+          window.clearTimeout(timerRef.current);
+          timerRef.current = null;
+        }
+        if (isDirty()) await push();
+      }),
+    [push]
+  );
 
   // Debounced push on user changes.
   useEffect(() => {

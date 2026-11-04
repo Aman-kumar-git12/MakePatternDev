@@ -101,10 +101,13 @@ class SandboxWorker {
     return w;
   }
 
-  kill() {
+  kill(reason = 'Run cancelled'): void {
     this.worker?.terminate();
     this.worker = null;
+    // Settle anything still waiting, so no caller hangs and no later run inherits its callbacks.
+    const waiting = [...this.pending.entries()];
     this.pending.clear();
+    waiting.forEach(([id, cb]) => cb({ id, ok: false, error: reason }));
   }
 
   send(msg: Record<string, unknown>, timeoutMs: number): Promise<WorkerReply> {
@@ -128,6 +131,24 @@ class SandboxWorker {
 const pyWorker = new SandboxWorker(PYTHON_WORKER_SOURCE);
 const jsWorker = new SandboxWorker(JS_WORKER_SOURCE);
 let pyLoaded = false;
+
+/** Only the latest run may use the shared workers; starting a new run cancels the previous one. */
+let currentRun = 0;
+/** True while a run is executing; only then does a new run need to kill the workers. */
+let runInProgress = false;
+class CancelledError extends Error {}
+const ensureCurrent = (token: number) => {
+  if (token !== currentRun) throw new CancelledError('Run cancelled');
+};
+
+/** Stop any run in progress (e.g. when the run panel goes away). */
+export function cancelRuns(): void {
+  if (!runInProgress) return;
+  currentRun++;
+  pyWorker.kill();
+  jsWorker.kill();
+  pyLoaded = false;
+}
 
 function emptySummary(cases: RunCase[], fatal: string, line: number | null = null): RunSummary {
   return {
@@ -168,7 +189,7 @@ function timeoutResult(c: RunCase): CaseResult {
   };
 }
 
-async function runPython(code: string, cases: RunCase[], onStatus: RunStatus): Promise<RunSummary> {
+async function runPython(code: string, cases: RunCase[], onStatus: RunStatus, token: number): Promise<RunSummary> {
   const prepare = async (): Promise<WorkerReply> => {
     if (!pyLoaded || !pyWorker.alive) {
       onStatus('Loading Python runtime… (first run downloads ~10 MB)');
@@ -193,6 +214,7 @@ async function runPython(code: string, cases: RunCase[], onStatus: RunStatus): P
   const results: CaseResult[] = [];
   for (let i = 0; i < cases.length; i++) {
     const c = cases[i];
+    ensureCurrent(token);
     onStatus(`Running ${i + 1}/${cases.length}…`);
     const args = parseInput(c.input).map((a) => ({ name: a.name, value: a.value }));
     try {
@@ -208,7 +230,7 @@ async function runPython(code: string, cases: RunCase[], onStatus: RunStatus): P
   return finish(results);
 }
 
-async function runJavaScript(code: string, cases: RunCase[], onStatus: RunStatus): Promise<RunSummary> {
+async function runJavaScript(code: string, cases: RunCase[], onStatus: RunStatus, token: number): Promise<RunSummary> {
   const detected = detectJsSignature(code);
   if (!detected) {
     return emptySummary(cases, "Couldn't find a function to call. Define it like `var twoSum = function(nums, target) { … }`.");
@@ -229,6 +251,7 @@ async function runJavaScript(code: string, cases: RunCase[], onStatus: RunStatus
   const results: CaseResult[] = [];
   for (let i = 0; i < cases.length; i++) {
     const c = cases[i];
+    ensureCurrent(token);
     onStatus(`Running ${i + 1}/${cases.length}…`);
     const { values, warning } = orderArgs(sig.params, parseInput(c.input));
     try {
@@ -242,10 +265,11 @@ async function runJavaScript(code: string, cases: RunCase[], onStatus: RunStatus
   return finish(results);
 }
 
-async function runJudge0(language: SupportedLanguage, code: string, cases: RunCase[], onStatus: RunStatus): Promise<RunSummary> {
+async function runJudge0(language: SupportedLanguage, code: string, cases: RunCase[], onStatus: RunStatus, token: number): Promise<RunSummary> {
   const results: CaseResult[] = [];
   for (let i = 0; i < cases.length; i++) {
     const c = cases[i];
+    ensureCurrent(token);
     onStatus(`Running ${i + 1}/${cases.length} on the server…`);
     const base = { id: c.id, title: c.title, input: c.input, expected: c.expected, warning: null, line: null };
     try {
@@ -276,14 +300,41 @@ export async function runTests(
   onStatus: RunStatus,
   opts: { judge0Enabled: boolean },
 ): Promise<RunSummary> {
+  // A new run supersedes any run still going (switching tabs used to leave the old one running
+  // on the shared worker, which then mixed stale code and false timeouts into the new run).
+  if (runInProgress) {
+    pyWorker.kill();
+    jsWorker.kill();
+    pyLoaded = false;
+  }
+  const token = ++currentRun;
+  runInProgress = true;
+  try {
+    return await runLatest(language, code, cases, onStatus, opts, token);
+  } catch (e) {
+    if (e instanceof CancelledError) return emptySummary(cases, 'Run cancelled.');
+    throw e;
+  } finally {
+    if (token === currentRun) runInProgress = false;
+  }
+}
+
+async function runLatest(
+  language: SupportedLanguage,
+  code: string,
+  cases: RunCase[],
+  onStatus: RunStatus,
+  opts: { judge0Enabled: boolean },
+  token: number,
+): Promise<RunSummary> {
   if (!code.trim()) return emptySummary(cases, 'Write some code first.');
   if (cases.length === 0) return { results: [], fatal: 'Add a test case (or use custom input) to run.', fatalLine: null, passed: 0, compared: 0 };
-  if (language === 'python') return runPython(code, cases, onStatus);
-  if (language === 'javascript') return runJavaScript(code, cases, onStatus);
+  if (language === 'python') return runPython(code, cases, onStatus, token);
+  if (language === 'javascript') return runJavaScript(code, cases, onStatus, token);
   if (!opts.judge0Enabled) {
     return emptySummary(cases, 'Running C++/Java needs a Judge0 server configured on the backend (JUDGE0_URL / JUDGE0_API_KEY). Python and JavaScript run right in your browser.');
   }
-  return runJudge0(language, code, cases, onStatus);
+  return runJudge0(language, code, cases, onStatus, token);
 }
 
 export function supportsInBrowser(language: SupportedLanguage): boolean {

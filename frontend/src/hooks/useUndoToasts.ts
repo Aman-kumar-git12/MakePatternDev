@@ -27,6 +27,16 @@ const emit = () => listeners.forEach((l) => l());
 export const UNDO_WINDOW_MS = 10_000;
 const MAX_TOASTS = 4;
 
+/** Removes every toast (e.g. on logout, so the next user never sees them). */
+export function clearToasts() {
+  timers.forEach((t) => clearTimeout(t));
+  timers.clear();
+  if (toasts.length) {
+    toasts = [];
+    emit();
+  }
+}
+
 export function dismissToast(id: number) {
   const t = timers.get(id);
   if (t) clearTimeout(t);

@@ -64,13 +64,30 @@ def __mp_prepare(src):
         _STATE["methods"] = methods
         return json.dumps({"ok": True, "entry": methods})
     user_classes = [n for n, v in ns.items() if inspect.isclass(v) and getattr(v, "__module__", "") == "__main__" and n not in ("ListNode", "TreeNode")]
-    if user_classes:
-        return json.dumps({"ok": False, "design": True, "error": f"Design-style problems (class {user_classes[0]} with several methods called in sequence) aren't supported by the runner yet. Use a 'class Solution' with one method."})
     funcs = [n for n, v in ns.items() if inspect.isfunction(v) and getattr(v.__code__, "co_filename", "") == "solution.py" and not n.startswith("_")]
+    # A helper class (UnionFind, Trie…) next to a plain function is fine; only a lone class is a design problem.
+    if user_classes and not funcs:
+        return json.dumps({"ok": False, "design": True, "error": f"Design-style problems (class {user_classes[0]} with several methods called in sequence) aren't supported by the runner yet. Use a 'class Solution' with one method."})
     if not funcs:
         return json.dumps({"ok": False, "error": "No 'class Solution' or top-level function found to call."})
-    _STATE["func"] = ns[funcs[-1]]
-    return json.dumps({"ok": True, "entry": [funcs[-1]]})
+    _STATE["funcs"] = [ns[n] for n in funcs]
+    return json.dumps({"ok": True, "entry": funcs})
+
+def _entry_score(fn, names, nargs, is_method):
+    """Rank candidate entry points: matching argument names first, then an argument count that
+    fits the input, then LeetCode-style type annotations (helpers like dfs rarely have them)."""
+    try:
+        params = list(inspect.signature(fn).parameters.values())
+    except (TypeError, ValueError):
+        return (0, 0, 0)
+    if is_method:
+        params = params[1:]
+    pnames = [p.name for p in params]
+    named = sum(1 for n in names if n and n in pnames)
+    required = sum(1 for p in params if p.default is inspect.Parameter.empty and p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD))
+    fits = 1 if required <= nargs <= len(params) else 0
+    annotated = 1 if any(p.annotation is not inspect.Parameter.empty for p in params) else 0
+    return (named, fits, annotated)
 
 def _ann(a):
     if a is inspect.Parameter.empty or a is inspect.Signature.empty:
@@ -166,19 +183,15 @@ def __mp_call(args_json):
     if "cls" in _STATE:
         cls = _STATE["cls"]
         methods = _STATE["methods"]
-        def score(m):
-            try:
-                ps = list(inspect.signature(getattr(cls, m)).parameters)[1:]
-            except (TypeError, ValueError):
-                return 0
-            return sum(1 for n in names if n and n in ps)
-        method = max(methods, key=score) if len(methods) > 1 else methods[0]
+        method = max(methods, key=lambda m: _entry_score(getattr(cls, m), names, len(args), True)) if len(methods) > 1 else methods[0]
         try:
             fn = getattr(cls(), method)
         except BaseException as e:
             return json.dumps(_err(e, "Creating Solution(): "))
     else:
-        fn = _STATE["func"]
+        funcs = _STATE["funcs"]
+        # Highest score wins; on a tie the LAST defined function (helpers usually come first).
+        fn = max(reversed(funcs), key=lambda f: _entry_score(f, names, len(args), False)) if len(funcs) > 1 else funcs[0]
     try:
         sig = inspect.signature(fn)
         params = list(sig.parameters.values())

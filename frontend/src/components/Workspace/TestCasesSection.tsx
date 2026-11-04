@@ -318,7 +318,7 @@ export const TestCasesSection: React.FC<TestCasesSectionProps> = ({
                     </h4>
                   </div>
 
-                  <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition">
+                  <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus:opacity-100 pointer-coarse:opacity-100 transition">
                     <button
                       onClick={() => startEditing(tc)}
                       className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800"

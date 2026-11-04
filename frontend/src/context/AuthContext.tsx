@@ -1,5 +1,12 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { api, isNetworkError } from '../services/api';
+import { api, ApiError } from '../services/api';
+import { flushPendingWrites } from '../services/pendingWrites';
+import { clearDueCache, userKeyFromToken } from '../offline/offlineStore';
+import { clearToasts } from '../hooks/useUndoToasts';
+import { setDirty } from './preferencesCore';
+
+/** Only a 401 means the stored session is invalid; outages, 429s and 5xx keep the user signed in. */
+const isAuthRejection = (err: unknown) => err instanceof ApiError && err.status === 401;
 import type { User } from '../types/dsa';
 
 interface AuthContextType {
@@ -9,7 +16,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<User>;
   register: (email: string, password: string, fullName: string) => Promise<User>;
-  logout: () => void;
+  logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   /** Replace the cached user after a profile update. */
   setCurrentUser: (user: User) => void;
@@ -49,12 +56,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setUser(currentUser);
         } catch (err) {
           const cached = readCachedUser();
-          if (isNetworkError(err) && cached) {
-            // Offline or the server is waking up: keep the session; requests retry later.
-            console.warn('Server unreachable; continuing with the saved session.', err);
-            setUser(cached);
-            setIsLoading(false);
-            return;
+          if (!isAuthRejection(err)) {
+            if (cached) {
+              // Offline, the server is waking up, or a transient server error: keep the session.
+              console.warn('Could not verify the session; continuing with the saved one.', err);
+              setUser(cached);
+              setIsLoading(false);
+              return;
+            }
+            try {
+              await new Promise((r) => setTimeout(r, 1500));
+              setUser(await api.getMe());
+              setIsLoading(false);
+              return;
+            } catch (retryErr) {
+              if (!isAuthRejection(retryErr)) {
+                // Still unreachable and nothing cached to show: keep the token for next time.
+                console.warn('Server unavailable; please retry shortly.', retryErr);
+                api.clearToken();
+                setToken(null);
+                setUser(null);
+                setIsLoading(false);
+                return;
+              }
+            }
           }
           console.warn('Stored auth token invalid or expired. Logging out...', err);
           localStorage.removeItem(AUTH_TOKEN_KEY);
@@ -74,33 +99,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     initAuth();
   }, []);
 
+  // These deliberately don't toggle the global isLoading: PublicRoute would swap the page for a
+  // spinner, unmounting the form and losing the error message. The pages track their own submit state.
   const login = async (email: string, password: string): Promise<User> => {
-    setIsLoading(true);
-    try {
-      const res = await api.login(email, password);
-      localStorage.setItem(AUTH_TOKEN_KEY, res.access_token);
-      setToken(res.access_token);
-      setUser(res.user);
-      return res.user;
-    } finally {
-      setIsLoading(false);
-    }
+    const res = await api.login(email, password);
+    localStorage.setItem(AUTH_TOKEN_KEY, res.access_token);
+    setToken(res.access_token);
+    setUser(res.user);
+    return res.user;
   };
 
   const register = async (email: string, password: string, fullName: string): Promise<User> => {
-    setIsLoading(true);
-    try {
-      const res = await api.register(email, password, fullName);
-      localStorage.setItem(AUTH_TOKEN_KEY, res.access_token);
-      setToken(res.access_token);
-      setUser(res.user);
-      return res.user;
-    } finally {
-      setIsLoading(false);
-    }
+    const res = await api.register(email, password, fullName);
+    localStorage.setItem(AUTH_TOKEN_KEY, res.access_token);
+    setToken(res.access_token);
+    setUser(res.user);
+    return res.user;
   };
 
-  const logout = useCallback(() => {
+  /** Drops the session and everything tied to this user on this device. */
+  const clearSession = useCallback(() => {
+    // Cached due-review titles, the other user's undo toasts and an unsynced preferences flag
+    // must not leak to whoever signs in next on a shared device.
+    clearDueCache(userKeyFromToken(api.getToken()));
+    clearToasts();
+    setDirty(false);
     localStorage.removeItem(AUTH_TOKEN_KEY);
     localStorage.removeItem(AUTH_USER_KEY);
     api.clearToken();
@@ -108,11 +131,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
   }, []);
 
-  // Any authenticated 401 (expired/revoked token) logs the user out.
+  /** User-initiated logout: send edits still waiting to autosave before dropping the token. */
+  const logout = useCallback(async () => {
+    await flushPendingWrites();
+    clearSession();
+  }, [clearSession]);
+
+  // Any authenticated 401 (expired/revoked token): the token is already invalid, so don't wait.
   useEffect(() => {
-    api.onUnauthorized(() => logout());
+    api.onUnauthorized(() => clearSession());
     return () => api.onUnauthorized(null);
-  }, [logout]);
+  }, [clearSession]);
 
   const setCurrentUser = useCallback((next: User) => setUser(next), []);
 
@@ -137,7 +166,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const currentUser = await api.getMe();
       setUser(currentUser);
     } catch (err) {
-      if (!isNetworkError(err)) logout();
+      if (isAuthRejection(err)) clearSession();
     }
   };
 

@@ -97,4 +97,28 @@ check('order args', () => {
   assert.ok(mism.warning);
 });
 
+check('integers compare exactly, floats with tolerance', () => {
+  assert.equal(deepEqual(1000005, 1000000), false);
+  assert.equal(deepEqual(999999937, 999999000), false);
+  assert.equal(deepEqual([200001, 1], [200000, 1]), false);
+  assert.equal(compareStdout('1000005', '1000000'), 'fail');
+  assert.equal(deepEqual(7, 7), true);
+  assert.equal(deepEqual(0.1 + 0.2, 0.3), true);
+  assert.equal(deepEqual(2.000001, 2.0), true);
+  assert.equal(deepEqual(2.5, 2.6), false);
+  assert.equal(compareStdout('2.00000', '2.0'), 'pass');
+});
+
+check('JS entry point: JSDoc function over helpers; helper classes allowed', () => {
+  const gcd = 'function gcd(a, b) { return b ? gcd(b, a % b) : a; }\n/**\n * @param {number[]} nums\n * @return {number}\n */\nvar findGCD = function(nums) { return gcd(Math.min(...nums), Math.max(...nums)); };';
+  const sig = detectJsSignature(gcd);
+  assert.ok(sig && 'name' in sig && sig.name === 'findGCD');
+  const heap = 'class MinHeap { push(x) {} }\n/**\n * @param {number[]} nums\n * @param {number} k\n * @return {number}\n */\nvar findKthLargest = function(nums, k) { return 0; };';
+  const s2 = detectJsSignature(heap);
+  assert.ok(s2 && 'name' in s2 && s2.name === 'findKthLargest');
+  const design = 'var MinStack = function() {};\nMinStack.prototype.push = function(val) {};';
+  assert.deepEqual(detectJsSignature(design), { design: true });
+  assert.deepEqual(detectJsSignature('class LRUCache { get(k) {} }'), { design: true });
+});
+
 console.log(`\n${n} checks passed`);

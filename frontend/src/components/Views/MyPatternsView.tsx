@@ -33,6 +33,7 @@ import {
   findFolder,
 } from './myPatternsTree';
 import type { DragState, DropTarget } from './myPatternsTree';
+import { problemHref } from '../../utils/url';
 
 interface MyPatternsViewProps {
   folders: Folder[];
@@ -597,7 +598,7 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
           <div className="mp-desktop-only w-6 flex items-center justify-center shrink-0">
             {q.problem_url && q.problem_url.trim() ? (
               <a
-                href={q.problem_url.trim()}
+                href={problemHref(q.problem_url)}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={(e) => e.stopPropagation()}
@@ -645,7 +646,7 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
                 actions.push({ label: `Move out to "${parentFolder.name}"`, icon: <ArrowUpRight className="w-4 h-4" />, onSelect: () => onMoveQuestion(q.id, parentFolder.id) });
               }
               if (q.problem_url && q.problem_url.trim()) {
-                actions.push({ label: 'Open on LeetCode', icon: <ExternalLink className="w-4 h-4" />, onSelect: () => window.open(q.problem_url!.trim(), '_blank', 'noopener,noreferrer') });
+                actions.push({ label: 'Open on LeetCode', icon: <ExternalLink className="w-4 h-4" />, onSelect: () => window.open(problemHref(q.problem_url), '_blank', 'noopener,noreferrer') });
               }
               if (onDeleteQuestion) {
                 actions.push({ label: 'Delete problem', icon: <Trash2 className="w-4 h-4" />, danger: true, onSelect: () => onDeleteQuestion(q.id, q.title) });

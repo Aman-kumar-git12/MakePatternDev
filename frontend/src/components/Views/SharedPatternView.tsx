@@ -32,6 +32,8 @@ import type {
   Difficulty,
   SupportedLanguage
 } from '../../types/dsa';
+import { asButton } from '../Common/asButton';
+import { problemHref } from '../../utils/url';
 
 export const SharedPatternView: React.FC = () => {
   const { shareId } = useParams<{ shareId: string }>();
@@ -301,8 +303,8 @@ export const SharedPatternView: React.FC = () => {
     return (
       <div
         key={q.id}
-        onClick={() => handleSelectQuestion(q.id)}
-        className="flex items-center justify-between p-3 rounded-xl bg-[#0B101E] hover:bg-[#111A30] border border-slate-800/80 hover:border-blue-500/40 transition cursor-pointer group"
+        {...asButton(() => handleSelectQuestion(q.id))}
+        className="focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 flex items-center justify-between p-3 rounded-xl bg-[#0B101E] hover:bg-[#111A30] border border-slate-800/80 hover:border-blue-500/40 transition cursor-pointer group"
       >
         <div className="flex items-center space-x-3 min-w-0">
           <div className="shrink-0 p-1.5 rounded-lg bg-slate-800/80 text-slate-400 group-hover:text-blue-400 group-hover:bg-blue-500/15 border border-slate-700/50 transition">
@@ -340,7 +342,7 @@ export const SharedPatternView: React.FC = () => {
           <div className="w-7 flex items-center justify-center shrink-0">
             {q.problem_url && q.problem_url.trim() ? (
               <a
-                href={q.problem_url.trim()}
+                href={problemHref(q.problem_url)}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={(e) => e.stopPropagation()}
@@ -715,7 +717,7 @@ export const SharedPatternView: React.FC = () => {
                       <>
                         <span>•</span>
                         <a
-                          href={activeQuestion.problem_url}
+                          href={problemHref(activeQuestion.problem_url)}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-blue-400 hover:underline flex items-center space-x-1"
@@ -772,7 +774,7 @@ export const SharedPatternView: React.FC = () => {
                       </h3>
                       {looksLikeHtml(activeQuestion.problem_statement) ? (
                         <div className="p-4 rounded-xl bg-[#0A0F1D] border border-slate-800 text-slate-300">
-                          <SafeHtml html={activeQuestion.problem_statement} />
+                          <SafeHtml html={activeQuestion.problem_statement} restrictImages />
                         </div>
                       ) : (
                         <div className="p-4 rounded-xl bg-[#0A0F1D] border border-slate-800 text-sm text-slate-300 leading-relaxed whitespace-pre-wrap">
