@@ -64,6 +64,40 @@ def get_db() -> Database:
         raise HTTPException(status_code=503, detail="Database unavailable. Please try again shortly.")
 
 
+def bulk_update(collection, pairs) -> None:
+    """Apply many (filter, update) pairs in one round trip. mongomock (tests) can't run
+    pymongo's UpdateOne in bulk_write, so it gets the equivalent sequential updates."""
+    pairs = list(pairs)
+    if not pairs:
+        return
+    if type(collection).__module__.startswith("mongomock"):
+        for flt, upd in pairs:
+            collection.update_one(flt, upd)
+        return
+    from pymongo import UpdateOne
+
+    collection.bulk_write([UpdateOne(flt, upd) for flt, upd in pairs], ordered=False)
+
+
+def _ensure_activity_client_id_unique(db) -> None:
+    """Offline reviews are idempotent per (user_id, client_id). The old index was not unique, so
+    replace it; if existing data has duplicates, keep running with the app-level check."""
+    try:
+        if "activity_client_id_idx" in db.activity.index_information():
+            db.activity.drop_index("activity_client_id_idx")
+    except Exception as e:  # pragma: no cover
+        logger.warning("Could not drop old activity client_id index: %s", e)
+    try:
+        db.activity.create_index(
+            [("user_id", 1), ("client_id", 1)],
+            name="activity_client_id_unique",
+            unique=True,
+            partialFilterExpression={"client_id": {"$exists": True}},
+        )
+    except Exception as e:  # pragma: no cover - duplicates already in production data
+        logger.warning("Unique activity client_id index not created (existing duplicates?): %s", e)
+
+
 def ping() -> bool:
     try:
         db = get_database()
@@ -94,7 +128,7 @@ def init_indexes(db: Database) -> None:
     db.share_snapshots.create_index("share_id", unique=True, name="unique_snapshot_share_id")
     db.share_snapshots.create_index([("user_id", 1), ("folder_id", 1)], name="snapshot_user_folder_idx")
     db.activity.create_index([("user_id", 1), ("at", 1)], name="activity_user_at_idx")
-    db.activity.create_index([("user_id", 1), ("client_id", 1)], name="activity_client_id_idx", sparse=True)
+    _ensure_activity_client_id_unique(db)
     db.trash.create_index("id", unique=True, name="unique_trash_id_idx")
     db.trash.create_index([("user_id", 1), ("deleted_at", -1)], name="trash_user_idx")
     db.trash.create_index("expires_at", expireAfterSeconds=0, name="trash_ttl_idx")

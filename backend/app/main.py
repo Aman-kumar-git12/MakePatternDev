@@ -67,6 +67,38 @@ origin_regex = settings.CORS_ORIGIN_REGEX
 if not settings.is_production:
     origin_regex = rf"{origin_regex}|^http://(localhost|127\.0\.0\.1)(:[0-9]+)?$"
 
+class CatchUnhandledErrors:
+    """Turn unhandled exceptions into a JSON 500 *inside* the CORS middleware. Starlette's own
+    500 handler runs outside it, so the browser saw a CORS failure (a network TypeError)
+    instead of a server error, and the client couldn't tell the two apart."""
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            return await self.app(scope, receive, send)
+        started = False
+
+        async def tracking_send(message):
+            nonlocal started
+            if message["type"] == "http.response.start":
+                started = True
+            await send(message)
+
+        try:
+            await self.app(scope, receive, tracking_send)
+        except Exception:
+            logger.exception("Unhandled error on %s %s", scope.get("method"), scope.get("path"))
+            if started:
+                raise
+            response = JSONResponse(status_code=500, content={"detail": "Internal server error. Please try again."})
+            await response(scope, receive, send)
+
+
+# Added first, so it sits inside CORS (the last middleware added is the outermost).
+app.add_middleware(CatchUnhandledErrors)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=sorted(o for o in origins if o),

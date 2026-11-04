@@ -111,7 +111,9 @@ def update_solution(solution_id: str, sol_in: SolutionUpdate, db: Database = Dep
     if sol_in.time_complexity is not None:
         u["time_complexity"] = sol_in.time_complexity
     elif "manual_time_complexity" in u:
-        u["time_complexity"] = merged.get("manual_time_complexity") or merged.get("time_complexity") or ""
+        # Clearing the manual value falls back to the analysed estimate, not the stale stored value
+        # (which is the manual value being removed).
+        u["time_complexity"] = merged.get("manual_time_complexity") or merged.get("time_complexity_estimate") or ""
     if sol_in.space_complexity is not None:
         u["space_complexity"] = sol_in.space_complexity
     elif "manual_space_complexity" in u or "space_complexity_estimate" in u:

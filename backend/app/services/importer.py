@@ -8,6 +8,7 @@ from pymongo.database import Database
 from app.db import new_id, now_iso, parse_dt, parse_tags, to_iso
 from app.services.leetcode_parse import slug_from_url
 from app.services.repo import new_folder_doc, new_question_doc, next_position
+from app.services.tracking import REVIEW_LADDER
 
 MAX_QUESTIONS = 5000
 MAX_FOLDERS = 2000
@@ -43,7 +44,11 @@ def _list(payload: Dict[str, Any], key: str) -> List[Dict[str, Any]]:
 def import_export(db: Database, user_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
     if not isinstance(payload, dict) or payload.get("format") != "makepattern-export":
         raise HTTPException(status_code=400, detail="This doesn't look like a MakePattern export file.")
-    if int(payload.get("version") or 0) != 1:
+    try:
+        version = int(payload.get("version") or 0)
+    except (TypeError, ValueError):
+        version = -1
+    if version != 1:
         raise HTTPException(status_code=400, detail="Unsupported export version.")
 
     folders_in = _list(payload, "folders")
@@ -75,6 +80,19 @@ def import_export(db: Database, user_id: str, payload: Dict[str, Any]) -> Dict[s
             "created_at": _dt(f.get("created_at")) or now, "updated_at": now,
         })
 
+    # A parent cycle (A -> B -> A) would detach those folders, and their questions, from the
+    # tree. Re-attach any folder whose ancestor chain loops to the import root.
+    by_id = {f["id"]: f for f in folders}
+    for f in folders[1:]:
+        seen = {f["id"]}
+        cur = by_id.get(f["parent_id"])
+        while cur is not None and cur["id"] != root["id"]:
+            if cur["id"] in seen:
+                f["parent_id"] = root["id"]
+                break
+            seen.add(cur["id"])
+            cur = by_id.get(cur["parent_id"])
+
     # Questions
     qmap: Dict[str, str] = {}
     questions: List[Dict[str, Any]] = []
@@ -103,19 +121,29 @@ def import_export(db: Database, user_id: str, payload: Dict[str, Any]) -> Dict[s
             next_review_at=_dt(q.get("next_review_at")),
             last_reviewed_at=_dt(q.get("last_reviewed_at")),
             review_count=_int(q.get("review_count"), 0, 100_000),
-            review_step=_int(q.get("review_step"), -1, 10) if q.get("review_step") is not None else -1,
+            review_step=_int(q.get("review_step"), -1, len(REVIEW_LADDER) - 1) if q.get("review_step") is not None else -1,
             review_interval_days=_int(q.get("review_interval_days"), 0, 1000),
             created_at=_dt(q.get("created_at")) or now,
             updated_at=now,
         ))
 
-    def children(key: str, fields: Dict[str, int]) -> List[Dict[str, Any]]:
+    def children(
+        key: str, fields: Dict[str, int], legacy: Optional[Dict[str, str]] = None, optional: tuple = ()
+    ) -> List[Dict[str, Any]]:
         out = []
         for d in _list(payload, key)[: MAX_QUESTIONS * 50]:
             qid = qmap.get(str(d.get("question_id") or ""))
             if not qid:
                 continue
-            doc = {k: _s(d.get(k), limit) for k, limit in fields.items()}
+            # Older exports used different field names (the same fallbacks the API reads with).
+            src = dict(d)
+            for new, old in (legacy or {}).items():
+                if src.get(new) in (None, "") and src.get(old) not in (None, ""):
+                    src[new] = src[old]
+            doc = {k: _s(src.get(k), limit) for k, limit in fields.items()}
+            for k in optional:  # nullable fields: keep None rather than ""
+                if src.get(k) in (None, ""):
+                    doc[k] = None
             doc.update({"id": new_id(), "question_id": qid, "user_id": user_id,
                         "position": _int(d.get("position"), 0, 100_000),
                         "created_at": _dt(d.get("created_at")) or now, "updated_at": now})
@@ -126,8 +154,13 @@ def import_export(db: Database, user_id: str, payload: Dict[str, Any]) -> Dict[s
         "title": 200, "solution_type": 50, "language": 30, "code": 100_000, "explanation": 100_000,
         "time_complexity": 100, "space_complexity": 100, "time_complexity_estimate": 100,
         "space_complexity_estimate": 100, "analysis_explanation": 20_000, "analysis_status": 50,
-    })
-    test_cases = children("test_cases", {"title": 200, "input": 20_000, "expected_output": 20_000, "notes": 20_000})
+        "manual_time_complexity": 100, "manual_space_complexity": 100, "analyzed_code_hash": 128,
+    }, legacy={"solution_type": "approach_type", "explanation": "notes"},
+       optional=("manual_time_complexity", "manual_space_complexity", "analyzed_code_hash"))
+    test_cases = children(
+        "test_cases", {"title": 200, "input": 20_000, "expected_output": 20_000, "notes": 20_000},
+        legacy={"input": "input_data", "notes": "explanation"},
+    )
     bookmarks = [
         {"id": new_id(), "user_id": user_id, "question_id": qmap[str(b.get("question_id"))], "created_at": now}
         for b in _list(payload, "bookmarks") if str(b.get("question_id")) in qmap

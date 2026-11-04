@@ -15,10 +15,15 @@ MAX_TEXT = 100_000
 def _clean_tags(v: Optional[List[str]]) -> Optional[List[str]]:
     if v is None:
         return v
+    # Reject huge payloads before doing any work on them (a tag list is never this long).
+    if len(v) > 200:
+        raise ValueError("At most 30 tags are allowed")
     out: List[str] = []
+    seen = set()
     for t in v:
         t = (t or "").strip()[:50]
-        if t and t not in out:
+        if t and t not in seen:
+            seen.add(t)
             out.append(t)
     if len(out) > 30:
         raise ValueError("At most 30 tags are allowed")
@@ -41,6 +46,11 @@ class QuestionCreate(BaseModel):
     def validate_tags(cls, v: Optional[List[str]]) -> Optional[List[str]]:
         return _clean_tags(v)
 
+    @field_validator("title", mode="before")
+    @classmethod
+    def _strip_title(cls, v):
+        # Strip before validating so a whitespace-only value fails min_length (422).
+        return v.strip() if isinstance(v, str) else v
 
 class QuestionUpdate(BaseModel):
     title: Optional[str] = Field(default=None, min_length=1, max_length=300)
@@ -59,6 +69,11 @@ class QuestionUpdate(BaseModel):
     def validate_tags(cls, v: Optional[List[str]]) -> Optional[List[str]]:
         return _clean_tags(v)
 
+    @field_validator("title", mode="before")
+    @classmethod
+    def _strip_title(cls, v):
+        # Strip before validating so a whitespace-only value fails min_length (422).
+        return v.strip() if isinstance(v, str) else v
 
 class QuestionMove(BaseModel):
     target_folder_id: Optional[str] = None  # None / "" = unfiled

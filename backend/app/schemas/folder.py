@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing import Optional, List
 from datetime import datetime
 from app.schemas.question import QuestionListItem
@@ -10,6 +10,12 @@ class FolderBase(BaseModel):
     tags: Optional[List[str]] = Field(default=[], max_length=30)
     position: Optional[int] = Field(default=None, ge=0)
 
+    @field_validator("name", mode="before")
+    @classmethod
+    def _strip_name(cls, v):
+        # Strip before validating so a whitespace-only value fails min_length (422).
+        return v.strip() if isinstance(v, str) else v
+
 class FolderCreate(FolderBase):
     pass
 
@@ -19,6 +25,12 @@ class FolderUpdate(BaseModel):
     tags: Optional[List[str]] = Field(default=None, max_length=30)
     parent_id: Optional[str] = None  # "" = move to root
     position: Optional[int] = Field(default=None, ge=0)
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def _strip_name(cls, v):
+        # Strip before validating so a whitespace-only value fails min_length (422).
+        return v.strip() if isinstance(v, str) else v
 
 class FolderMove(BaseModel):
     target_parent_id: Optional[str] = None

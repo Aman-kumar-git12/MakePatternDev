@@ -4,6 +4,7 @@ from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException
 from pymongo.database import Database
+from pymongo.errors import DuplicateKeyError
 
 from datetime import timezone
 
@@ -24,6 +25,17 @@ from app.services.tracking import (
 router = APIRouter(prefix="/reviews", tags=["reviews"])
 
 PROJECTION = {"_id": 0, "problem_statement": 0, "notes": 0}
+
+
+def _apply_review(db: Database, uid: str, q: dict, rating: str, at, now) -> dict:
+    """Update the question's schedule; log a "solved" activity when the review marks it Solved."""
+    was_solved = (q.get("status") or "Not Started") == "Solved"
+    updates = review_updates(q, rating, now=at)
+    updates["updated_at"] = to_iso(now)
+    db.questions.update_one({"id": q["id"], "user_id": uid}, {"$set": updates})
+    if not was_solved and updates.get("status") == "Solved":
+        record_activity(db, uid, "solved", q["id"], at=at)
+    return updates
 
 
 @router.get("/due", response_model=DueReviewsResponse)
@@ -61,16 +73,19 @@ def sync_offline_reviews(body: ReviewBatchRequest, db: Database = Depends(get_db
             continue
         at = r.reviewed_at if r.reviewed_at.tzinfo else r.reviewed_at.replace(tzinfo=timezone.utc)
         at = min(max(at, now - timedelta(days=30)), now)
+        # Claim the client_id first: the unique index makes a concurrent second sync (another tab)
+        # a no-op instead of applying the same review twice.
+        try:
+            record_activity(db, uid, "review", r.question_id, at=at, client_id=r.client_id)
+        except DuplicateKeyError:
+            results.append(ReviewBatchResult(client_id=r.client_id, status="duplicate"))
+            continue
         last = parse_dt(q.get("last_reviewed_at"))
         if last and last > at:
             # A newer review already happened on another device; don't roll the schedule back.
-            record_activity(db, uid, "review", r.question_id, at=at, client_id=r.client_id)
             results.append(ReviewBatchResult(client_id=r.client_id, status="stale"))
             continue
-        updates = review_updates(q, r.rating, now=at)
-        updates["updated_at"] = to_iso(now)
-        db.questions.update_one({"id": q["id"], "user_id": uid}, {"$set": updates})
-        record_activity(db, uid, "review", r.question_id, at=at, client_id=r.client_id)
+        _apply_review(db, uid, q, r.rating, at, now)
         results.append(ReviewBatchResult(client_id=r.client_id, status="applied"))
     applied = sum(1 for x in results if x.status == "applied")
     return ReviewBatchResponse(applied=applied, skipped=len(results) - applied, results=results)
@@ -81,9 +96,7 @@ def review_question(question_id: str, body: ReviewRequest, db: Database = Depend
     q = get_owned_question(db, current_user.id, question_id)
     if not q:
         raise HTTPException(status_code=404, detail="Question not found")
-    updates = review_updates(q, body.rating)
-    updates["updated_at"] = now_iso()
-    db.questions.update_one({"id": question_id, "user_id": current_user.id}, {"$set": updates})
     record_activity(db, current_user.id, "review", question_id)
+    updates = _apply_review(db, current_user.id, q, body.rating, now_utc(), now_utc())
     q.update(updates)
     return to_list_item(q, bookmarked_ids(db, current_user.id), FolderPaths.for_user(db, current_user.id))

@@ -93,7 +93,7 @@ def test_export_and_delete_account(client, mdb):
     body = exp.json()
     assert len(body["questions"]) == 1 and len(body["folders"]) == 1
     assert "hashed_password" not in exp.text
-    assert client.post("/api/auth/delete-account", json={"password": "wrong"}, headers=tok).status_code == 401
+    assert client.post("/api/auth/delete-account", json={"password": "wrong"}, headers=tok).status_code == 400
     assert client.post("/api/auth/delete-account", json={"password": "secret123"}, headers=tok).status_code == 200
     assert mdb.questions.count_documents({}) == 0 and mdb.folders.count_documents({}) == 0 and mdb.users.count_documents({}) == 0
 

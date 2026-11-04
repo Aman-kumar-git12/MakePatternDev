@@ -16,9 +16,22 @@ def _normalize_email(v: str) -> str:
     return v
 
 
+
+def _bcrypt_safe(v: str) -> str:
+    """bcrypt only uses the first 72 BYTES (and bcrypt 5 rejects longer input). The character
+    limit allows multi-byte passwords that exceed it, so check the UTF-8 length too."""
+    if len(v.encode("utf-8")) > 72:
+        raise ValueError("Password is too long (max 72 bytes; non-English characters count as 2-4).")
+    return v
+
 class UserCreate(BaseModel):
     email: str
     password: str = Field(min_length=6, max_length=72)
+
+    @field_validator('password')
+    @classmethod
+    def _password_bytes(cls, v: str) -> str:
+        return _bcrypt_safe(v)
     full_name: Optional[str] = Field(default=None, max_length=100)
 
     @field_validator("email")
@@ -30,6 +43,11 @@ class UserCreate(BaseModel):
 class UserLogin(BaseModel):
     email: str
     password: str = Field(min_length=1, max_length=72)
+
+    @field_validator('password')
+    @classmethod
+    def _password_bytes(cls, v: str) -> str:
+        return _bcrypt_safe(v)
 
     @field_validator("email")
     @classmethod
@@ -56,9 +74,19 @@ class PasswordChange(BaseModel):
     current_password: str = Field(min_length=1, max_length=72)
     new_password: str = Field(min_length=6, max_length=72)
 
+    @field_validator('current_password', 'new_password')
+    @classmethod
+    def _password_bytes(cls, v: str) -> str:
+        return _bcrypt_safe(v)
+
 
 class AccountDelete(BaseModel):
     password: str = Field(min_length=1, max_length=72)
+
+    @field_validator('password')
+    @classmethod
+    def _password_bytes(cls, v: str) -> str:
+        return _bcrypt_safe(v)
 
 
 class UserResponse(BaseModel):

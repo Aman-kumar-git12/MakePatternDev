@@ -3,7 +3,7 @@ from typing import Any, Dict, List
 from fastapi import APIRouter, Depends, HTTPException, status
 from pymongo.database import Database
 
-from app.db import get_db, now_iso
+from app.db import bulk_update, get_db, now_iso
 from app.routers.auth import CurrentUser, get_current_user
 from app.schemas.folder import (
     FolderCreate,
@@ -15,7 +15,7 @@ from app.schemas.folder import (
     ShareStatusUpdate,
 )
 from app.services import share_service
-from app.services.folder_service import build_tree_for_user, folder_summary, validate_folder_move
+from app.services.folder_service import build_tree_for_folder, build_tree_for_user, folder_summary, validate_folder_move
 from app.services.repo import get_owned_folder, new_folder_doc, next_position
 from app.services.trash import trash_folder
 
@@ -54,8 +54,13 @@ def create_folder(folder_in: FolderCreate, db: Database = Depends(get_db), curre
 @router.post("/reorder")
 def reorder_folders(items: List[ReorderItem], db: Database = Depends(get_db), current_user: CurrentUser = Depends(get_current_user)):
     now = now_iso()
-    for item in items[:2000]:
-        db.folders.update_one({"id": item.id, "user_id": current_user.id}, {"$set": {"position": item.position, "updated_at": now}})
+    # One round trip instead of up to 2000 sequential updates.
+    ops = [
+        ({"id": item.id, "user_id": current_user.id}, {"$set": {"position": item.position, "updated_at": now}})
+        for item in items[:2000]
+    ]
+    if ops:
+        bulk_update(db.folders, ops)
     return {"message": "Folders reordered successfully"}
 
 
@@ -85,6 +90,10 @@ def update_folder(folder_id: str, folder_in: FolderUpdate, db: Database = Depend
         db.folders.update_one({"id": folder_id, "user_id": current_user.id}, {"$set": updates})
         folder.update(updates)
 
+    # Same recursive counts as /folders/tree, so progress doesn't change after a rename.
+    tree = build_tree_for_folder(db, current_user.id, folder_id)
+    if tree is not None:
+        return tree
     direct = list(db.questions.find({"user_id": current_user.id, "folder_id": folder_id}, {"_id": 0, "status": 1}))
     return folder_summary(folder, len(direct), sum(1 for q in direct if q.get("status") == "Solved"))
 

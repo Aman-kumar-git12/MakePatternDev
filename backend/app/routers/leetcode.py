@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pymongo.database import Database
 
-from app.db import get_db, new_id, now_iso, parse_tags, to_iso
+from app.db import get_db, new_id, now_iso, parse_dt, parse_tags, to_iso
 from app.routers.auth import CurrentUser, get_current_user, user_filter
 from app.routers.questions import apply_status
 from app.schemas.leetcode import (
@@ -264,9 +264,17 @@ def sync(body: SyncRequest, db: Database = Depends(get_db), current_user: Curren
         solved_at = datetime.fromtimestamp(sub["timestamp"], tz=timezone.utc) if sub["timestamp"] else datetime.now(timezone.utc)
         q = find_tracked(db, current_user.id, sub["slug"])
         if q:
-            if (q.get("status") or "Not Started") == "Solved":
+            status_now = q.get("status") or "Not Started"
+            if status_now == "Solved":
                 already_solved += 1
                 continue
+            # A problem the user flagged for revision after this accepted submission must not
+            # be flipped back to Solved; only a newer accepted submission counts.
+            if status_now == "Needs Revision":
+                last_review = parse_dt(q.get("last_reviewed_at"))
+                if last_review and solved_at <= last_review:
+                    already_solved += 1
+                    continue
             _mark_solved_at(db, current_user.id, q, solved_at)
             newly_solved.append(q.get("title") or sub["title"])
             continue

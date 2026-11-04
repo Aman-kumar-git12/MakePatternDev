@@ -1,8 +1,8 @@
 from typing import List, Literal
 
-from datetime import datetime
+from datetime import datetime, timezone
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from app.schemas.question import QuestionListItem
 
@@ -25,6 +25,12 @@ class OfflineReview(BaseModel):
     question_id: str = Field(min_length=1, max_length=64)
     rating: Rating
     reviewed_at: datetime
+
+    @field_validator("reviewed_at")
+    @classmethod
+    def _assume_utc(cls, v: datetime) -> datetime:
+        # Mixed naive/aware values can't be compared (the batch is sorted by this field).
+        return v if v.tzinfo else v.replace(tzinfo=timezone.utc)
 
 
 class ReviewBatchRequest(BaseModel):

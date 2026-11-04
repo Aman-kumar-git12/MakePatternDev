@@ -67,8 +67,8 @@ def status_change_updates(q: Dict[str, Any], new_status: str, now: Optional[date
 def review_updates(q: Dict[str, Any], rating: str, now: Optional[datetime] = None) -> Dict[str, Any]:
     now = now or now_utc()
     step = q.get("review_step")
-    step = int(step) if step is not None else -1
     top = len(REVIEW_LADDER) - 1
+    step = min(int(step), top) if step is not None else -1
     if rating == "again":
         step = 0
     elif rating == "hard":
@@ -118,7 +118,7 @@ def record_activity(
     }
     if client_id:
         doc["client_id"] = client_id
-    db.activity.insert_one(doc)
+    db.activity.insert_one(doc)  # raises DuplicateKeyError for a repeated client_id
 
 
 def daily_activity(db: Database, user_id: str, tz: ZoneInfo, days: int) -> Dict[str, Dict[str, int]]:

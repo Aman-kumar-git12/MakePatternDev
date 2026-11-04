@@ -150,6 +150,8 @@ def login(credentials: UserLogin, request: Request, db: Database = Depends(get_d
     ip = client_ip(request)
     check_rate_limit(f"login-ip:{ip}", limit=30, window_seconds=300)
     check_rate_limit(f"login:{ip}:{credentials.email}", limit=10, window_seconds=300)
+    # Per-account cap regardless of IP, so rotating addresses can't brute-force one account.
+    check_rate_limit(f"login-email:{credentials.email}", limit=30, window_seconds=900)
 
     doc = db.users.find_one({"email": credentials.email})
     if doc:
@@ -183,9 +185,10 @@ def update_me(body: UserUpdate, current_user: CurrentUser = Depends(get_current_
 
 @router.post("/change-password")
 def change_password(body: PasswordChange, request: Request, current_user: CurrentUser = Depends(get_current_user), db: Database = Depends(get_db)):
-    check_rate_limit(f"pwchange:{current_user.id}", limit=10, window_seconds=3600)
+    check_rate_limit(f"pwcheck:{current_user.id}", limit=10, window_seconds=3600)
+    # 400, not 401: the session is valid, only the typed password is wrong (401 signs the client out).
     if not verify_password(body.current_password, current_user.hashed_password):
-        raise HTTPException(status_code=401, detail="Current password is incorrect.")
+        raise HTTPException(status_code=400, detail="Current password is incorrect.")
     new_version = current_user.token_version + 1
     db.users.update_one(
         user_filter(current_user.id),
@@ -202,8 +205,9 @@ def logout_all(current_user: CurrentUser = Depends(get_current_user), db: Databa
 
 @router.post("/delete-account")
 def delete_account(body: AccountDelete, current_user: CurrentUser = Depends(get_current_user), db: Database = Depends(get_db)):
+    check_rate_limit(f"pwcheck:{current_user.id}", limit=10, window_seconds=3600)
     if not verify_password(body.password, current_user.hashed_password):
-        raise HTTPException(status_code=401, detail="Password is incorrect.")
+        raise HTTPException(status_code=400, detail="Password is incorrect.")
     delete_user_cascade(db, current_user.id)
     return {"message": "Your account and all its data were deleted."}
 
@@ -263,7 +267,7 @@ async def import_data(request: Request, current_user: CurrentUser = Depends(get_
             raise HTTPException(status_code=413, detail="Import file is larger than 10 MB.")
     try:
         payload = json.loads(raw)
-    except ValueError:
+    except (ValueError, RecursionError):
         raise HTTPException(status_code=400, detail="The file is not valid JSON.")
     from starlette.concurrency import run_in_threadpool
     from app.services.importer import import_export

@@ -72,7 +72,11 @@ def get_progress_summary(
     today = local_today(tz)
     current, longest = streaks(all_active_dates(db, uid, tz), today)
     week_start = start_of_local_day_iso(tz, today - timedelta(days=6))
-    solved_this_week = sum(1 for q in questions if q.get("solved_at") and str(q["solved_at"]) >= week_start)
+    # solved_at is kept when a question leaves Solved, so also require it to still be Solved.
+    solved_this_week = sum(
+        1 for q in questions
+        if q.get("status") == "Solved" and q.get("solved_at") and str(q["solved_at"]) >= week_start
+    )
     due_cutoff = end_of_local_day_iso(tz)
     due = sum(1 for q in questions if q.get("next_review_at") and str(q["next_review_at"]) <= due_cutoff)
     active_days = len(daily_activity(db, uid, tz, 365))

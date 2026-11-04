@@ -29,13 +29,21 @@ def get_share(db: Database, user_id: str, folder_id: str) -> Optional[Dict[str, 
 
 
 def _set_share_fields(db: Database, user_id: str, folder_id: str, fields: Dict[str, Any]) -> None:
-    owner = db.users.find_one(_user_filter(user_id), {"_id": 1})
+    """Update the folder's share record. Duplicate records for the same folder (left by an
+    older race) are collapsed into one, so disabling or regenerating can't miss a live link."""
+    owner = db.users.find_one(_user_filter(user_id), {"_id": 1, "shared_patterns": 1})
     if not owner:
         return
-    db.users.update_one(
-        {"_id": owner["_id"], "shared_patterns.folder_id": folder_id},
-        {"$set": {f"shared_patterns.$.{k}": v for k, v in fields.items()}},
-    )
+    kept: list = []
+    seen = False
+    for s in owner.get("shared_patterns") or []:
+        if s.get("folder_id") == folder_id:
+            if seen:
+                continue
+            seen = True
+            s = {**s, **fields}
+        kept.append(s)
+    db.users.update_one({"_id": owner["_id"]}, {"$set": {"shared_patterns": kept}})
 
 
 # ---------------------------------------------------------------------------
@@ -131,7 +139,17 @@ def create_or_enable_share(db: Database, user, folder_id: str, folder_name: str)
         "created_at": now,
         "updated_at": now,
     }
-    db.users.update_one(_user_filter(user.id), {"$push": {"shared_patterns": share}})
+    # Atomic: only push if this folder has no share yet (a double-click can't create two links).
+    owner = db.users.find_one(_user_filter(user.id), {"_id": 1})
+    if not owner:
+        raise HTTPException(status_code=404, detail="User not found")
+    pushed = db.users.update_one(
+        {"_id": owner["_id"], "shared_patterns.folder_id": {"$ne": folder_id}},
+        {"$push": {"shared_patterns": share}},
+    )
+    if pushed.modified_count == 0:
+        # Another request created the share first: reuse it.
+        return create_or_enable_share(db, user, folder_id, folder_name)
     _save_snapshot(db, share["share_id"], user.id, user.display_name, folder_id, folder_name, snap)
     return share
 
@@ -173,6 +191,8 @@ def resolve_public_snapshot(db: Database, share_id: str) -> Dict[str, Any]:
         raise not_found
 
     snap = db.share_snapshots.find_one({"share_id": share_id}, {"_id": 0})
+    if snap and snap.get("is_active") is False:
+        raise not_found
     if not snap:
         # Legacy share created before snapshots existed: freeze it now.
         owner_id = owner.get("id") or str(owner.get("_id"))

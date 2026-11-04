@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pymongo.database import Database
 
-from app.db import get_db, new_id, now_iso, parse_tags
+from app.db import bulk_update, get_db, new_id, now_iso, parse_tags
 from app.routers.auth import CurrentUser, get_current_user
 from app.schemas.folder import ReorderItem
 from app.schemas.question import (
@@ -170,15 +170,20 @@ def bulk_action(body: BulkAction, db: Database = Depends(get_db), current_user: 
     if a == "move":
         target = _resolve_folder(db, uid, body.folder_id)
         start = next_position(db, "questions", {"user_id": uid, "folder_id": target})
-        for i, qid in enumerate(ids):
-            db.questions.update_one({"id": qid, "user_id": uid}, {"$set": {"folder_id": target, "position": start + i, "updated_at": now}})
+        bulk_update(db.questions, [
+            ({"id": qid, "user_id": uid}, {"$set": {"folder_id": target, "position": start + i, "updated_at": now}})
+            for i, qid in enumerate(ids)
+        ])
     elif a == "set_status":
         if not body.status:
             raise HTTPException(status_code=422, detail="status is required")
+        ops = []
         for q in owned:
             updates: Dict[str, Any] = {"updated_at": now}
             apply_status(db, uid, q, body.status, updates)
-            db.questions.update_one({"id": q["id"], "user_id": uid}, {"$set": updates})
+            ops.append(({"id": q["id"], "user_id": uid}, {"$set": updates}))
+        if ops:
+            bulk_update(db.questions, ops)
     elif a == "set_difficulty":
         if not body.difficulty:
             raise HTTPException(status_code=422, detail="difficulty is required")
@@ -186,13 +191,16 @@ def bulk_action(body: BulkAction, db: Database = Depends(get_db), current_user: 
     elif a in ("add_tags", "remove_tags"):
         if not body.tags:
             raise HTTPException(status_code=422, detail="tags are required")
+        ops = []
         for q in owned:
             tags = parse_tags(q.get("tags"))
             if a == "add_tags":
                 tags = (tags + [t for t in body.tags if t not in tags])[:30]
             else:
                 tags = [t for t in tags if t not in body.tags]
-            db.questions.update_one({"id": q["id"], "user_id": uid}, {"$set": {"tags": tags, "updated_at": now}})
+            ops.append(({"id": q["id"], "user_id": uid}, {"$set": {"tags": tags, "updated_at": now}}))
+        if ops:
+            bulk_update(db.questions, ops)
     elif a == "bookmark":
         existing = bookmarked_ids(db, uid)
         new = [{"id": new_id(), "user_id": uid, "question_id": qid, "created_at": now} for qid in ids if qid not in existing]
@@ -206,8 +214,13 @@ def bulk_action(body: BulkAction, db: Database = Depends(get_db), current_user: 
 @router.post("/reorder")
 def reorder_questions(items: List[ReorderItem], db: Database = Depends(get_db), current_user: CurrentUser = Depends(get_current_user)):
     now = now_iso()
-    for item in items[:2000]:
-        db.questions.update_one({"id": item.id, "user_id": current_user.id}, {"$set": {"position": item.position, "updated_at": now}})
+    # One round trip instead of up to 2000 sequential updates.
+    ops = [
+        ({"id": item.id, "user_id": current_user.id}, {"$set": {"position": item.position, "updated_at": now}})
+        for item in items[:2000]
+    ]
+    if ops:
+        bulk_update(db.questions, ops)
     return {"message": "Questions reordered successfully"}
 
 
@@ -223,9 +236,12 @@ def update_question(question_id: str, q_in: QuestionUpdate, db: Database = Depen
     if q_in.problem_url is not None:
         url = q_in.problem_url.strip()
         updates["problem_url"] = url
-        slug = slug_from_url(url)
-        if slug:
+        # The LeetCode link follows the URL: a new or cleared URL must not keep the old problem's
+        # slug, or refresh/sync/import would act on the wrong problem.
+        slug = slug_from_url(url) or None
+        if slug != q.get("leetcode_slug"):
             updates["leetcode_slug"] = slug
+            updates["leetcode_id"] = None
     if q_in.folder_id is not None:
         updates["folder_id"] = _resolve_folder(db, current_user.id, q_in.folder_id)
     if q_in.problem_statement is not None:
