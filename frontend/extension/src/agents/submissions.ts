@@ -722,6 +722,24 @@ export async function ingestLeetCodeCapture(c: LeetCodeCapture): Promise<Submiss
   return sub;
 }
 
+/**
+ * Fast path used right after the user leaves a GFG problem page: imports GFG solves only and
+ * auto-completes a matching POTD. Anything that needs the full sync's handle-change clean-up
+ * (no cursor yet, or the saved handle changed) is left to the regular submissions run.
+ */
+export async function quickSyncGfg(): Promise<'synced' | 'no-handle' | 'needs-full-sync'> {
+  const settings = await getSettings();
+  const handle = settings.handles.gfg?.trim();
+  if (!handle) return 'no-handle';
+  const cursors = await getItem('cursors');
+  if (!cursors.gfg || !sameHandle(cursors.gfg.handle, handle)) return 'needs-full-sync';
+  const out: Submission[] = [];
+  const next = await syncGfg(handle, cursors.gfg, out);
+  if (out.length) await ingest(out); // also ticks a matching problem of the day
+  await updateItem('cursors', (c) => ({ ...c, gfg: next }));
+  return 'synced';
+}
+
 async function run(): Promise<string> {
   const deps = DEFAULT_DEPS;
   const settings = await getSettings();

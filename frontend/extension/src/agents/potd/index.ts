@@ -5,7 +5,7 @@ import type { FetchedPotdSource, Potd, Submission } from '../../lib/types';
 import type { Agent } from '../types';
 import { applyPotdMarks, computePotdMarks } from './done';
 import { fetchGfgPotd, fetchLeetCodePotd } from './fetchers';
-import { fetchTufPotd, TUF_CACHE_MS } from './tuf';
+import { fetchTufPotd, resetTufCache, TUF_CACHE_MS } from './tuf';
 
 const ORDER: FetchedPotdSource[] = ['leetcode', 'gfg', 'tuf'];
 
@@ -82,6 +82,25 @@ export async function resolveTufPotd(
     if (real) return { item: { ...real, outdated: true }, solvedOnSite: false, error };
     throw e;
   }
+}
+
+/**
+ * Forced re-read of takeuforward.org/potd right after the user leaves the TUF question page,
+ * so a solve shows up in seconds instead of at the next hourly run. Updates the TUF card and
+ * ticks it when TUF reports the question solved (needs the user's takeuforward.org login).
+ * Returns whether it is now marked done.
+ */
+export async function recheckTufPotd(now = Date.now()): Promise<boolean> {
+  resetTufCache();
+  const { solved, ...fresh } = await fetchTufPotd(now);
+  await updateItem('potd', (cache) => ({
+    ...cache,
+    items: cache.items.map((p) => (p.source === 'tuf' ? { ...fresh, outdated: undefined } : p)),
+  }));
+  if (!solved) return false;
+  const today = localDate(now);
+  await updateItem('potdDone', (done) => ({ ...done, [today]: [...new Set([...(done[today] ?? []), fresh.key])] }));
+  return true;
 }
 
 export async function markPotdsFromSubmissions(subs: Submission[], now = Date.now()) {

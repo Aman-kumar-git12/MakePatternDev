@@ -3,6 +3,7 @@ import { defineBackground } from 'wxt/utils/define-background';
 import { recoverInterruptedAnalyses } from '../agents/codeAnalysis';
 import { handleNotificationClick, handleReminderAlarm, updateBadge } from '../agents/reminders';
 import { AGENT_ALARM, ensureAlarms, recoverAgentStatus, refreshStale, runAgent, TICK } from '../agents/registry';
+import { registerPotdWatcher } from '../agents/potdWatcher';
 import { handleMessage } from '../agents/router';
 import { registerTimeTracker, trackNow } from '../agents/timeTracker';
 import { errorMessage } from '../lib/http';
@@ -36,6 +37,7 @@ const logError = (what: string) => (e: unknown) => console.warn(`[coding-journey
 export default defineBackground(() => {
   // Listeners must be registered synchronously so events can wake the worker.
   registerTimeTracker();
+  registerPotdWatcher();
 
   browser.runtime.onInstalled.addListener(async ({ reason }) => {
     await ensureAlarms();

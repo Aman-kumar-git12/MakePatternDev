@@ -138,7 +138,13 @@ export function TodayTab() {
         ) : items.length ? (
           <ul className="space-y-2">
             {items.map((p) => (
-              <PotdRow key={p.source} p={p} done={done.has(p.key)} date={today} />
+              <PotdRow
+                key={p.source}
+                p={p}
+                done={done.has(p.key)}
+                date={today}
+                needsGfgHandle={p.source === 'gfg' && !settings.handles.gfg?.trim()}
+              />
             ))}
             {tufUnavailable && <TufUnavailableRow reason={potd.errors.tuf} checking={refreshing} />}
             {newtonOn && !newton && <NewtonUnavailableRow error={newtonError?.error} />}
@@ -152,11 +158,11 @@ export function TodayTab() {
   );
 }
 
-function PotdRow({ p, done, date }: { p: Potd; done: boolean; date: string }) {
+function PotdRow({ p, done, date, needsGfgHandle }: { p: Potd; done: boolean; date: string; needsGfgHandle?: boolean }) {
   // TUF's A2Z picks link to other sites, but the pick itself is TUF's, so it wears TUF's identity.
   const identity = p.source === 'tuf' ? 'tuf' : p.platform;
   return (
-    <li className="card plat-wash flex items-center gap-2 py-2 pr-1.5 pl-1.5 transition hover:-translate-y-px" style={platformVars(identity)}>
+    <li className="card plat-wash flex flex-wrap items-center gap-x-2 gap-y-1 py-2 pr-1.5 pl-1.5 transition hover:-translate-y-px" style={platformVars(identity)}>
       {/* 32px hit area around the 22px visual circle. */}
       <button
         type="button"
@@ -213,6 +219,15 @@ function PotdRow({ p, done, date }: { p: Potd; done: boolean; date: string }) {
         >
           <LinkIcon size={13} aria-hidden />
         </a>
+      )}
+      {needsGfgHandle && !done && (
+        <button
+          type="button"
+          onClick={() => void browser.runtime.openOptionsPage()}
+          className="basis-full cursor-pointer rounded-lg px-2 py-1 text-left text-[11px] font-semibold text-accent hover:bg-surface-2"
+        >
+          Add your GFG username in Settings to tick this automatically when you solve it →
+        </button>
       )}
     </li>
   );
