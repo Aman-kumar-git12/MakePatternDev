@@ -60,7 +60,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         <div
           className="absolute inset-0 bg-cover bg-center"
           style={{
-            backgroundImage: 'url(/image.png)',
+            backgroundImage: 'url(/hero-background.png)',
           }}
         />
         {/* Gradient overlay */}

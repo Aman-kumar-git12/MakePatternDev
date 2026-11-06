@@ -1,0 +1,13 @@
+# Local development database, so dev never points at the production cluster.
+#   docker compose up -d
+#   then in backend/.env: MONGODB_URI=mongodb://localhost:27017
+services:
+  mongo:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+volumes:
+  mongo-data:

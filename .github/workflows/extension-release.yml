@@ -1,7 +1,7 @@
 name: extension-release
 
 # Builds the Coding Journey extension and publishes downloadable zips as a GitHub Release.
-# Trigger: push a tag named ext-v<version> matching frontend/extension/package.json "version",
+# Trigger: push a tag named ext-v<version> matching extension/package.json "version",
 #   git tag ext-v0.2.0 && git push origin ext-v0.2.0
 # or run it manually (Actions -> extension-release -> Run workflow) to get the zips as an artifact.
 
@@ -18,14 +18,14 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: frontend/extension
+        working-directory: extension
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: frontend/extension/package-lock.json
+          cache-dependency-path: extension/package-lock.json
 
       - run: npm ci
 
@@ -47,7 +47,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: coding-journey-extension
-          path: frontend/extension/dist/*.zip
+          path: extension/dist/*.zip
           if-no-files-found: error
 
       - name: Publish GitHub Release
@@ -61,7 +61,7 @@ jobs:
           Chrome / Edge / Brave: download the -chrome.zip, unzip it, open chrome://extensions, enable Developer mode, click Load unpacked and pick the unzipped folder.
           Firefox 128+: download the -firefox.zip and load it via about:debugging -> This Firefox -> Load Temporary Add-on.
 
-          Full instructions: frontend/extension/README.md#install"
+          Full instructions: extension/README.md#install"
           gh release create "$GITHUB_REF_NAME" dist/*.zip \
             --title "Coding Journey extension v${version}" \
             --notes "$notes"

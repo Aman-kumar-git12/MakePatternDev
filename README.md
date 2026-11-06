@@ -82,7 +82,7 @@ python run.py          # http://localhost:8000/api, docs at /docs in development
 cd backend && python -m pytest -q
 ```
 
-Tests run on an in-memory MongoDB (mongomock) and never touch a real database. CI runs them on every push (`.github/workflows/backend.yml`).
+Tests run on an in-memory MongoDB (mongomock) and never touch a real database. CI runs them on every push (`.github/workflows/ci.yml`).
 
 ### Frontend
 
@@ -104,7 +104,20 @@ Set `VITE_API_BASE_URL` to point at a non-default backend.
 
 ## 📦 Repository layout & deployment
 
-This is a monorepo: `backend/` (FastAPI) and `frontend/` (Vite). CI (`.github/workflows/ci.yml`) runs backend tests and frontend lint + build on every push.
+```
+.
+├── backend/      FastAPI API (app/routers, app/schemas, app/services, tests/)
+├── frontend/     React + Vite web app
+├── extension/    Coding Journey browser extension (WXT) — see extension/README.md
+├── .github/      CI (ci.yml) and extension releases (extension-release.yml)
+└── docker-compose.yml   local MongoDB for development
+```
+
+CI runs backend tests, frontend lint + build, and extension type-check + tests + build on every push. See [CONTRIBUTING.md](CONTRIBUTING.md) for local setup.
 
 - **Vercel** (frontend): Project → Settings → Root Directory = `frontend`.
 - **Render** (backend): Root Directory = `backend`, build `pip install -r requirements.txt`, start `uvicorn app.main:app --host 0.0.0.0 --port $PORT`.
+
+## 📄 License
+
+[MIT](LICENSE)

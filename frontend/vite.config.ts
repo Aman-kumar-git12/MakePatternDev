@@ -29,11 +29,8 @@ function serviceWorker(): Plugin {
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss(), serviceWorker()],
-  // frontend/extension is a separate package with its own node_modules (and its own React).
-  // Without this, the dev server's dependency scan crawls its popup HTML, loads a second React
-  // and the app crashes on start ("Cannot read properties of null (reading 'useRef')").
+  // Only scan the app's own entry for dependencies (keeps the dev server from crawling stray HTML).
   optimizeDeps: { entries: ['index.html'] },
-  server: { watch: { ignored: ['**/extension/**'] } },
   build: {
     rolldownOptions: {
       output: {
