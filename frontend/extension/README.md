@@ -72,33 +72,25 @@ GeeksforGeeks and takeUforward provide no official public developer APIs. GFG da
 
 ## Install
 
-The extension is not on the Chrome Web Store or addons.mozilla.org yet. Download the zip for your browser:
+The extension is not on the Chrome Web Store yet. Install it from GitHub Releases:
 
-| Browser | Download |
-|---|---|
-| Chrome, Edge, Brave | [coding-journey-extension-0.1.0-chrome.zip](releases/coding-journey-extension-0.1.0-chrome.zip) |
-| Firefox 128+ | [coding-journey-extension-0.1.0-firefox.zip](releases/coding-journey-extension-0.1.0-firefox.zip) |
-
-The same files are attached to each [GitHub release](https://github.com/Aman-kumar-git12/MakePatternDev/releases/latest). On GitHub, open a zip and click **Download raw file**.
-
-To refresh the zips in `releases/` after a change: `npm run release`, then copy `dist/*-chrome.zip` and `dist/*-firefox.zip` into `releases/` (bump `version` in `package.json` first).
+**[Download coding-journey-extension.zip](https://github.com/Aman-kumar-git12/MakePatternDev/releases/latest/download/coding-journey-extension.zip)** (always the latest version, for Chrome, Edge and Brave)
 
 ### Chrome, Edge, Brave
 
-1. Download `coding-journey-extension-<version>-chrome.zip` from the latest release.
-2. Unzip it into a folder you'll keep. The browser loads the extension from there, so don't delete it.
-3. Open `chrome://extensions` (Edge: `edge://extensions`) and turn on **Developer mode**.
-4. Click **Load unpacked** and select the unzipped folder (the one containing `manifest.json`).
+1. Download `coding-journey-extension.zip` from the link above, or from the [Releases page](https://github.com/Aman-kumar-git12/MakePatternDev/releases/latest).
+2. Unzip it. You get one folder, `coding-journey-extension`, with `manifest.json` directly inside. Keep this folder somewhere permanent: the browser loads the extension from it.
+3. Open `chrome://extensions` (Edge: `edge://extensions`) and turn on **Developer mode** (top right).
+4. Click **Load unpacked** and select the `coding-journey-extension` folder.
 5. Pin **Coding Journey** from the puzzle-piece menu, then open its **Settings**.
 
-To update, replace the folder's contents with the new release and click the reload icon on the extension's card. Your data is kept.
+Don't drag the zip onto the extensions page or select the zip itself: Chrome only installs `.crx` packages from the Chrome Web Store, so it must be loaded as an unzipped folder.
 
-Chrome only installs `.crx` packages from the Chrome Web Store, which is why releases ship a zip for *Load unpacked*.
+To update, download the new zip, replace the `coding-journey-extension` folder with the new one, and click the reload icon on the extension's card. Your data is kept.
 
 ### Firefox 128+
 
-1. Download `coding-journey-extension-<version>-firefox.zip`.
-2. Open `about:debugging#/runtime/this-firefox`, click **Load Temporary Add-on…** and pick the zip (or `manifest.json` in the unzipped folder).
+Releases ship the Chrome build only. For Firefox, build it from source (below) with `npm run build:firefox`, then open `about:debugging#/runtime/this-firefox`, click **Load Temporary Add-on…** and pick `dist/firefox-mv3/manifest.json`.
 
 Temporary add-ons are removed when Firefox restarts; a permanent install needs Mozilla signing, which these builds don't have. Firefox may treat host permissions as optional: if contests or submissions don't load, allow the sites under *about:addons → Coding Journey → Permissions*. Firefox 128 is required because the live LeetCode capture uses a MAIN-world content script.
 
@@ -226,8 +218,9 @@ npm run dev          # opens a browser with the extension loaded and hot reload
 | `npm run build` / `npm run build:firefox` | Production build to `dist/chrome-mv3` / `dist/firefox-mv3` |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm test` | Vitest unit tests |
-| `npm run zip` / `npm run zip:firefox` / `npm run zip:all` | Release zips in `dist/` (`zip:all` = Chrome + Firefox + sources) |
-| `npm run release` | Type check, tests, then `zip:all` |
+| `npm run package` | Chrome build packaged as `dist/coding-journey-extension.zip` (one ready-to-load `coding-journey-extension/` folder inside) |
+| `npm run zip` / `npm run zip:firefox` / `npm run zip:all` | WXT's own zips in `dist/` (Chrome / Firefox / both plus sources) |
+| `npm run release` | Type check, tests, then `package` |
 
 - **Tests** live in `tests/` and run with Vitest. Browser APIs come from WXT's `fakeBrowser`, network calls are mocked, and site parsers are tested against saved fixtures in `tests/fixtures/`. No test touches the network.
 - **Icons** are generated with `node scripts/gen-icons.mjs`.
@@ -240,9 +233,9 @@ npm run dev          # opens a browser with the extension loaded and hot reload
    ```bash
    git tag ext-v0.2.0 && git push origin ext-v0.2.0
    ```
-3. The **extension-release** workflow (`../../.github/workflows/extension-release.yml`) checks that the tag matches `package.json`, type-checks, runs the tests, builds the Chrome and Firefox zips plus a sources zip, and attaches them to a GitHub Release for that tag. It can also be run manually from the Actions tab to get the zips as a workflow artifact.
+3. The **extension-release** workflow (`../../.github/workflows/extension-release.yml`) checks that the tag matches `package.json`, type-checks, runs the tests, builds `coding-journey-extension.zip`, and attaches it to a GitHub Release for that tag. Because the file name never changes, `releases/latest/download/coding-journey-extension.zip` always serves the newest version. It can also be run manually from the Actions tab to get the zip as a workflow artifact.
 
-Locally, `npm run release` runs the same checks and writes the zips to `dist/`.
+Locally, `npm run release` runs the same checks and writes `dist/coding-journey-extension.zip`.
 
 ## Project structure
 

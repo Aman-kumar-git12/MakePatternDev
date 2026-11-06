@@ -1,9 +1,10 @@
 name: extension-release
 
-# Builds the Coding Journey extension and publishes downloadable zips as a GitHub Release.
+# Builds the Coding Journey extension and publishes it as a GitHub Release with one asset,
+# coding-journey-extension.zip, which unzips to a ready-to-load coding-journey-extension/ folder.
 # Trigger: push a tag named ext-v<version> matching frontend/extension/package.json "version",
 #   git tag ext-v0.2.0 && git push origin ext-v0.2.0
-# or run it manually (Actions -> extension-release -> Run workflow) to get the zips as an artifact.
+# or run it manually (Actions -> extension-release -> Run workflow) to get the zip as an artifact.
 
 on:
   push:
@@ -41,13 +42,13 @@ jobs:
 
       - run: npm run typecheck
       - run: npm test
-      - run: npm run zip:all
+      - run: npm run package
 
-      - name: Upload zips as a workflow artifact
+      - name: Upload the zip as a workflow artifact
         uses: actions/upload-artifact@v4
         with:
           name: coding-journey-extension
-          path: frontend/extension/dist/*.zip
+          path: frontend/extension/dist/coding-journey-extension.zip
           if-no-files-found: error
 
       - name: Publish GitHub Release
@@ -56,12 +57,15 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           version=$(node -p "require('./package.json').version")
-          notes="Coding Journey browser extension v${version}.
+          notes="Coding Journey browser extension v${version} for Chrome, Edge and Brave.
 
-          Chrome / Edge / Brave: download the -chrome.zip, unzip it, open chrome://extensions, enable Developer mode, click Load unpacked and pick the unzipped folder.
-          Firefox 128+: download the -firefox.zip and load it via about:debugging -> This Firefox -> Load Temporary Add-on.
+          How to install:
+          1. Download coding-journey-extension.zip below and unzip it. You get a folder named coding-journey-extension.
+          2. Open chrome://extensions and turn on Developer mode (top right).
+          3. Click Load unpacked and select the coding-journey-extension folder.
 
-          Full instructions: frontend/extension/README.md#install"
-          gh release create "$GITHUB_REF_NAME" dist/*.zip \
+          To update, replace that folder with the new one and click the reload icon on the extension's card. Your data is kept.
+          Full guide: https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_REF_NAME}/frontend/extension/README.md#install"
+          gh release create "$GITHUB_REF_NAME" dist/coding-journey-extension.zip \
             --title "Coding Journey extension v${version}" \
             --notes "$notes"

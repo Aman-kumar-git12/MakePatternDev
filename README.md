@@ -27,7 +27,7 @@ A tracker for practising Data Structures and Algorithms (DSA). It combines a web
 | **Frontend** | The MakePattern web app (installable as an offline-capable PWA) | React 19, TypeScript, Vite, Tailwind CSS | [frontend/README.md](frontend/README.md) |
 | **Extension** | *Coding Journey*: a browser extension for daily problems, contests, stats and code analysis | WXT, React, Tailwind CSS | [frontend/extension/README.md](frontend/extension/README.md) |
 
-**Get the extension:** download [Chrome / Edge / Brave](frontend/extension/releases/coding-journey-extension-0.1.0-chrome.zip) or [Firefox](frontend/extension/releases/coding-journey-extension-0.1.0-firefox.zip), unzip it, then load it via `chrome://extensions` → Developer mode → Load unpacked. See the [install guide](frontend/extension/README.md#install).
+**Get the extension:** [download coding-journey-extension.zip](https://github.com/Aman-kumar-git12/MakePatternDev/releases/latest/download/coding-journey-extension.zip) (Chrome, Edge, Brave), unzip it, then open `chrome://extensions`, turn on Developer mode, click **Load unpacked** and select the `coding-journey-extension` folder. See the [install guide](frontend/extension/README.md#install).
 | **Agent** | A REST service that reviews code for time and space complexity using your own LLM API key | FastAPI, 13 LLM providers | [agent/README.md](agent/README.md) |
 
 ## Features

@@ -1,7 +1,7 @@
 {
   "name": "coding-journey-extension",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "scripts": {
     "dev": "wxt",
@@ -14,7 +14,8 @@
     "postinstall": "wxt prepare",
     "zip:firefox": "wxt zip -b firefox",
     "zip:all": "wxt zip && wxt zip -b firefox",
-    "release": "npm run typecheck && npm test && npm run zip:all"
+    "release": "npm run typecheck && npm test && npm run package",
+    "package": "wxt build && node scripts/package.mjs"
   },
   "dependencies": {
     "lucide-react": "^1.67.0",
