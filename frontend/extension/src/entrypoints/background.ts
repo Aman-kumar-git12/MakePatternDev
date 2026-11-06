@@ -8,10 +8,10 @@ import { handleMessage } from '../agents/router';
 import { registerTimeTracker, trackNow } from '../agents/timeTracker';
 import { errorMessage } from '../lib/http';
 import type { Reply, SenderInfo } from '../lib/messages';
-import { getItem, pruneOrphanAnalyses } from '../lib/storage';
+import { getItem, migrateLegacySettings, pruneOrphanAnalyses } from '../lib/storage';
 
 /**
- * Keeps `storage.local` (which holds the Anthropic API key) away from content scripts where
+ * Keeps `storage.local` (which holds the AI review provider keys) away from content scripts where
  * the browser allows it. Chrome's `setAccessLevel` historically only accepted
  * `storage.session`; on browsers that reject it for `local` (and Firefox, which lacks it),
  * content scripts can technically read `storage.local` — see README "Privacy". Our content
@@ -77,5 +77,6 @@ export default defineBackground(() => {
   void restrictStorageAccess();
   recoverAgentStatus().catch(logError('agent status recovery'));
   recoverInterruptedAnalyses().catch(logError('analysis recovery'));
+  migrateLegacySettings().catch(logError('settings migration'));
   ensureAlarms().catch(logError('alarms'));
 });

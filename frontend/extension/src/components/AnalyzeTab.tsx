@@ -5,6 +5,7 @@ import { send } from '../lib/messages';
 import { relativeAgo } from '../lib/time';
 import type { Analysis, Submission } from '../lib/types';
 import { AnalysisView } from './AnalysisView';
+import { CodeEditor } from './CodeEditor';
 import { Button, cx, Empty, IconButton, PlatformIcon, platformVars, SectionTitle } from './ui';
 
 /** Set by the background on browser-captured LeetCode submissions it couldn't confirm yet. */
@@ -29,14 +30,13 @@ export function AnalyzeTab() {
     setConfirmDelete(false);
     setDeleteError('');
   };
-  const hasKey = !!settings.ai.apiKey.trim();
   const open = openId ? analyses[openId] : undefined;
 
   const run = async (req: { submissionId?: string; code?: string }) => {
     setBusy(true);
     setError('');
     try {
-      const a = await send<Analysis>({ type: 'analyze', ...req, withAi: false });
+      const a = await send<Analysis>({ type: 'analyze', ...req });
       openAnalysis(a.id);
     } catch (e) {
       setError((e as Error).message);
@@ -87,7 +87,7 @@ export function AnalyzeTab() {
             {deleteError}
           </p>
         )}
-        <AnalysisView a={open} hasKey={hasKey} />
+        <AnalysisView a={open} />
         <details className="rounded-lg border border-line">
           <summary className="cursor-pointer px-2.5 py-1.5 text-[11px] text-ink-2">Show code ({open.heuristic.language})</summary>
           <pre className="scroll-thin max-h-56 overflow-auto px-2.5 pb-2 text-[11px] leading-snug">{open.code}</pre>
@@ -111,19 +111,18 @@ export function AnalyzeTab() {
           </span>
           <div className="min-w-0 flex-1">
             <div className="text-[12.5px] font-bold">Analyze a solution</div>
-            <div className="text-[10.5px] text-ink-3">Readability, patterns &amp; complexity{hasKey ? ' · plus Claude review' : ''}</div>
+            <div className="text-[10.5px] text-ink-3">Readability, patterns &amp; complexity · plus AI complexity review</div>
           </div>
         </div>
-        <textarea
+        <CodeEditor
           value={code}
-          onChange={(e) => setCode(e.target.value)}
-          placeholder="Paste a solution (C++, Java, Python, JS, Go…)"
-          spellCheck={false}
-          aria-label="Code to analyze"
-          className="scroll-thin block h-28 w-full resize-y bg-surface-2 p-3 font-mono text-[11px] leading-relaxed outline-none placeholder:text-ink-3 focus:bg-card"
+          onChange={setCode}
+          placeholder="Paste or write a solution (C++, Java, Python, JS, Go…)"
+          ariaLabel="Code to analyze"
+          className="h-40 min-h-24 resize-y"
         />
         <div className="flex items-center gap-2 border-t border-line px-3 py-2">
-          <span className="text-[10.5px] text-ink-3">{code.trim() ? `${code.split('\n').length} lines` : 'Runs instantly, offline'}</span>
+          <span className="text-[10.5px] text-ink-3">{code.trim() ? `${code.split('\n').length} lines · Tab to indent` : 'Runs instantly, offline'}</span>
           <Button variant="primary" className="ml-auto" disabled={busy || !code.trim()} onClick={() => void run({ code })}>
             <Sparkles size={13} /> {busy ? 'Analyzing…' : 'Analyze'}
           </Button>
@@ -214,9 +213,9 @@ export function AnalyzeTab() {
                     {a.heuristic.readability.score}
                     <span className="text-[10px] font-semibold text-ink-3">/100</span>
                   </span>
-                  {a.ai && (
-                    <span className="brand-gradient shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-bold text-white" title="Claude review score">
-                      <span className="sr-only">Claude review score </span>AI {a.ai.readability.score}/10
+                  {a.complexityAi && (
+                    <span className="brand-gradient tabular shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-bold text-white" title="AI review: time complexity">
+                      <span className="sr-only">AI review time complexity </span>AI {a.complexityAi.time_complexity}
                     </span>
                   )}
                 </button>

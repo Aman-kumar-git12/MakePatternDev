@@ -1,12 +1,12 @@
-import { AlertTriangle, CheckCircle2, Loader2, Play, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ExternalLink, Eye, EyeOff, Loader2, Play, XCircle } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { browser } from 'wxt/browser';
 import { weeklySummary } from '../../agents/coach';
-import { AI_MODELS } from '../../agents/codeAnalysis/claude';
 import { AGENTS } from '../../agents/registry';
 import { importStatus } from '../../components/importStatus';
-import { Button, Card, cx, PlatformIcon, platformVars } from '../../components/ui';
+import { Button, Card, cx, IconButton, PlatformIcon, platformVars } from '../../components/ui';
 import { useNow, useStorage } from '../../hooks/useStorage';
+import { agentBaseUrl, checkAgentHealth, PROVIDERS, providerById, TIER_LABEL, type ProviderTier } from '../../lib/complexityAgent';
 import { send } from '../../lib/messages';
 import { PLATFORMS } from '../../lib/platforms';
 import { getItem, setItem } from '../../lib/storage';
@@ -208,6 +208,13 @@ export function App() {
       setSaveError('Fix the highlighted fields before saving.');
       return;
     }
+    try {
+      agentBaseUrl(draft.agent.url);
+    } catch (e) {
+      setSaved('error');
+      setSaveError((e as Error).message);
+      return;
+    }
     if (changedHandles.length) {
       const lines = changedHandles.map(
         (p) => `• ${PLATFORMS[p].name}: ${toPurge(p)} submissions imported for “${base.handles[p].trim()}”`,
@@ -222,7 +229,13 @@ export function App() {
     const clean: Settings = {
       ...draft,
       handles: Object.fromEntries(HANDLE_KEYS.map((k) => [k, draft.handles[k].trim()])) as Settings['handles'],
-      ai: { ...draft.ai, apiKey: draft.ai.apiKey.trim() },
+      agent: {
+        ...draft.agent,
+        url: draft.agent.url.trim(),
+        // Drop empty entries so cleared keys/models don't linger in storage.
+        keys: Object.fromEntries(Object.entries(draft.agent.keys).map(([k, v]) => [k, v.trim()]).filter(([, v]) => v)),
+        models: Object.fromEntries(Object.entries(draft.agent.models).map(([k, v]) => [k, v.trim()]).filter(([, v]) => v)),
+      },
     };
     try {
       await setItem('settings', clean);
@@ -407,33 +420,7 @@ export function App() {
         <Check className="mt-3" label="Send a weekly progress report on Sunday evening" checked={s.weeklyReport} onChange={(v) => update({ weeklyReport: v })} />
       </Section>
 
-      <Section
-        title="Claude code review"
-        hint="Optional. The Analyze tab works offline; with your own Anthropic API key it can also run a deep review of your code. The key stays in this browser and is sent only to api.anthropic.com."
-      >
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Anthropic API key" htmlFor="apikey">
-            <input
-              id="apikey"
-              type="password"
-              autoComplete="off"
-              className="input"
-              placeholder="sk-ant-…"
-              value={s.ai.apiKey}
-              onChange={(e) => update({ ai: { ...s.ai, apiKey: e.target.value } })}
-            />
-          </Field>
-          <Field label="Model" htmlFor="model">
-            <select id="model" className="input" value={s.ai.model} onChange={(e) => update({ ai: { ...s.ai, model: e.target.value } })}>
-              {AI_MODELS.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.label}
-                </option>
-              ))}
-            </select>
-          </Field>
-        </div>
-      </Section>
+      <ComplexityAgentSection agent={s.agent} onChange={(agent) => update({ agent })} />
 
       <AgentsPanel />
       <DataPanel />
@@ -472,6 +459,126 @@ export function App() {
 
       <style>{`.input{width:100%;border:1px solid var(--border);background:var(--surface-2);border-radius:8px;padding:6px 8px;font-size:13px;color:var(--text)}.input:focus{border-color:var(--accent)}.input[aria-invalid=true]{border-color:var(--critical)}`}</style>
     </div>
+  );
+}
+
+const TIERS: ProviderTier[] = ['free', 'paid', 'local'];
+
+function ComplexityAgentSection({ agent, onChange }: { agent: Settings['agent']; onChange: (a: Settings['agent']) => void }) {
+  const provider = providerById(agent.provider) ?? PROVIDERS[0]!;
+  const [showKey, setShowKey] = useState(false);
+  const [health, setHealth] = useState<'idle' | 'checking' | 'ok' | 'down' | 'bad-url'>('idle');
+  const test = async () => {
+    try {
+      agentBaseUrl(agent.url);
+    } catch {
+      setHealth('bad-url');
+      return;
+    }
+    setHealth('checking');
+    setHealth((await checkAgentHealth(agent.url)) ? 'ok' : 'down');
+  };
+  return (
+    <Section
+      title="AI code review"
+      hint="Optional. The AI review talks only about complexity: time and space, why, and whether a faster approach exists. Run the agent folder (python app.py), pick a provider (free ones like Groq or Gemini work) and paste your own API key. Keys stay in this browser, are never exported, and are sent only to the agent URL below."
+    >
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="Agent URL" htmlFor="agent-url">
+          <div className="flex gap-2">
+            <input
+              id="agent-url"
+              className="input min-w-0 flex-1"
+              inputMode="url"
+              spellCheck={false}
+              value={agent.url}
+              onChange={(e) => {
+                setHealth('idle');
+                onChange({ ...agent, url: e.target.value });
+              }}
+            />
+            <Button onClick={() => void test()} disabled={health === 'checking'}>
+              {health === 'checking' ? <Loader2 size={13} className="animate-spin" aria-hidden /> : null}
+              Test connection
+            </Button>
+          </div>
+          <p id="agent-health" className="mt-1 text-xs" role="status">
+            {health === 'ok' && (
+              <span className="inline-flex items-center gap-1 text-good-text">
+                <CheckCircle2 size={12} aria-hidden /> Agent is running
+              </span>
+            )}
+            {health === 'down' && (
+              <span className="inline-flex items-center gap-1 text-critical">
+                <XCircle size={12} aria-hidden /> Not reachable — start it with <code>python app.py</code> in the agent folder
+              </span>
+            )}
+            {health === 'bad-url' && <span className="text-critical">Enter an http:// or https:// URL.</span>}
+          </p>
+        </Field>
+        <Field label="Provider" htmlFor="agent-provider">
+          <select
+            id="agent-provider"
+            className="input"
+            value={provider.id}
+            onChange={(e) => {
+              setShowKey(false);
+              onChange({ ...agent, provider: e.target.value });
+            }}
+          >
+            {TIERS.map((tier) => (
+              <optgroup key={tier} label={TIER_LABEL[tier]}>
+                {PROVIDERS.filter((p) => p.tier === tier).map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.label}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+        </Field>
+        {provider.needsKey ? (
+          <Field label={`${provider.label} API key`} htmlFor="agent-key">
+            <div className="flex gap-2">
+              <input
+                id="agent-key"
+                type={showKey ? 'text' : 'password'}
+                autoComplete="off"
+                spellCheck={false}
+                className="input min-w-0 flex-1"
+                placeholder="Paste your key"
+                value={agent.keys[provider.id] ?? ''}
+                onChange={(e) => onChange({ ...agent, keys: { ...agent.keys, [provider.id]: e.target.value } })}
+              />
+              <IconButton title={showKey ? 'Hide API key' : 'Show API key'} pressed={showKey} onClick={() => setShowKey((v) => !v)} className="h-auto">
+                {showKey ? <EyeOff size={14} aria-hidden /> : <Eye size={14} aria-hidden />}
+              </IconButton>
+            </div>
+            <a href={provider.keyUrl} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center gap-1 text-xs text-accent hover:underline">
+              Get a {provider.label} key <ExternalLink size={11} aria-hidden />
+            </a>
+          </Field>
+        ) : (
+          <div className="text-xs text-ink-2 sm:self-center">
+            No key needed — install{' '}
+            <a href={provider.keyUrl} target="_blank" rel="noreferrer" className="text-accent hover:underline">
+              Ollama
+            </a>{' '}
+            and pull the model first.
+          </div>
+        )}
+        <Field label="Model (leave empty for the default)" htmlFor="agent-model">
+          <input
+            id="agent-model"
+            className="input"
+            spellCheck={false}
+            placeholder={provider.defaultModel}
+            value={agent.models[provider.id] ?? ''}
+            onChange={(e) => onChange({ ...agent, models: { ...agent.models, [provider.id]: e.target.value } })}
+          />
+        </Field>
+      </div>
+    </Section>
   );
 }
 
@@ -598,8 +705,8 @@ function DataPanel() {
   const exportData = async () => {
     const all = await browser.storage.local.get(null);
     const settings = await getItem('settings');
-    // Never export the API key.
-    const data = { ...all, settings: { ...settings, ai: { ...settings.ai, apiKey: '' } } };
+    // Never export API keys.
+    const data = { ...all, settings: { ...settings, agent: { ...settings.agent, keys: {} } } };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);

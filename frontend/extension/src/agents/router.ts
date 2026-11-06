@@ -4,7 +4,7 @@ import { applyNewtonFailure, applyNewtonRead } from '../lib/newtonQotd';
 import { authorize, type LeetCodeCapture, type Message, type SenderInfo } from '../lib/messages';
 import { getItem, setItem, updateItem } from '../lib/storage';
 import type { Submission } from '../lib/types';
-import { analyze, deleteAnalysis, startAi } from './codeAnalysis';
+import { analyze, analyzeComplexityFor, deleteAnalysis } from './codeAnalysis';
 import { ensureAlarms, exclusive, refreshStale, runAgent, track, whenOpen } from './registry';
 import { scheduleReminders, updateBadge } from './reminders';
 import { ingestLeetCodeCapture } from './submissions';
@@ -34,9 +34,6 @@ function dispatch(msg: Exclude<Message, { type: 'clearData' }>): Promise<unknown
         await Promise.allSettled([runAgent('contests'), runAgent('potd'), runAgent('submissions')]);
         return updateBadge();
       })();
-    case 'analyzeAi':
-      // Resolves once the review has started; the outcome is recorded on the analysis.
-      return startAi(msg.analysisId).then(() => null);
     // Storage writers: tracked so a clear waits for them.
     case 'togglePotdDone':
       return track(
@@ -70,6 +67,9 @@ function dispatch(msg: Exclude<Message, { type: 'clearData' }>): Promise<unknown
     }
     case 'analyze':
       return track(analyze(msg));
+    case 'analyzeComplexity':
+      // Resolves with the result; it is also recorded on the analysis, so a closed popup loses nothing.
+      return track(analyzeComplexityFor(msg.analysisId));
     case 'deleteAnalysis':
       return track(deleteAnalysis(msg.analysisId));
   }

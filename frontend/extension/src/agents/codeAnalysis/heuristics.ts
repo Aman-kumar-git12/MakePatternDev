@@ -3,8 +3,8 @@ import type { Algorithm, HeuristicReport } from '../../lib/types';
 /**
  * Offline, instant code analysis: readability metrics, algorithm/pattern detection and a
  * rough complexity estimate from loop nesting. Works on C++, Java, Python, JS/TS, Go, C#
- * and Kotlin-style code. It is pattern matching, not parsing — the Claude review is the
- * deep version.
+ * and Kotlin-style code. It is pattern matching, not parsing — the AI review (through the
+ * local agent) gives the precise complexity.
  */
 
 export function guessLanguage(code: string, hint?: string): string {

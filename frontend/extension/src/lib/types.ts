@@ -1,3 +1,4 @@
+import type { AgentSettings, ComplexityResult } from './complexityAgent';
 export type PlatformId =
   | 'leetcode'
   | 'codeforces'
@@ -91,7 +92,8 @@ export interface Settings {
   dailyGoalMinutes: number;
   idleSeconds: number;
   weeklyReport: boolean;
-  ai: { apiKey: string; model: string };
+  /** Local complexity agent (agent/ folder). API keys are per provider and never leave this browser except to `url`. */
+  agent: AgentSettings;
 }
 
 export interface ContestCache {
@@ -177,20 +179,6 @@ export interface HeuristicReport {
   complexity: { time: string; reason: string };
 }
 
-export interface AiReport {
-  summary: string;
-  approach: string;
-  algorithms: { name: string; role: string }[];
-  dataStructures: string[];
-  timeComplexity: string;
-  spaceComplexity: string;
-  complexityExplanation: string;
-  readability: { score: number; verdict: string; strengths: string[]; issues: string[] };
-  improvements: { title: string; detail: string }[];
-  edgeCaseRisks: string[];
-  optimalApproach: string;
-}
-
 export interface Analysis {
   id: string;
   createdAt: number;
@@ -199,13 +187,8 @@ export interface Analysis {
   lang?: string;
   code: string;
   heuristic: HeuristicReport;
-  ai?: AiReport;
-  aiModel?: string;
-  aiStatus: 'idle' | 'running' | 'done' | 'error';
-  aiError?: string;
-  /**
-   * Epoch ms the Claude review was started (set with `aiStatus: 'running'`). A review still
-   * `running` more than `AI_STALE_MS` (3 min) after this is stale and can be retried.
-   */
-  aiStartedAt?: number;
+  /** The AI review (complexity only) from the local agent, with the provider chosen in settings. */
+  complexityAi?: ComplexityResult;
+  complexityAiStatus?: 'running' | 'done' | 'error';
+  complexityAiError?: string;
 }

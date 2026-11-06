@@ -28,7 +28,9 @@ export default defineConfig({
       'https://practiceapi.geeksforgeeks.org/*',
       'https://authapi.geeksforgeeks.org/*',
       'https://takeuforward.org/*',
-      'https://api.anthropic.com/*',
+      // The local complexity agent (agent/ folder, `python app.py`); any port.
+      'http://localhost/*',
+      'http://127.0.0.1/*',
     ],
     action: { default_title: 'Coding Journey' },
     ...(browser === 'firefox'

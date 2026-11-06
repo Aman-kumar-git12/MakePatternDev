@@ -49,7 +49,7 @@ describe('authorize', () => {
     expect(authorize({ type: 'clearData' }, page, EXT_ID, BASE)).toEqual({ type: 'clearData' });
     for (const msg of [
       { type: 'clearData' },
-      { type: 'analyzeAi', analysisId: 'x' },
+      { type: 'analyzeComplexity', analysisId: 'x' },
       { type: 'runAgent', id: 'contests' },
       { type: 'settingsChanged' },
       { type: 'togglePotdDone', date: '2026-11-04', key: 'leetcode:two-sum' },
@@ -71,7 +71,8 @@ describe('authorize', () => {
     expect(() => authorize({ type: 'nope' }, page, EXT_ID, BASE)).toThrow(/Unknown message type/);
     expect(() => authorize({ type: 'runAgent', id: 42 }, page, EXT_ID, BASE)).toThrow(/Malformed/);
     expect(() => authorize({ type: 'togglePotdDone', date: 'today', key: 'k' }, page, EXT_ID, BASE)).toThrow(/Malformed/);
-    expect(() => authorize({ type: 'analyze', code: 'x' }, page, EXT_ID, BASE)).toThrow(/Malformed/);
+    expect(() => authorize({ type: 'analyze', code: 42 }, page, EXT_ID, BASE)).toThrow(/Malformed/);
+    expect(() => authorize({ type: 'analyzeAi', analysisId: 'x' }, page, EXT_ID, BASE)).toThrow(/Unknown message type/);
   });
 
   it('strips unknown fields', () => {

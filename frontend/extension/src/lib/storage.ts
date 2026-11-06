@@ -1,4 +1,5 @@
 import { browser } from 'wxt/browser';
+import { DEFAULT_AGENT_URL } from './complexityAgent';
 import type { NewtonQotdError, NewtonQotdState } from './newtonQotd';
 import type {
   AgentStatus,
@@ -22,7 +23,7 @@ export const DEFAULT_SETTINGS: Settings = {
   dailyGoalMinutes: 90,
   idleSeconds: 120,
   weeklyReport: true,
-  ai: { apiKey: '', model: 'claude-opus-5-5' },
+  agent: { url: DEFAULT_AGENT_URL, provider: 'groq', keys: {}, models: {} },
 };
 
 export interface StorageSchema {
@@ -78,10 +79,12 @@ export function withDefaults<K extends StorageKey>(key: K, value: unknown): Stor
   if (value === undefined || value === null) return structuredClone(DEFAULTS[key]);
   if (key === 'settings') {
     // Merge so settings added in later versions get their defaults.
-    const v = value as Partial<Settings> & { cfPickRating?: unknown };
-    // Drop settings that no longer exist (e.g. the removed Codeforces problem-of-the-day).
-    const { cfPickRating: _removed, ...rest } = v;
+    const v = value as Partial<Settings> & { cfPickRating?: unknown; ai?: { apiKey?: unknown } };
+    // Drop settings that no longer exist: the removed Codeforces problem-of-the-day, and the old
+    // direct Claude review (`ai`), whose Anthropic key moves to the agent's key list below.
+    const { cfPickRating: _removed, ai: legacyAi, ...rest } = v;
     void _removed;
+    const legacyKey = typeof legacyAi?.apiKey === 'string' ? legacyAi.apiKey.trim() : '';
     const knownPotd = Object.fromEntries(
       Object.keys(DEFAULT_SETTINGS.potdSources).map((k) => [k, (v.potdSources as Record<string, boolean> | undefined)?.[k] ?? true]),
     ) as Settings['potdSources'];
@@ -91,10 +94,26 @@ export function withDefaults<K extends StorageKey>(key: K, value: unknown): Stor
       contestPlatforms: { ...DEFAULT_SETTINGS.contestPlatforms, ...v.contestPlatforms },
       potdSources: knownPotd,
       handles: { ...DEFAULT_SETTINGS.handles, ...v.handles },
-      ai: { ...DEFAULT_SETTINGS.ai, ...v.ai },
+      agent: {
+        ...DEFAULT_SETTINGS.agent,
+        ...v.agent,
+        keys: { ...(legacyKey ? { anthropic: legacyKey } : {}), ...v.agent?.keys },
+        models: { ...v.agent?.models },
+      },
     } as StorageSchema[K];
   }
   return value as StorageSchema[K];
+}
+
+/**
+ * Rewrites stored settings that still carry the old direct-Claude `ai` block, so its Anthropic
+ * key lives only in `agent.keys` from now on. Returns whether anything changed.
+ */
+export async function migrateLegacySettings(): Promise<boolean> {
+  const raw = (await browser.storage.local.get('settings')).settings as Record<string, unknown> | undefined;
+  if (!raw || !('ai' in raw)) return false;
+  await browser.storage.local.set({ settings: withDefaults('settings', raw) });
+  return true;
 }
 
 export async function getItem<K extends StorageKey>(key: K): Promise<StorageSchema[K]> {

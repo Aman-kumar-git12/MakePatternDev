@@ -21,8 +21,8 @@ export type Message =
   | { type: 'settingsChanged' }
   | { type: 'lcSubmission'; payload: LeetCodeCapture }
   | { type: 'newtonQotd'; result: NewtonQotdResult }
-  | { type: 'analyze'; submissionId?: string; code?: string; lang?: string; title?: string; withAi: boolean }
-  | { type: 'analyzeAi'; analysisId: string }
+  | { type: 'analyze'; submissionId?: string; code?: string; lang?: string; title?: string }
+  | { type: 'analyzeComplexity'; analysisId: string }
   | { type: 'deleteAnalysis'; analysisId: string }
   | { type: 'clearData' };
 
@@ -157,7 +157,6 @@ export function parseMessage(raw: unknown): Message {
     }
     case 'analyze':
       if (
-        typeof m.withAi !== 'boolean' ||
         !optStr(m.submissionId, 100) ||
         !optStr(m.code, 200_000) ||
         !optStr(m.lang, 40) ||
@@ -166,13 +165,12 @@ export function parseMessage(raw: unknown): Message {
         throw bad();
       return {
         type: 'analyze',
-        withAi: m.withAi,
         submissionId: m.submissionId as string | undefined,
         code: m.code as string | undefined,
         lang: m.lang as string | undefined,
         title: m.title as string | undefined,
       };
-    case 'analyzeAi':
+    case 'analyzeComplexity':
     case 'deleteAnalysis':
       if (!str(m.analysisId, 200)) throw bad();
       return { type: m.type, analysisId: m.analysisId };

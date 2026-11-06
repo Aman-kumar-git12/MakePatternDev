@@ -1,123 +1,181 @@
-# DSA Learning Tracker 🚀
+# MakePattern
 
-A modern full-stack web application designed for students and software engineers practicing Data Structures & Algorithms, preparing for coding interviews, and tracking their problem-solving journey.
+A tracker for practising Data Structures and Algorithms (DSA). It combines a web workspace for problems, notes and solutions with spaced-repetition reviews, LeetCode sync, an in-browser code runner, a browser extension that follows your daily coding across platforms, and an AI agent that reviews the time and space complexity of your code.
 
-Built with **React + TypeScript + Vite + Tailwind CSS** on the frontend, and **FastAPI + MongoDB** on the backend.
+[![CI](https://github.com/Aman-kumar-git12/MakePatternDev/actions/workflows/ci.yml/badge.svg)](https://github.com/Aman-kumar-git12/MakePatternDev/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-Inspired by the dark-themed structured course tracker layout with recursive folders, Monaco code editor, solution tabs, bookmarking, and progress calculations.
+## Contents
 
----
+- [What's inside](#whats-inside)
+- [Features](#features)
+- [Architecture](#architecture)
+- [Quick start](#quick-start)
+- [Repository layout](#repository-layout)
+- [Configuration](#configuration)
+- [Testing and CI](#testing-and-ci)
+- [Deployment](#deployment)
+- [Security and privacy](#security-and-privacy)
+- [Contributing](#contributing)
+- [License](#license)
 
-## 📸 Key Features
+## What's inside
 
-1. **Unlimited Recursive Folder & File Hierarchy**:
-   - Create, rename, move, and delete folders with no artificial nesting limit.
-   - Prevent circular hierarchies (e.g. moving a folder into one of its descendants is blocked).
-   - Dynamic folder completion counts (`12/28`) and live progress bars calculated recursively from descendant questions.
-   - Full context menus on folders and question files.
+| Service | What it is | Stack | Docs |
+|---|---|---|---|
+| **Backend** | REST API for accounts, folders, questions, solutions, reviews and LeetCode sync | FastAPI, MongoDB | [backend/README.md](backend/README.md) |
+| **Frontend** | The MakePattern web app (installable as an offline-capable PWA) | React 19, TypeScript, Vite, Tailwind CSS | [frontend/README.md](frontend/README.md) |
+| **Extension** | *Coding Journey*: a browser extension for daily problems, contests, stats and code analysis | WXT, React, Tailwind CSS | [frontend/extension/README.md](frontend/extension/README.md) |
 
-2. **Dashboard Matching Reference Design**:
-   - Starry night hero banner with mountain summit illustration and glowing achievement flag.
-   - 5 KPI metric cards: **Solved**, **In Progress**, **Needs Revision**, **Total Questions**, and **Overall Progress** with circular percentage ring and progress bar.
-   - **Continue Learning**: Direct access to in-progress problems with folder breadcrumb and difficulty pill.
-   - **Your Folders**: Top folder overview with question completion ratio.
-   - **Quick Actions**: One-click New Folder and New Question modals.
-   - **Recent Activity**: Chronological list of recently opened/edited problems.
+**Get the extension:** download [Chrome / Edge / Brave](frontend/extension/releases/coding-journey-extension-0.1.0-chrome.zip) or [Firefox](frontend/extension/releases/coding-journey-extension-0.1.0-firefox.zip), unzip it, then load it via `chrome://extensions` → Developer mode → Load unpacked. See the [install guide](frontend/extension/README.md#install).
+| **Agent** | A REST service that reviews code for time and space complexity using your own LLM API key | FastAPI, 13 LLM providers | [agent/README.md](agent/README.md) |
 
-3. **Question Workspace**:
-   - Breadcrumb navigation (`DSA / Arrays / Fundamentals / Two Sum`).
-   - Title inline editor, difficulty selector (Easy, Medium, Hard), status switcher with celebration confetti on **Solved**!
-   - One-click bookmark toggle and tags pill list.
-   - Debounced autosave with live indicator (`All changes saved`, `Saving...`, `Unsaved edits`).
-   - 4 Dedicated Tabs:
-     - **Notes**: Rich problem statement, Intuition, Approach, Numbered step-by-step algorithm, Dry run, Edge cases, personal notes with Edit/Preview markdown toggle.
-     - **Code**: **Monaco Editor** integration with dark theme (`vs-dark`), C++, Python, and Java syntax highlighting, multiple named solutions (`Optimal Approach`, `Brute Force`, etc.), solution tabs, copy code button, time & space complexity inputs.
-     - **Examples**: Test cases, sample inputs, sample outputs, constraints.
-     - **Complexity**: Visual side-by-side comparison matrix of all solutions.
+## Features
 
-4. **Bookmarks System**:
-   - Dedicated Bookmarks view in the sidebar.
-   - Filters for topic, difficulty, and completion status.
-   - Bookmark toggle from anywhere without duplicating question data.
+**Web app**
+- **Organisation:** folders nested to any depth, with progress per folder, a dashboard, bookmarks and global search (`Ctrl/Cmd + K`).
+- **Question workspace:** notes, a Monaco code editor (the editor used in VS Code) with several named solutions, test cases and a side-by-side complexity comparison.
+- **Spaced-repetition reviews:** reviews after 1, 3, 7, 14, 30, 60 and 120 days, rated Again / Hard / Good / Easy, with streaks and an activity heatmap.
+- **LeetCode:** search and import problems with their statements and examples, see the daily challenge, and sync your accepted submissions.
+- **Starter curricula:** "Core Interview Patterns" (118 problems) and "Beginner Foundations" (34).
+- **Code runner:** Python and JavaScript run in the browser with no setup; C++ and Java run through Judge0 when it is configured.
+- **Productivity:** PWA with offline support, keyboard shortcuts, focus mode, themes, bulk actions, undo and trash, JSON import and export, and sharing.
+- **Accounts:** any email address works for sign-up and sign-in. Emails are never verified, by design.
 
-5. **Search & Navigation**:
-   - `Ctrl/Cmd + K` instant global search modal across titles, problem statements, notes, tags, and folders.
-   - Direct click-to-open navigation.
+**Browser extension (Coding Journey)**
+- **Daily problems:** the problem of the day from LeetCode, GeeksforGeeks, takeUforward and Newton School, ticked automatically soon after you solve it.
+- **Contests:** upcoming contests across platforms, with reminders.
+- **Stats:** per-platform stats and time spent coding.
+- **Analysis:** an offline code analysis with a code editor that handles indentation, plus an AI review that talks only about complexity.
 
----
+**Complexity agent**
+- Reviews code for time and space complexity, says why, and says whether a faster approach exists.
+- Uses your own key with Groq, Gemini, OpenRouter, Mistral, Cerebras, GitHub Models, Hugging Face, OpenAI, Anthropic, DeepSeek, xAI or Together, or a local Ollama model with no key.
 
-## ✨ What's new in 2.0
+## Architecture
 
-- **Spaced-repetition reviews** — solving a problem schedules reviews (1 → 3 → 7 → 14 → 30 → 60 → 120 days). Rate each review Again / Hard / Good / Easy from the "Due today" queue.
-- **Streaks & activity heatmap** — every solve, review and attempt is logged; streaks respect your local timezone.
-- **Real LeetCode integration** (public GraphQL): search & import problems with real title, difficulty, tags, statement and example test cases; daily challenge; refresh a problem's statement; sync your recent accepted submissions by LeetCode username.
-- **Starter curricula** — "Core Interview Patterns" (118 problems) and "Beginner Foundations" (34), verified against LeetCode.
-- **Attempts & time tracking** per problem, with a stopwatch.
-- **Run your code against test cases** — Python (Pyodide) and JavaScript run in the browser with no setup; C++/Java run via Judge0 when the backend has a key.
-- **Copy a shared pattern** into your own workspace.
-- **Account settings** — change password (signs out other sessions), sign out everywhere, export all data as JSON, delete account.
-- Any email works for sign-up/login — emails are never verified, by design.
+```
+                         ┌──────────────────────────┐
+  browser ──────────────▶│ frontend (Vercel, PWA)   │
+                         └────────────┬─────────────┘
+                                      │ REST /api (JWT)
+                                      ▼
+                         ┌──────────────────────────┐       ┌──────────────┐
+                         │ backend (FastAPI, Render)│──────▶│ MongoDB Atlas│
+                         └────────────┬─────────────┘       └──────────────┘
+                                      │ LeetCode GraphQL, Judge0 (optional)
+                                      ▼
+                               external services
 
-## 🛠️ Tech Stack
+  extension (popup + background worker) ──▶ LeetCode, Codeforces, GFG, TUF, … (read-only)
+          │
+          └── AI review ──▶ agent (localhost:8001) ──▶ your chosen LLM provider
+```
 
-- **Frontend**: React 19, TypeScript, Vite, Tailwind CSS, Monaco editor, DOMPurify.
-- **Backend**: FastAPI, Pydantic v2, PyJWT, bcrypt, httpx.
-- **Database**: MongoDB (single source of truth — Atlas in production).
+- **MongoDB** is the only database. Tests use an in-memory mock, so they never touch a real database.
+- **The extension** keeps its data in the browser. It talks to coding platforms directly, and to the agent only when you ask for an AI review.
+- **The agent** runs on your own machine and is separate from the backend. Your API key never reaches MakePattern's servers.
 
-## 🚀 Getting Started
+## Quick start
 
-### Backend
+Prerequisites:
+- Python 3.10 or newer
+- Node.js 22
+- a MongoDB database: local via Docker, or a MongoDB Atlas connection string
 
 ```bash
+git clone --recurse-submodules https://github.com/Aman-kumar-git12/MakePatternDev.git
+cd MakePatternDev   # already cloned? run: git submodule update --init
+
+# 1. Database (optional: local MongoDB on :27017)
+docker compose up -d
+
+# 2. Backend: http://localhost:8000/api
 cd backend
 python3 -m venv venv && source venv/bin/activate
 pip install -r requirements-dev.txt
-cp .env.example .env   # set MONGODB_URI (and JWT_SECRET for production)
-python run.py          # http://localhost:8000/api, docs at /docs in development
+cp .env.example .env              # set MONGODB_URI (mongodb://localhost:27017 for the local DB)
+python run.py
+
+# 3. Frontend: http://localhost:5173 (new terminal)
+cd frontend && npm install && npm run dev
+
+# 4. Extension (optional, new terminal)
+cd frontend/extension && npm install && npm run build
+#    then load frontend/extension/dist/chrome-mv3 via chrome://extensions → Load unpacked
+
+# 5. Complexity agent (optional): http://127.0.0.1:8001 (new terminal)
+cd agent
+python3 -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+python app.py
 ```
 
-### Tests
+Each service's README covers its full setup and configuration.
 
-```bash
-cd backend && python -m pytest -q
-```
-
-Tests run on an in-memory MongoDB (mongomock) and never touch a real database. CI runs them on every push (`.github/workflows/ci.yml`).
-
-### Frontend
-
-```bash
-cd frontend && npm install && npm run dev   # http://localhost:5173
-```
-
-Set `VITE_API_BASE_URL` to point at a non-default backend.
-
-## 🔐 Production configuration
-
-| Variable | Notes |
-|---|---|
-| `MONGODB_URI` | **Required.** No credentials are stored in code. |
-| `JWT_SECRET` | **Required**, ≥ 32 random chars. Startup aborts otherwise. |
-| `ENVIRONMENT` | Auto-detected as `production` on Render/Vercel/Fly/Railway. |
-| `JUDGE0_URL`, `JUDGE0_API_KEY`, `JUDGE0_API_HOST` | Optional. Enables C++/Java execution (RapidAPI or self-hosted Judge0). |
-| `CLIENT_URL`, `CORS_ORIGINS` | Allowed frontend origins (plus `make-pattern*.vercel.app` previews). |
-
-## 📦 Repository layout & deployment
+## Repository layout
 
 ```
 .
-├── backend/      FastAPI API (app/routers, app/schemas, app/services, tests/)
-├── frontend/     React + Vite web app
-├── extension/    Coding Journey browser extension (WXT) — see extension/README.md
-├── .github/      CI (ci.yml) and extension releases (extension-release.yml)
-└── docker-compose.yml   local MongoDB for development
+├── backend/                FastAPI API: app/routers, app/schemas, app/services, tests/
+├── frontend/               React + Vite web app
+│   └── extension/          Coding Journey browser extension (separate npm package)
+├── agent/                  Complexity agent (git submodule: makePatternAgent; python app.py)
+├── .github/workflows/      ci.yml (all services) and extension-release.yml (release zips)
+├── docker-compose.yml      local MongoDB for development
+├── CONTRIBUTING.md
+└── LICENSE
 ```
 
-CI runs backend tests, frontend lint + build, and extension type-check + tests + build on every push. See [CONTRIBUTING.md](CONTRIBUTING.md) for local setup.
+`frontend/extension` is a separate package with its own `package.json` and `node_modules`. The web app's Vite and lint configs deliberately ignore that folder.
 
-- **Vercel** (frontend): Project → Settings → Root Directory = `frontend`.
-- **Render** (backend): Root Directory = `backend`, build `pip install -r requirements.txt`, start `uvicorn app.main:app --host 0.0.0.0 --port $PORT`.
+## Configuration
 
-## 📄 License
+Each service reads its own environment variables. Copy the `.env.example` next to it and fill in the values.
 
-[MIT](LICENSE)
+| Service | File | Key settings |
+|---|---|---|
+| Backend | `backend/.env` | `MONGODB_URI` (required), `JWT_SECRET` (required in production, at least 32 random characters), `CLIENT_URL` / `CORS_ORIGINS`, optional `JUDGE0_*` |
+| Frontend | `frontend/.env` | `VITE_API_BASE_URL` (backend URL) |
+| Agent | `agent/.env` | All optional: host, port, rate limit, fallback provider keys |
+| Extension | none | Configured in its Settings page (usernames, agent URL, provider keys) |
+
+Never commit `.env` files; only the `.env.example` files are tracked.
+
+## Testing and CI
+
+| Service | Command | Notes |
+|---|---|---|
+| Backend | `cd backend && python -m pytest -q` | In-memory MongoDB (mongomock) |
+| Agent | `cd agent && python -m pytest -q` | All providers mocked, no keys needed (tested in its own repo, not this CI) |
+| Frontend | `cd frontend && npm run lint && npm run build` | |
+| Extension | `cd frontend/extension && npm run typecheck && npm test` | Vitest with a fake browser API |
+
+[`ci.yml`](.github/workflows/ci.yml) runs the backend, frontend and extension checks on every push and pull request. [`extension-release.yml`](.github/workflows/extension-release.yml) builds the extension zips and publishes a GitHub Release when a tag like `ext-v0.1.0` is pushed.
+
+## Deployment
+
+| Service | Host | Settings |
+|---|---|---|
+| Frontend | Vercel | Root Directory `frontend`; set `VITE_API_BASE_URL` |
+| Backend | Render | Root Directory `backend`; build `pip install -r requirements.txt`; start `uvicorn app.main:app --host 0.0.0.0 --port $PORT`; set `MONGODB_URI` and `JWT_SECRET` |
+| Extension | GitHub Releases | Push a tag `ext-v<version>` matching `frontend/extension/package.json` |
+| Agent | Your machine | Runs locally with `python app.py`. It has no authentication of its own, so don't expose it publicly. |
+
+## Security and privacy
+
+- **No credentials in code:** production refuses to start without `MONGODB_URI` and a strong `JWT_SECRET`.
+- **Passwords and sessions:** passwords are hashed with bcrypt. JWTs carry a token version, so changing your password or choosing "sign out everywhere" ends all other sessions.
+- **Rate limiting:** authentication and other sensitive endpoints are rate-limited.
+- **Extension:** keeps all its data in the browser. Provider API keys are never exported or synced, and the AI review sends code only to your local agent.
+- **Agent:** uses your key for one request at a time and never stores or logs it.
+
+To report a security issue, please contact the maintainer privately rather than opening a public issue.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, the checks to run before a pull request, and branch and commit conventions.
+
+## License
+
+[MIT](LICENSE) © Aman Kumar

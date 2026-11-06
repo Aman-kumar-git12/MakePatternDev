@@ -6,7 +6,7 @@
 |---|---|---|
 | `backend/` | REST API | FastAPI, MongoDB |
 | `frontend/` | Web app | React, Vite, Tailwind |
-| `extension/` | Coding Journey browser extension | WXT, React, Tailwind |
+| `frontend/extension/` | Coding Journey browser extension (separate npm package) | WXT, React, Tailwind |
 
 Each folder is its own package with its own dependencies and README.
 
@@ -22,7 +22,7 @@ cp .env.example .env                 # MONGODB_URI=mongodb://localhost:27017 for
 python run.py
 
 cd ../frontend && npm install && npm run dev
-cd ../extension && npm install && npm run dev
+cd extension && npm install && npm run dev   # from frontend/
 ```
 
 Never point a development `.env` at the production database.
@@ -32,7 +32,7 @@ Never point a development `.env` at the production database.
 ```bash
 cd backend   && python -m pytest -q
 cd frontend  && npm run lint && npm run build
-cd extension && npm run typecheck && npm test
+cd frontend/extension && npm run typecheck && npm test
 ```
 
 CI (`.github/workflows/ci.yml`) runs the same checks on every push.
