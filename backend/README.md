@@ -128,7 +128,7 @@ Settings are read from environment variables, or from a `.env` file in `backend/
 | `MONGODB_DB_NAME` | `dsa_tracker` | No | Database name. |
 | `JWT_SECRET` | an insecure development value | **Yes in production** | Secret used to sign tokens. In production it must be at least 32 characters and not a known placeholder, or startup fails. |
 | `ENVIRONMENT` | `development` | No | `development` or `production` (`prod` and `staging` count as production). Detected as `production` automatically on Render, Vercel, Fly.io and Railway. |
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | `10080` (7 days) | No | Token lifetime. |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | `43200` (30 days) | No | Token lifetime. Keep it equal to the 30-day session cookie the web app sets. |
 | `ALGORITHM` | `HS256` | No | JWT signing algorithm. |
 | `HOST` / `PORT` | `0.0.0.0` / `8000` | No | Where `run.py` listens. |
 | `CLIENT_URL` | `https://make-pattern-dev.vercel.app` | No | The web app's origin, allowed by CORS. |
@@ -273,7 +273,7 @@ Errors use FastAPI's format, `{"detail": "..."}`. Unhandled errors return `500 {
 
 ## Authentication
 
-- **Tokens**: `POST /api/auth/login` or `/register` returns `{"access_token", "token_type": "bearer", "user"}`. Send the token as `Authorization: Bearer <token>`. Tokens are HS256 JWTs valid for 7 days by default.
+- **Tokens**: `POST /api/auth/login` or `/register` returns `{"access_token", "token_type": "bearer", "user"}`. Send the token as `Authorization: Bearer <token>`. Tokens are HS256 JWTs valid for 30 days by default.
 - **Any email works, by design.** Emails are never verified. Logging in with an email that has no account creates one (the password must be at least 6 characters). This keeps sign-up frictionless and is intentional.
 - **Passwords** are hashed with bcrypt. They must be 6 characters or longer and at most 72 bytes; longer passwords are rejected, never silently truncated.
 - **Sign out everywhere**: every token carries the user's `token_version`. Changing the password or calling `/logout-all` increments it, which invalidates every token issued before.

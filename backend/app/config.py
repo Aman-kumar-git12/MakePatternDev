@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = _detect_environment()
     JWT_SECRET: str = DEV_JWT_SECRET
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 30  # 30 days, matches the frontend session cookie
     PORT: int = 8000
     HOST: str = "0.0.0.0"
     CLIENT_URL: str = "https://make-pattern-dev.vercel.app"

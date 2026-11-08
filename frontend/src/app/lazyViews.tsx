@@ -31,6 +31,9 @@ export const SettingsView = lazy(() =>
 export const TrashView = lazy(() =>
   import('../components/Views/TrashView').then((m) => ({ default: m.TrashView }))
 );
+export const ExtensionGuideView = lazy(() =>
+  import('../components/Views/ExtensionGuideView').then((m) => ({ default: m.ExtensionGuideView }))
+);
 
 // Modals
 export const GlobalSearchModal = lazy(() =>

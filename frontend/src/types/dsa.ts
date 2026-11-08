@@ -157,7 +157,7 @@ export interface SearchResult {
   total_results: number;
 }
 
-export type ViewMode = 'home' | 'patterns' | 'all-questions' | 'bookmarks' | 'progress' | 'workspace' | 'recent' | 'revision' | 'settings' | 'trash';
+export type ViewMode = 'home' | 'patterns' | 'all-questions' | 'bookmarks' | 'progress' | 'workspace' | 'recent' | 'revision' | 'settings' | 'trash' | 'extension';
 
 export interface User {
   id: string;

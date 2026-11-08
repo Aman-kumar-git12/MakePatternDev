@@ -1,7 +1,7 @@
 import React from 'react';
 import { CompletionHeader } from './CompletionHeader';
 import { PatternTreeView } from './PatternTreeView';
-import { ArrowRight, Layers, Link2, GraduationCap, Brain } from 'lucide-react';
+import { ArrowRight, Layers, Link2, GraduationCap, Brain, Puzzle, Plus, LogIn } from 'lucide-react';
 import type { ProgressSummary, Folder, QuestionListItem, ViewMode, Question } from '../../types/dsa';
 import { DailyChallengeCard } from './DailyChallengeCard';
 import { ActivityHeatmap } from '../Progress/ActivityHeatmap';
@@ -25,6 +25,9 @@ interface DashboardProps {
   /** undefined while the review queue is still loading */
   dueCount?: number;
   onQuestionTracked?: (question: Question) => void | Promise<void>;
+  /** Guest mode: no account data is fetched and a sign-in card replaces the empty state. */
+  guest?: boolean;
+  onSignIn?: () => void;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({
@@ -43,8 +46,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
   dataLoaded = true,
   dueCount,
   onQuestionTracked,
+  guest = false,
+  onSignIn,
 }) => {
-  const isEmpty = dataLoaded && folders.length === 0 && questions.length === 0;
+  const isEmpty = !guest && dataLoaded && folders.length === 0 && questions.length === 0;
 
   return (
     <div className="p-4 max-w-6xl mx-auto space-y-4 animate-fade-in">
@@ -155,14 +160,57 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
       )}
 
-      <DailyChallengeCard
-        onOpenQuestion={onSelectQuestion}
-        onTracked={async (q) => {
-          await onQuestionTracked?.(q);
-        }}
-      />
+      {guest && (
+        <div className="mp-card p-5 sm:p-6 text-center space-y-3">
+          <Layers className="w-10 h-10 mx-auto text-yellow-400" />
+          <h2 className="text-base font-bold">Start tracking your DSA journey</h2>
+          <p className="text-xs mp-muted max-w-md mx-auto">
+            Sign in to add questions, organise them by pattern, save your solutions and review them with spaced repetition.
+            It's free, and your session stays signed in for 30 days.
+          </p>
+          <div className="flex flex-wrap justify-center gap-2">
+            <button type="button" className="mp-btn mp-btn-primary" onClick={() => onOpenNewQuestion()}>
+              <Plus className="w-3.5 h-3.5" /> Add a question
+            </button>
+            {onSignIn && (
+              <button type="button" className="mp-btn" onClick={onSignIn}>
+                <LogIn className="w-3.5 h-3.5" /> Sign in
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
-      <ActivityHeatmap refreshKey={activityKey} summary={summary} compact />
+      <button
+        type="button"
+        onClick={() => onSelectView?.('extension')}
+        className="mp-card w-full p-4 flex items-center gap-3 text-left hover:border-[var(--border-hover)] transition"
+      >
+        <div className="p-2.5 rounded-xl shrink-0 bg-[#fef08a] text-[#18181b]">
+          <Puzzle className="w-5 h-5" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-bold">Get the Coding Journey extension</div>
+          <div className="text-[11px] mp-muted">
+            Contests, problems of the day, coding time and stats from LeetCode, Codeforces, GFG and more, in one popup. See how to
+            install and use it.
+          </div>
+        </div>
+        <ArrowRight className="w-4 h-4 shrink-0 mp-faint" />
+      </button>
+
+      {!guest && (
+        <>
+          <DailyChallengeCard
+            onOpenQuestion={onSelectQuestion}
+            onTracked={async (q) => {
+              await onQuestionTracked?.(q);
+            }}
+          />
+
+          <ActivityHeatmap refreshKey={activityKey} summary={summary} compact />
+        </>
+      )}
 
       {/* 1. OVERALL COMPLETION & STATS BAR */}
       <CompletionHeader summary={summary} onSelectView={onSelectView} />

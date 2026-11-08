@@ -19,6 +19,7 @@ export function useViewRouting() {
     if (path === '/progress') return 'progress';
     if (path === '/settings') return 'settings';
     if (path === '/trash') return 'trash';
+    if (path === '/extension') return 'extension';
     return 'home';
   }, [location.pathname]);
 
@@ -51,6 +52,9 @@ export function useViewRouting() {
         break;
       case 'trash':
         navigate('/trash');
+        break;
+      case 'extension':
+        navigate('/extension');
         break;
       default:
         navigate('/');

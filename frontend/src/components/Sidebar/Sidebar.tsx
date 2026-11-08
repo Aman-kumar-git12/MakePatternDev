@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Home, Layers, FileText, Bookmark, RotateCcw, ChevronLeft, ChevronRight, X, LogOut, Sparkles, BarChart3, Settings, Trash2 } from 'lucide-react';
+import { Home, Layers, FileText, Bookmark, RotateCcw, ChevronLeft, ChevronRight, X, LogOut, LogIn, Lock, Sparkles, BarChart3, Settings, Trash2, Puzzle } from 'lucide-react';
 import type { ViewMode, User, Question } from '../../types/dsa';
 import { displayName } from '../../utils/user';
 
@@ -13,6 +13,9 @@ interface SidebarProps {
   user?: User | null;
   onLogout?: () => void;
   activeQuestion?: Question | null;
+  /** Guest mode: views other than these show a lock and a sign-in footer replaces the user card. */
+  guestViews?: ViewMode[];
+  onSignIn?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -25,7 +28,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   user,
   onLogout,
   activeQuestion,
+  guestViews,
+  onSignIn,
 }) => {
+  const isGuest = !user && !!guestViews;
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   // Primary navigation items
@@ -47,6 +53,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       badge: revisionCount > 0 ? revisionCount : undefined,
     },
     { id: 'progress' as ViewMode, label: 'Progress', icon: BarChart3 },
+    { id: 'extension' as ViewMode, label: 'Extension', icon: Puzzle },
     { id: 'settings' as ViewMode, label: 'Settings', icon: Settings },
     { id: 'trash' as ViewMode, label: 'Trash', icon: Trash2 },
   ];
@@ -189,6 +196,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   )}
                 </div>
 
+                {/* Guests: this view needs an account */}
+                {!isCollapsed && isGuest && !guestViews?.includes(item.id) && (
+                  <Lock className="w-3 h-3" style={{ color: 'var(--text-muted)' }} aria-label="Sign in required" />
+                )}
+
                 {/* Badge if bookmark count > 0 */}
                 {!isCollapsed && item.badge !== undefined && (
                   <span
@@ -268,6 +280,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </button>
               )
             )}
+          </div>
+        )}
+
+        {/* Guest sign-in footer */}
+        {isGuest && onSignIn && (
+          <div className="p-3" style={{ borderTop: '1px solid var(--border-primary)' }}>
+            <button
+              type="button"
+              onClick={() => {
+                onSignIn();
+                onCloseMobile?.();
+              }}
+              className={`w-full flex items-center justify-center gap-2 rounded-xl bg-[#fef08a] hover:bg-[#fef9c3] text-[#18181b] text-xs font-semibold shadow-md shadow-yellow-200/20 transition ${
+                isCollapsed ? 'p-2.5' : 'px-3 py-2.5'
+              }`}
+              title="Sign in"
+            >
+              <LogIn className="w-4 h-4" />
+              {!isCollapsed && <span>Sign in</span>}
+            </button>
           </div>
         )}
 

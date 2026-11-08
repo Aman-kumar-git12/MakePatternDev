@@ -177,6 +177,7 @@ export const LoginPage: React.FC = () => {
           <span className="text-xs hidden sm:inline" style={{ color: 'var(--text-tertiary)' }}>Don't have an account?</span>
           <Link
             to="/register"
+            state={{ from: { pathname: from } }}
             className="px-4 py-2 rounded-xl text-xs font-semibold transition duration-200 shadow-sm"
             style={{
               backgroundColor: 'var(--bg-elevated)',
@@ -234,6 +235,7 @@ export const LoginPage: React.FC = () => {
                       <span className="text-[11px] text-rose-300/80">Need a new account?</span>
                       <Link
                         to="/register"
+                        state={{ from: { pathname: from } }}
                         className="inline-flex items-center space-x-1 px-3 py-1.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 text-xs font-semibold transition"
                       >
                         <UserPlus className="w-3.5 h-3.5" />
@@ -363,6 +365,7 @@ export const LoginPage: React.FC = () => {
                 Don't have an account yet?{' '}
                 <Link
                   to="/register"
+                  state={{ from: { pathname: from } }}
                   className="font-semibold text-yellow-300 hover:text-yellow-200 transition"
                 >
                   Create one for free

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { ApiError } from '../services/api';
@@ -22,6 +22,9 @@ import {
 
 export const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  // Where the visitor was before being asked to sign in (kept when switching to/from the login page).
+  const from = (location.state as { from?: { pathname: string } } | null)?.from;
   const { register } = useAuth();
   const { isDark } = useTheme();
 
@@ -117,7 +120,7 @@ export const RegisterPage: React.FC = () => {
 
     try {
       await register(email.trim(), password, fullName.trim());
-      navigate('/', { replace: true });
+      navigate(from?.pathname || '/', { replace: true });
     } catch (err: unknown) {
       let message = 'Registration failed. Please check your details and try again.';
       const newFieldErrors: typeof fieldErrors = {};
@@ -201,6 +204,7 @@ export const RegisterPage: React.FC = () => {
           <span className="text-xs hidden sm:inline" style={{ color: 'var(--text-tertiary)' }}>Already registered?</span>
           <Link
             to="/login"
+            state={{ from }}
             className="px-4 py-2 rounded-xl text-xs font-semibold transition duration-200 shadow-sm"
             style={{
               backgroundColor: 'var(--bg-elevated)',
@@ -258,7 +262,7 @@ export const RegisterPage: React.FC = () => {
                       <span className="text-[11px] text-amber-300/80">Already have this account?</span>
                       <button
                         type="button"
-                        onClick={() => navigate('/login', { state: { prefillEmail: email } })}
+                        onClick={() => navigate('/login', { state: { prefillEmail: email, from } })}
                         className="inline-flex items-center space-x-1 px-3 py-1.5 rounded-lg bg-amber-400/20 hover:bg-amber-400/30 text-amber-200 text-xs font-semibold transition"
                       >
                         <LogIn className="w-3.5 h-3.5" />
@@ -476,6 +480,7 @@ export const RegisterPage: React.FC = () => {
                 Already have an account?{' '}
                 <Link
                   to="/login"
+                  state={{ from }}
                   className="font-semibold text-yellow-300 hover:text-yellow-200 transition"
                 >
                   Sign in

@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Sidebar } from '../components/Sidebar/Sidebar';
 import { Header } from '../components/Header/Header';
 import { useAuth } from '../context/AuthContext';
@@ -13,6 +14,7 @@ import { UndoToastStack } from '../components/Common/UndoToast';
 import { useShellShortcuts } from '../shortcuts/useShellShortcuts';
 import { OfflineBanner } from '../components/Common/OfflineBanner';
 import { useOfflineReviewSync } from '../offline/useOffline';
+import { takePendingIntent } from '../services/authStorage';
 
 /** Authenticated application shell: sidebar + header + routed view + global modals. */
 export function MainAppShell() {
@@ -31,6 +33,13 @@ export function MainAppShell() {
   const shell = useShellShortcuts({ currentView, onSelectView: handleSelectNavView, modals, active, questionActions });
   // Flush reviews rated offline: on start/login, when back online, when the tab is shown again.
   useOfflineReviewSync(data.refreshData);
+
+  // A guest who tried to add a question was sent to sign in first: carry on where they left off.
+  useEffect(() => {
+    if (takePendingIntent() === 'new-question') handleOpenNewQuestion();
+    // Run once, on the first render after signing in.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="flex h-[100dvh] w-full overflow-hidden font-sans" style={{ backgroundColor: 'var(--bg-app)', color: 'var(--text-primary)' }}>

@@ -5,12 +5,15 @@ import { RegisterPage } from './pages/RegisterPage';
 import { ProtectedRoute } from './components/Auth/ProtectedRoute';
 import { PublicRoute } from './components/Auth/PublicRoute';
 import { MainAppShell } from './app/MainAppShell';
+import { GuestShell } from './app/GuestShell';
 import { SharedPatternView, ViewFallback } from './app/lazyViews';
 import { api } from './services/api';
 
+/** Open to everyone: signed-out visitors get the guest shell, which asks them to sign in for anything else. */
+const OPEN_PATHS = ['/', '/extension'];
+
 /** Every authenticated path renders the same shell; the shell picks the view from the URL. */
 const PROTECTED_PATHS = [
-  '/',
   '/patterns',
   '/questions',
   '/bookmarks',
@@ -57,6 +60,19 @@ function App() {
             <Suspense fallback={<ViewFallback />}>
               <SharedPatternView />
             </Suspense>
+          }
+        />
+      ))}
+
+      {/* Home and the extension guide: guest shell when signed out, full app when signed in */}
+      {OPEN_PATHS.map((path) => (
+        <Route
+          key={path}
+          path={path}
+          element={
+            <ProtectedRoute guest={<GuestShell />}>
+              <MainAppShell />
+            </ProtectedRoute>
           }
         />
       ))}

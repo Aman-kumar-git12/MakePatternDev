@@ -5,9 +5,11 @@ import { Layers } from 'lucide-react';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
+  /** Rendered for signed-out visitors instead of redirecting them to /login. */
+  guest?: React.ReactNode;
 }
 
-export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
+export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, guest }) => {
   const { isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
 
@@ -31,6 +33,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   }
 
   if (!isAuthenticated) {
+    if (guest !== undefined) return <>{guest}</>;
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 

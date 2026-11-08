@@ -4,6 +4,7 @@ import { flushPendingWrites } from '../services/pendingWrites';
 import { clearDueCache, userKeyFromToken } from '../offline/offlineStore';
 import { clearToasts } from '../hooks/useUndoToasts';
 import { setDirty } from './preferencesCore';
+import { clearToken as clearStoredToken, loadToken, saveToken } from '../services/authStorage';
 
 /** Only a 401 means the stored session is invalid; outages, 429s and 5xx keep the user signed in. */
 const isAuthRejection = (err: unknown) => err instanceof ApiError && err.status === 401;
@@ -24,7 +25,6 @@ interface AuthContextType {
   replaceToken: (token: string) => void;
 }
 
-const AUTH_TOKEN_KEY = 'mp_auth_token';
 /** Last known user, so the app (and offline reviews) still open when the server is unreachable. */
 const AUTH_USER_KEY = 'mp_auth_user';
 
@@ -41,13 +41,13 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(() => localStorage.getItem(AUTH_TOKEN_KEY));
+  const [token, setToken] = useState<string | null>(() => loadToken());
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   // Initialize and verify authentication on app load
   useEffect(() => {
     const initAuth = async () => {
-      const storedToken = localStorage.getItem(AUTH_TOKEN_KEY);
+      const storedToken = loadToken();
       if (storedToken) {
         api.setToken(storedToken);
         setToken(storedToken);
@@ -82,7 +82,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
           }
           console.warn('Stored auth token invalid or expired. Logging out...', err);
-          localStorage.removeItem(AUTH_TOKEN_KEY);
+          clearStoredToken();
           localStorage.removeItem(AUTH_USER_KEY);
           api.clearToken();
           setToken(null);
@@ -103,7 +103,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // spinner, unmounting the form and losing the error message. The pages track their own submit state.
   const login = async (email: string, password: string): Promise<User> => {
     const res = await api.login(email, password);
-    localStorage.setItem(AUTH_TOKEN_KEY, res.access_token);
+    saveToken(res.access_token);
     setToken(res.access_token);
     setUser(res.user);
     return res.user;
@@ -111,7 +111,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const register = async (email: string, password: string, fullName: string): Promise<User> => {
     const res = await api.register(email, password, fullName);
-    localStorage.setItem(AUTH_TOKEN_KEY, res.access_token);
+    saveToken(res.access_token);
     setToken(res.access_token);
     setUser(res.user);
     return res.user;
@@ -124,7 +124,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     clearDueCache(userKeyFromToken(api.getToken()));
     clearToasts();
     setDirty(false);
-    localStorage.removeItem(AUTH_TOKEN_KEY);
+    clearStoredToken();
     localStorage.removeItem(AUTH_USER_KEY);
     api.clearToken();
     setToken(null);
@@ -156,7 +156,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [user]);
 
   const replaceToken = useCallback((next: string) => {
-    localStorage.setItem(AUTH_TOKEN_KEY, next);
+    saveToken(next);
     api.setToken(next);
     setToken(next);
   }, []);

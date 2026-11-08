@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Sun, Moon, Bell, ChevronDown, Plus, Menu, LogOut, User as UserIcon, ShieldCheck } from 'lucide-react';
+import { Search, Sun, Moon, Bell, ChevronDown, Plus, Menu, LogOut, LogIn, User as UserIcon, ShieldCheck } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import type { User } from '../../types/dsa';
 import { displayName } from '../../utils/user';
@@ -10,6 +10,8 @@ interface HeaderProps {
   onToggleMobileMenu?: () => void;
   user?: User | null;
   onLogout?: () => void;
+  /** Guest mode: shows a Sign in button in place of the profile menu. */
+  onSignIn?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -18,6 +20,7 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleMobileMenu,
   user,
   onLogout,
+  onSignIn,
 }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -126,6 +129,21 @@ export const Header: React.FC<HeaderProps> = ({
           {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
         </button>
 
+        {/* Guest: sign in instead of the profile menu */}
+        {!user && onSignIn && (
+          <button
+            type="button"
+            onClick={onSignIn}
+            className="h-10 inline-flex items-center gap-1.5 px-3 sm:px-4 rounded-xl text-xs font-semibold transition"
+            style={{ backgroundColor: 'var(--bg-elevated)', border: '1px solid var(--border-primary)', color: 'var(--text-primary)' }}
+          >
+            <LogIn className="w-3.5 h-3.5" />
+            <span>Sign in</span>
+          </button>
+        )}
+
+        {user && (
+        <>
         {/* Notification Bell with indicator */}
         <button
           className="hidden lg:inline-flex h-10 w-10 items-center justify-center rounded-xl transition relative"
@@ -220,6 +238,8 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           )}
         </div>
+        </>
+        )}
       </div>
     </header>
   );

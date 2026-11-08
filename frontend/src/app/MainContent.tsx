@@ -17,6 +17,7 @@ import {
   RevisionPage,
   SettingsView,
   TrashView,
+  ExtensionGuideView,
   ViewFallback,
 } from './lazyViews';
 
@@ -219,6 +220,8 @@ export function MainContent({
         )}
 
         {currentView === 'trash' && <TrashView onDataChanged={refreshData} />}
+
+        {currentView === 'extension' && <ExtensionGuideView />}
       </Suspense>
     </main>
   );
