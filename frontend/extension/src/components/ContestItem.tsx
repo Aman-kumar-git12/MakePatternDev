@@ -2,7 +2,7 @@ import { Bell, BellOff, CalendarPlus, ExternalLink as LinkIcon } from 'lucide-re
 import { isLive } from '../agents/reminders';
 import { send } from '../lib/messages';
 import { PLATFORMS } from '../lib/platforms';
-import { formatCountdown, formatDuration, formatStart, googleCalendarUrl } from '../lib/time';
+import { formatCountdown, formatDuration, formatStart, googleCalendarUrl, relativeAgo } from '../lib/time';
 import type { Contest } from '../lib/types';
 import { cx, ExternalLink, IconButton, PlatformIcon, platformVars } from './ui';
 
@@ -141,6 +141,33 @@ export function ContestRow({ contest, now, reminderOn }: { contest: Contest; now
         <CalendarButton c={contest} />
         <ReminderButton contest={contest} on={reminderOn} />
       </div>
+    </li>
+  );
+}
+
+/** A finished contest: links to the contest page (standings, problems and editorials). */
+export function PastContestRow({ contest, now }: { contest: Contest; now: number }) {
+  const p = PLATFORMS[contest.platform];
+  const ended = contest.start + contest.durationSec * 1000;
+  const date = new Date(contest.start).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+  return (
+    <li className="card flex items-center gap-2.5 py-2 pr-2.5 pl-2.5" style={platformVars(contest.platform)}>
+      <PlatformIcon platform={contest.platform} size={28} />
+      <div className="min-w-0 flex-1">
+        <ExternalLink href={contest.url} className="block truncate text-[13px] font-bold">
+          {contest.name}
+        </ExternalLink>
+        <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-ink-3">
+          <span className="plat-ink shrink-0 font-semibold">{p.name}</span>
+          <span>·</span>
+          <span className="truncate">{date}</span>
+          <span>·</span>
+          <span className="shrink-0">{formatDuration(contest.durationSec)}</span>
+        </div>
+      </div>
+      <span className="shrink-0 text-[11px] text-ink-3" title={new Date(ended).toLocaleString()}>
+        Ended {relativeAgo(ended, now)}
+      </span>
     </li>
   );
 }

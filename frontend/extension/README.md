@@ -76,6 +76,8 @@ The extension is not on the Chrome Web Store yet. Install it from GitHub Release
 
 **[Download coding-journey-extension.zip](https://github.com/Aman-kumar-git12/MakePatternDev/releases/latest/download/coding-journey-extension.zip)** (always the latest version, for Chrome, Edge and Brave)
 
+The same zip is also kept in this folder: [`coding-journey-extension.zip`](coding-journey-extension.zip). On GitHub, open it and click **Download raw file**.
+
 ### Chrome, Edge, Brave
 
 1. Download `coding-journey-extension.zip` from the link above, or from the [Releases page](https://github.com/Aman-kumar-git12/MakePatternDev/releases/latest).

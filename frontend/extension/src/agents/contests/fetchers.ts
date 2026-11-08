@@ -1,6 +1,10 @@
 import { fetchJson, fetchText, leetcodeGraphql } from '../../lib/http';
 import type { Contest, ContestPlatform } from '../../lib/types';
 
+/** How many finished contests to keep (and show) per platform. */
+export const PAST_PER_PLATFORM = 4;
+
+/** Each fetcher returns upcoming/live contests plus its platform's most recent finished ones. */
 export async function fetchCodeforces(): Promise<Contest[]> {
   const res = await fetchJson<{
     status: string;
@@ -9,7 +13,7 @@ export async function fetchCodeforces(): Promise<Contest[]> {
   }>('https://codeforces.com/api/contest.list?gym=false');
   if (res.status !== 'OK') throw new Error(`Codeforces: ${res.comment ?? res.status}`);
   return res.result
-    .filter((c) => (c.phase === 'BEFORE' || c.phase === 'CODING') && c.startTimeSeconds)
+    .filter((c) => (c.phase === 'BEFORE' || c.phase === 'CODING' || c.phase === 'FINISHED') && c.startTimeSeconds)
     .map((c) => ({
       id: `codeforces:${c.id}`,
       platform: 'codeforces',
@@ -21,10 +25,12 @@ export async function fetchCodeforces(): Promise<Contest[]> {
 }
 
 export async function fetchLeetCode(): Promise<Contest[]> {
-  const data = await leetcodeGraphql<{
-    upcomingContests: { title: string; titleSlug: string; startTime: number; duration: number }[];
-  }>('{ upcomingContests { title titleSlug startTime duration } }');
-  return data.upcomingContests.map((c) => ({
+  type Node = { title: string; titleSlug: string; startTime: number; duration: number };
+  const data = await leetcodeGraphql<{ upcomingContests: Node[]; pastContests?: { data: Node[] } }>(
+    `{ upcomingContests { title titleSlug startTime duration }
+       pastContests(pageNo: 1, numPerPage: ${PAST_PER_PLATFORM}) { data { title titleSlug startTime duration } } }`,
+  );
+  return [...data.upcomingContests, ...(data.pastContests?.data ?? [])].map((c) => ({
     id: `leetcode:${c.titleSlug}`,
     platform: 'leetcode',
     name: c.title,
@@ -46,9 +52,11 @@ export async function fetchCodeChef(): Promise<Contest[]> {
     status: string;
     future_contests?: CodeChefContest[];
     present_contests?: CodeChefContest[];
+    past_contests?: CodeChefContest[];
   }>('https://www.codechef.com/api/list/contests/all?sort_by=START&sorting_order=asc&offset=0&mode=all');
   if (res.status !== 'success') throw new Error(`CodeChef: ${res.status}`);
-  return [...(res.present_contests ?? []), ...(res.future_contests ?? [])]
+  const past = (res.past_contests ?? []).slice(0, PAST_PER_PLATFORM);
+  return [...past, ...(res.present_contests ?? []), ...(res.future_contests ?? [])]
     .map((c) => ({
       id: `codechef:${c.contest_code}`,
       platform: 'codechef' as const,
@@ -63,10 +71,8 @@ export async function fetchCodeChef(): Promise<Contest[]> {
 const ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', '#39': "'", apos: "'" };
 const decode = (s: string) => s.replace(/&(amp|lt|gt|quot|#39|apos);/g, (_, e: string) => ENTITIES[e] ?? '').trim();
 
-/** Parses the "Upcoming Contests" table of https://atcoder.jp/contests/ (service workers have no DOMParser). */
-export function parseAtCoderUpcoming(html: string): Contest[] {
-  const section = html.split('id="contest-table-upcoming"')[1]?.split('</table>')[0];
-  if (!section) throw new Error('AtCoder: upcoming table not found (page layout changed?)');
+/** Parses one contest table of https://atcoder.jp/contests/ (service workers have no DOMParser). */
+function parseAtCoderTable(section: string): Contest[] {
   const contests: Contest[] = [];
   for (const row of section.split('<tr').slice(1)) {
     const time = row.match(/<time[^>]*>([^<]+)<\/time>/)?.[1];
@@ -89,8 +95,24 @@ export function parseAtCoderUpcoming(html: string): Contest[] {
   return contests;
 }
 
+const atCoderSection = (html: string, id: string) => html.split(`id="${id}"`)[1]?.split('</table>')[0];
+
+/** The "Upcoming Contests" table. */
+export function parseAtCoderUpcoming(html: string): Contest[] {
+  const section = atCoderSection(html, 'contest-table-upcoming');
+  if (!section) throw new Error('AtCoder: upcoming table not found (page layout changed?)');
+  return parseAtCoderTable(section);
+}
+
+/** The "Recent Contests" table (finished contests, newest first); empty if the page has none. */
+export function parseAtCoderRecent(html: string): Contest[] {
+  const section = atCoderSection(html, 'contest-table-recent');
+  return section ? parseAtCoderTable(section).slice(0, PAST_PER_PLATFORM) : [];
+}
+
 export async function fetchAtCoder(): Promise<Contest[]> {
-  return parseAtCoderUpcoming(await fetchText('https://atcoder.jp/contests/?lang=en'));
+  const html = await fetchText('https://atcoder.jp/contests/?lang=en');
+  return [...parseAtCoderRecent(html), ...parseAtCoderUpcoming(html)];
 }
 
 export const CONTEST_FETCHERS: Record<ContestPlatform, () => Promise<Contest[]>> = {

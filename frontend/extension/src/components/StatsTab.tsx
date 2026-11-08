@@ -184,6 +184,8 @@ export function StatsTab() {
   const sync = importStatus(agentStatus?.submissions, single);
   const showSync = importsHistory && (single ? single === 'leetcode' || !!handle : !noHandles);
   const excluded = data.excludedFromAcceptance.map((p) => PLATFORMS[p].short).join(', ');
+  // LeetCode's own profile numbers, only when they belong to the username in settings.
+  const lcProfile = single === 'leetcode' && profiles?.leetcode && handle && profiles.leetcode.handle.toLowerCase() === handle.toLowerCase() ? profiles.leetcode : undefined;
 
   return (
     <div className="space-y-3">
@@ -272,9 +274,15 @@ export function StatsTab() {
       )}
 
       {single === 'gfg' && profiles?.gfg && profiles.gfg.handle === handle && <GfgProfileCard p={profiles.gfg} />}
+      {single === 'leetcode' && lcProfile && <LeetCodeProfileCard p={lcProfile} />}
 
       <div className="grid grid-cols-3 gap-2">
-        <StatTile icon={<CheckCircle2 size={11} />} label="Solved" value={s.solved} sub={`of ${s.attempted} tried`} />
+        {lcProfile?.totalSolved !== undefined && range === 'all' ? (
+          // LeetCode's public history only lists recent submissions; its profile has the real total.
+          <StatTile icon={<CheckCircle2 size={11} />} label="Solved" value={lcProfile.totalSolved} sub="LeetCode profile" />
+        ) : (
+          <StatTile icon={<CheckCircle2 size={11} />} label="Solved" value={s.solved} sub={`of ${s.attempted} tried`} />
+        )}
         {single && SOLVED_ONLY.includes(single) ? (
           <StatTile icon={<Target size={11} />} label="Acceptance" value="n/a" sub={`${scopeName} shares solved only`} />
         ) : data.acceptance.totalSubs === 0 && data.excludedFromAcceptance.length ? (
@@ -528,6 +536,68 @@ function GfgProfileCard({ p }: { p: PlatformProfile }) {
         <div className="mt-2 flex items-center gap-1.5 text-[11px] text-ink-2">
           <Flame size={12} className="text-[var(--streak)]" aria-hidden />
           POTD streak <b className="text-ink">{p.potdCurrentStreak ?? 0}</b> days · longest <b className="text-ink">{p.potdLongestStreak ?? 0}</b>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const LC_DIFFICULTIES = ['Easy', 'Medium', 'Hard'] as const;
+const LC_DIFFICULTY_COLOR: Record<(typeof LC_DIFFICULTIES)[number], string> = { Easy: '#00b8a3', Medium: '#ffc01e', Hard: '#ef4743' };
+
+/** LeetCode's own profile numbers: total solved, split by difficulty, ranking and contest rating. */
+function LeetCodeProfileCard({ p }: { p: PlatformProfile }) {
+  return (
+    <div className="plat-hero rounded-2xl p-3" style={platformVars('leetcode')}>
+      <div className="flex items-center gap-2">
+        <PlatformIcon platform="leetcode" size={22} />
+        <span className="min-w-0 flex-1 truncate text-[12.5px] font-extrabold">LeetCode profile{p.name ? ` · ${p.name}` : ''}</span>
+        <span className="text-[10px] text-ink-3">updated {relativeAgo(p.fetchedAt)}</span>
+      </div>
+      <div className="mt-2.5 grid grid-cols-4 gap-1.5 text-center">
+        <ProfileNum label="Solved" value={p.totalSolved} />
+        <ProfileNum label="Ranking" value={p.ranking?.toLocaleString()} />
+        <ProfileNum label="Contest rating" value={p.contestRating} />
+        <ProfileNum label="Active this year" value={p.activeDays} />
+      </div>
+      <ul className="mt-2.5 space-y-1.5">
+        {LC_DIFFICULTIES.map((d) => {
+          const solved = p.byDifficulty?.[d] ?? 0;
+          const total = p.totalByDifficulty?.[d];
+          return (
+            <li key={d} className="text-[11px]">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold" style={{ color: LC_DIFFICULTY_COLOR[d] }}>
+                  {d}
+                </span>
+                <span className="tabular">
+                  <b>{solved}</b>
+                  {total ? <span className="text-ink-3"> / {total}</span> : null}
+                </span>
+              </div>
+              {total ? (
+                <div className="mt-0.5 h-1.5 overflow-hidden rounded-full bg-surface-2" aria-hidden>
+                  <div className="h-full rounded-full" style={{ width: `${Math.min(100, (solved / total) * 100)}%`, background: LC_DIFFICULTY_COLOR[d] }} />
+                </div>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+      {(p.contestsAttended || p.streak !== undefined) && (
+        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-ink-2">
+          {p.contestsAttended ? (
+            <span>
+              <Medal size={12} className="mr-1 inline text-[#f59e0b]" aria-hidden />
+              {p.contestsAttended} contests{p.contestTopPercent !== undefined ? ` · top ${p.contestTopPercent}%` : ''}
+            </span>
+          ) : null}
+          {p.streak !== undefined && (
+            <span>
+              <Flame size={12} className="mr-1 inline text-[var(--streak)]" aria-hidden />
+              Submission streak <b className="text-ink">{p.streak}</b> days
+            </span>
+          )}
         </div>
       )}
     </div>

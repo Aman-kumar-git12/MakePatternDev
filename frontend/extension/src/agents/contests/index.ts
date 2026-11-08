@@ -3,7 +3,7 @@ import { getItem, getSettings, pruneContestData, updateItem } from '../../lib/st
 import type { Contest, ContestPlatform } from '../../lib/types';
 import { scheduleReminders, updateBadge } from '../reminders';
 import type { Agent } from '../types';
-import { CONTEST_FETCHERS } from './fetchers';
+import { CONTEST_FETCHERS, PAST_PER_PLATFORM } from './fetchers';
 
 async function run(): Promise<string> {
   const settings = await getSettings();
@@ -21,7 +21,7 @@ async function run(): Promise<string> {
     else {
       errors[p] = errorMessage(r.reason);
       // Keep the last good data for a failing platform rather than showing nothing.
-      items.push(...previous.items.filter((c) => c.platform === p));
+      items.push(...previous.items.filter((c) => c.platform === p), ...(previous.past ?? []).filter((c) => c.platform === p));
     }
   });
 
@@ -29,8 +29,15 @@ async function run(): Promise<string> {
   const upcoming = [...unique.values()]
     .filter((c) => c.start + c.durationSec * 1000 > now)
     .sort((a, b) => a.start - b.start);
+  // The latest few finished contests per platform, newest first.
+  const past = platforms.flatMap((p) =>
+    [...unique.values()]
+      .filter((c) => c.platform === p && c.start + c.durationSec * 1000 <= now)
+      .sort((a, b) => b.start - a.start)
+      .slice(0, PAST_PER_PLATFORM),
+  );
 
-  await updateItem('contests', () => ({ items: upcoming, fetchedAt: now, errors }));
+  await updateItem('contests', () => ({ items: upcoming, past, fetchedAt: now, errors }));
   // Forget reminder overrides of contests that ended over a day ago (only judged on fresh data).
   await pruneContestData(upcoming, new Set(platforms.filter((p) => !errors[p])), now);
   const reminders = await scheduleReminders();
@@ -45,7 +52,7 @@ async function run(): Promise<string> {
 export const contestsAgent: Agent = {
   id: 'contests',
   name: 'Contest agent',
-  description: 'Fetches upcoming contests from LeetCode, Codeforces, CodeChef and AtCoder, schedules reminders and updates the badge.',
+  description: 'Fetches upcoming and recent contests from LeetCode, Codeforces, CodeChef and AtCoder, schedules reminders and updates the badge.',
   trigger: 'schedule',
   periodMinutes: 180,
   run,

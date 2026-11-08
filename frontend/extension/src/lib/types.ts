@@ -97,7 +97,10 @@ export interface Settings {
 }
 
 export interface ContestCache {
+  /** Upcoming and live contests, soonest first. */
   items: Contest[];
+  /** The latest finished contests per platform, newest first (absent in data saved by older versions). */
+  past?: Contest[];
   fetchedAt: number;
   errors: Partial<Record<ContestPlatform, string>>;
 }
@@ -140,6 +143,17 @@ export interface PlatformProfile {
   potdLongestStreak?: number;
   /** Solved count per difficulty as the platform labels it (e.g. School/Basic/Easy/Medium/Hard). */
   byDifficulty?: Record<string, number>;
+  /** Problems available per difficulty (LeetCode), for "solved of total". */
+  totalByDifficulty?: Record<string, number>;
+  /** Global ranking on the platform (LeetCode). */
+  ranking?: number;
+  contestRating?: number;
+  contestsAttended?: number;
+  /** "Top x%" among contest participants (LeetCode). */
+  contestTopPercent?: number;
+  /** Days with at least one submission this year, and the current submission streak (LeetCode). */
+  activeDays?: number;
+  streak?: number;
 }
 
 export interface AgentStatus {

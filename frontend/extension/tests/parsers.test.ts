@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { parseAtCoderUpcoming } from '../src/agents/contests/fetchers';
+import { parseAtCoderRecent, parseAtCoderUpcoming } from '../src/agents/contests/fetchers';
 import { leetcodeVerdict } from '../src/agents/submissions';
 import { detectPage } from '../src/lib/platforms';
 import { addDays, formatCountdown, formatDuration, googleCalendarUrl } from '../src/lib/time';
@@ -24,6 +24,28 @@ describe('parseAtCoderUpcoming', () => {
   it('decodes entities and throws on unknown layouts', () => {
     expect(contests.every((c) => !c.name.includes('&amp;'))).toBe(true);
     expect(() => parseAtCoderUpcoming('<html></html>')).toThrow(/layout/);
+  });
+});
+
+describe('parseAtCoderRecent', () => {
+  const row = (code: string, time: string) => `<tr>
+    <td class="text-center"><a href='#'><time class='fixtime fixtime-full'>${time}</time></a></td>
+    <td ><span>Ⓐ</span> <a href="/contests/${code}">AtCoder Beginner Contest ${code.slice(3)}</a></td>
+    <td class="text-center">01:40</td>
+    <td class="text-center"> - 1999</td>
+  </tr>`;
+  const html = `<div id="contest-table-recent"><table><tbody>${['abc483', 'abc482', 'abc481', 'abc480', 'abc479']
+    .map((c, i) => row(c, `2026-11-0${7 - i} 21:00:00+0900`))
+    .join('')}</tbody></table></div>`;
+
+  it('keeps only the latest 4 finished contests, newest first', () => {
+    const recent = parseAtCoderRecent(html);
+    expect(recent.map((c) => c.id)).toEqual(['atcoder:abc483', 'atcoder:abc482', 'atcoder:abc481', 'atcoder:abc480']);
+    expect(recent[0]!.durationSec).toBe(100 * 60);
+  });
+
+  it('returns nothing (instead of failing) when the page has no recent table', () => {
+    expect(parseAtCoderRecent('<html></html>')).toEqual([]);
   });
 });
 

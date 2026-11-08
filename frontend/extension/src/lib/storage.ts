@@ -48,7 +48,7 @@ export interface StorageSchema {
    */
   meta: { lastWeeklyReport?: string; weeklyBaseline?: string };
   /** Latest public profile per platform (currently GeeksforGeeks). */
-  profiles: Partial<Record<'gfg', PlatformProfile>>;
+  profiles: Partial<Record<'gfg' | 'leetcode', PlatformProfile>>;
   /** Newton School's featured Question of the Day, as last read from the page (title + link together). */
   newtonQotd: NewtonQotdState | null;
   /** The last failed read of the Newton School page (cleared by a successful read). */
@@ -57,7 +57,7 @@ export interface StorageSchema {
 
 const DEFAULTS: StorageSchema = {
   settings: DEFAULT_SETTINGS,
-  contests: { items: [], fetchedAt: 0, errors: {} },
+  contests: { items: [], past: [], fetchedAt: 0, errors: {} },
   potd: { localDate: '', items: [], fetchedAt: 0, errors: {} },
   potdDone: {},
   reminderOverrides: {},

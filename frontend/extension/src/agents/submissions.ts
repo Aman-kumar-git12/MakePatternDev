@@ -368,7 +368,72 @@ export async function syncLeetCode(
         account: handle.toLowerCase(),
       })),
   );
+  // The public API only lists the last 20 accepted submissions, so totals come from the profile.
+  await refreshLeetCodeProfile(handle, graphql).catch(() => undefined);
   return { handle, lastTs: Math.max(lastTs, ...list.map((s) => Number(s.timestamp) * 1000)) };
+}
+
+interface LeetCodeProfileData {
+  matchedUser: {
+    username: string;
+    profile: { realName?: string | null; ranking?: number | null } | null;
+    submitStatsGlobal: { acSubmissionNum: { difficulty: string; count: number }[] } | null;
+  } | null;
+  allQuestionsCount: { difficulty: string; count: number }[] | null;
+}
+interface LeetCodeExtrasData {
+  userContestRanking: { rating?: number | null; attendedContestsCount?: number | null; topPercentage?: number | null } | null;
+  matchedUser: { userCalendar: { streak?: number | null; totalActiveDays?: number | null } | null } | null;
+}
+
+const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : undefined);
+
+/** Turns LeetCode's public profile answers into the stored profile. Exported for tests. */
+export function mapLeetCodeProfile(handle: string, core: LeetCodeProfileData, extras: LeetCodeExtrasData | null, now: number): PlatformProfile {
+  const u = core.matchedUser;
+  if (!u) throw new Error(`LeetCode: user "${handle}" not found`);
+  const counts = (rows: { difficulty: string; count: number }[] | null | undefined) =>
+    Object.fromEntries((rows ?? []).filter((r) => r.difficulty !== 'All' && num(r.count) !== undefined).map((r) => [r.difficulty, r.count]));
+  const solvedAll = u.submitStatsGlobal?.acSubmissionNum.find((r) => r.difficulty === 'All')?.count;
+  const contest = extras?.userContestRanking;
+  const calendar = extras?.matchedUser?.userCalendar;
+  return {
+    handle,
+    fetchedAt: now,
+    name: u.profile?.realName || undefined,
+    totalSolved: num(solvedAll),
+    byDifficulty: counts(u.submitStatsGlobal?.acSubmissionNum),
+    totalByDifficulty: counts(core.allQuestionsCount),
+    ranking: num(u.profile?.ranking),
+    contestRating: num(contest?.rating) !== undefined ? Math.round(contest!.rating!) : undefined,
+    contestsAttended: num(contest?.attendedContestsCount),
+    contestTopPercent: num(contest?.topPercentage),
+    activeDays: num(calendar?.totalActiveDays),
+    streak: num(calendar?.streak),
+  };
+}
+
+/** Fetches LeetCode's public profile totals for the Stats tab (best-effort). */
+export async function refreshLeetCodeProfile(handle: string, graphql: typeof leetcodeGraphql = leetcodeGraphql, now = Date.now()): Promise<PlatformProfile> {
+  const core = await graphql<LeetCodeProfileData>(
+    `query($u: String!) {
+      matchedUser(username: $u) { username profile { realName ranking } submitStatsGlobal { acSubmissionNum { difficulty count } } }
+      allQuestionsCount { difficulty count }
+    }`,
+    { u: handle },
+  );
+  // Contest rating and the activity calendar are extras: a failure there keeps the core numbers.
+  const extras = await graphql<LeetCodeExtrasData>(
+    `query($u: String!) {
+      userContestRanking(username: $u) { rating attendedContestsCount topPercentage }
+      matchedUser(username: $u) { userCalendar { streak totalActiveDays } }
+    }`,
+    { u: handle },
+  ).catch(() => null);
+  const profile = mapLeetCodeProfile(handle, core, extras, now);
+  const profiles = await getItem('profiles');
+  await setItem('profiles', { ...profiles, leetcode: profile });
+  return profile;
 }
 
 export function codechefVerdict(result: string): Verdict {

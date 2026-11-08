@@ -7,7 +7,8 @@ import { send } from '../lib/messages';
 import { PLATFORMS } from '../lib/platforms';
 import { addDays, localDate, relativeAgo } from '../lib/time';
 import type { Contest, ContestPlatform } from '../lib/types';
-import { ContestRow, NextContestCard } from './ContestItem';
+import { PAST_PER_PLATFORM } from '../agents/contests/fetchers';
+import { ContestRow, NextContestCard, PastContestRow } from './ContestItem';
 import { Button, cx, Empty, ErrorNote, PlatformIcon, platformVars, SectionTitle } from './ui';
 
 const ALL: ContestPlatform[] = ['leetcode', 'codeforces', 'codechef', 'atcoder'];
@@ -29,8 +30,8 @@ export function ContestsTab() {
   const contests = useStorage('contests');
   const settings = useStorage('settings');
   const overrides = useStorage('reminderOverrides');
-  // Opens on LeetCode contests; "All" if LeetCode contests are turned off in Settings.
-  const [filter, setFilter] = useState<ContestPlatform | 'all'>('leetcode');
+  // Opens on all platforms; the user can narrow it to one.
+  const [filter, setFilter] = useState<ContestPlatform | 'all'>('all');
   const [refreshing, setRefreshing] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [resetError, setResetError] = useState('');
@@ -38,10 +39,18 @@ export function ContestsTab() {
 
   const enabled = ALL.filter((p) => settings.contestPlatforms[p]);
   const upcoming = contests.items.filter((c) => enabled.includes(c.platform) && c.start + c.durationSec * 1000 > now);
-  // A filter for a platform that's turned off (e.g. the LeetCode default) behaves as "All".
+  // A filter for a platform that's turned off behaves as "All".
   const activeFilter = filter !== 'all' && !enabled.includes(filter) ? 'all' : filter;
   const items = upcoming.filter((c) => activeFilter === 'all' || c.platform === activeFilter);
   const [next, ...rest] = items;
+  // The last few finished contests: newest first, for the selected platform or across all of them.
+  // A contest that ended since the last refresh is still in `items`, so it counts too.
+  const finished = new Map([...(contests.past ?? []), ...contests.items].map((c) => [c.id, c]));
+  const recent = [...finished.values()]
+    .filter((c) => enabled.includes(c.platform) && (activeFilter === 'all' || c.platform === activeFilter))
+    .filter((c) => c.start + c.durationSec * 1000 <= now)
+    .sort((a, b) => b.start - a.start)
+    .slice(0, PAST_PER_PLATFORM);
   const reminderOn = (id: string) => overrides[id] ?? settings.remindersEnabled;
 
   const groups = new Map<string, Contest[]>();
@@ -136,6 +145,17 @@ export function ContestsTab() {
           </ul>
         </section>
       ))}
+
+      {recent.length > 0 && (
+        <section>
+          <SectionTitle right={<span className="text-[10.5px] text-ink-3">last {recent.length}</span>}>Recent contests</SectionTitle>
+          <ul className="space-y-2">
+            {recent.map((c) => (
+              <PastContestRow key={c.id} contest={c} now={now} />
+            ))}
+          </ul>
+        </section>
+      )}
 
       <ErrorNote errors={contests.errors} />
 
