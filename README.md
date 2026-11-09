@@ -1,181 +1,263 @@
-# MakePattern
+# MakePattern Web App
 
-A tracker for practising Data Structures and Algorithms (DSA). It combines a web workspace for problems, notes and solutions with spaced-repetition reviews, LeetCode sync, an in-browser code runner, a browser extension that follows your daily coding across platforms, and an AI agent that reviews the time and space complexity of your code.
+The React single-page app for MakePattern: a DSA practice tracker with nested pattern folders, a Monaco code workspace, spaced-repetition reviews, LeetCode import and an in-browser code runner. It installs as a PWA and keeps working offline.
 
-[![CI](https://github.com/Aman-kumar-git12/MakePatternDev/actions/workflows/ci.yml/badge.svg)](https://github.com/Aman-kumar-git12/MakePatternDev/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+It talks to the separate FastAPI backend service over REST.
 
 ## Contents
 
-- [What's inside](#whats-inside)
 - [Features](#features)
-- [Architecture](#architecture)
-- [Quick start](#quick-start)
-- [Repository layout](#repository-layout)
+- [Tech stack](#tech-stack)
+- [Getting started](#getting-started)
 - [Configuration](#configuration)
-- [Testing and CI](#testing-and-ci)
+- [Scripts](#scripts)
+- [Architecture](#architecture)
+- [Project structure](#project-structure)
+- [Keyboard shortcuts](#keyboard-shortcuts)
+- [Testing and quality](#testing-and-quality)
 - [Deployment](#deployment)
-- [Security and privacy](#security-and-privacy)
+- [Accessibility](#accessibility)
+- [Troubleshooting](#troubleshooting)
 - [Contributing](#contributing)
 - [License](#license)
 
-## What's inside
-
-| Service | What it is | Stack | Docs |
-|---|---|---|---|
-| **Backend** | REST API for accounts, folders, questions, solutions, reviews and LeetCode sync | FastAPI, MongoDB | [backend/README.md](backend/README.md) |
-| **Frontend** | The MakePattern web app (installable as an offline-capable PWA) | React 19, TypeScript, Vite, Tailwind CSS | [frontend/README.md](frontend/README.md) |
-| **Extension** | *Coding Journey*: a browser extension for daily problems, contests, stats and code analysis | WXT, React, Tailwind CSS | [frontend/extension/README.md](frontend/extension/README.md) |
-
-**Get the extension:** [download coding-journey-extension.zip](https://github.com/Aman-kumar-git12/MakePatternDev/releases/latest/download/coding-journey-extension.zip) (Chrome, Edge, Brave), unzip it, then open `chrome://extensions`, turn on Developer mode, click **Load unpacked** and select the `coding-journey-extension` folder. The zip is also in the repo at [`frontend/extension/coding-journey-extension.zip`](frontend/extension/coding-journey-extension.zip). See the [install guide](frontend/extension/README.md#install).
-| **Agent** | A REST service that reviews code for time and space complexity using your own LLM API key | FastAPI, 13 LLM providers | [agent/README.md](agent/README.md) |
-
 ## Features
 
-**Web app**
-- **Organisation:** folders nested to any depth, with progress per folder, a dashboard, bookmarks and global search (`Ctrl/Cmd + K`).
-- **Question workspace:** notes, a Monaco code editor (the editor used in VS Code) with several named solutions, test cases and a side-by-side complexity comparison.
-- **Spaced-repetition reviews:** reviews after 1, 3, 7, 14, 30, 60 and 120 days, rated Again / Hard / Good / Easy, with streaks and an activity heatmap.
-- **LeetCode:** search and import problems with their statements and examples, see the daily challenge, and sync your accepted submissions.
-- **Starter curricula:** "Core Interview Patterns" (118 problems) and "Beginner Foundations" (34).
-- **Code runner:** Python and JavaScript run in the browser with no setup; C++ and Java run through Judge0 when it is configured.
-- **Productivity:** PWA with offline support, keyboard shortcuts, focus mode, themes, bulk actions, undo and trash, JSON import and export, and sharing.
-- **Accounts:** any email address works for sign-up and sign-in. Emails are never verified, by design.
+- **Pattern folders**: unlimited nested folders of questions, with live completion counts and progress bars. Folders and questions can be created, renamed, moved (circular moves are blocked) and deleted.
+- **Question workspace**:
+  - Notes in Markdown, with an edit/preview toggle.
+  - A Monaco code editor (Python, C++, Java, JavaScript) holding several named solutions per question.
+  - Test cases, and a complexity tab comparing the solutions.
+  - An attempt logger with a stopwatch.
+  - Autosave, with a status indicator.
+- **Run your code**:
+  - Python runs in the browser through Pyodide, and JavaScript runs in a Web Worker. Neither needs any setup.
+  - C++ and Java run through Judge0 when the backend has a Judge0 key.
+- **Spaced-repetition reviews**:
+  - Solving a question schedules reviews, which you rate Again, Hard, Good or Easy in the review queue.
+  - The queue still works offline: ratings are queued and synced when you're back online.
+- **LeetCode**:
+  - Search and import problems with their statement, tags and examples.
+  - See the daily challenge.
+  - Sync your recent accepted submissions by username.
+- **Starter curricula**: ready-made problem sets you can add to your workspace.
+- **Progress**: activity heatmap, streaks and a dashboard of what to continue next.
+- **Organisation**: bookmarks, global search (`/` or `Ctrl/⌘ + K`), multi-select bulk actions, and a trash where deletions can be undone and restored.
+- **Sharing**: share a pattern as a public read-only link (`/shared/:id`); others can copy it into their own workspace.
+- **Data**:
+  - Export all your data as JSON.
+  - Import a backup. Imports go into a new folder and never overwrite existing data.
+- **Personalisation**:
+  - Light, dark or system theme, plus a high-contrast mode and reduced motion.
+  - Editor theme and font size, and interface scale.
+  - Readable (Atkinson Hyperlegible) or dyslexia-friendly (OpenDyslexic) fonts.
+  - Focus mode for distraction-free practice.
+  - Optional single-key shortcuts.
+- **Installable PWA**: works offline after the first visit, and shows a "new version available" prompt instead of updating silently.
+- **Responsive**: works on phones, tablets and desktops.
 
-**Browser extension (Coding Journey)**
-- **Daily problems:** the problem of the day from LeetCode, GeeksforGeeks, takeUforward and Newton School, ticked automatically soon after you solve it.
-- **Contests:** upcoming contests across platforms, with reminders.
-- **Stats:** per-platform stats and time spent coding.
-- **Analysis:** an offline code analysis with a code editor that handles indentation, plus an AI review that talks only about complexity.
+## Tech stack
 
-**Complexity agent**
-- Reviews code for time and space complexity, says why, and says whether a faster approach exists.
-- Uses your own key with Groq, Gemini, OpenRouter, Mistral, Cerebras, GitHub Models, Hugging Face, OpenAI, Anthropic, DeepSeek, xAI or Together, or a local Ollama model with no key.
+| Area | Choice |
+|---|---|
+| UI | React 19, TypeScript |
+| Build | Vite 8 (Rolldown) |
+| Styling | Tailwind CSS 4 |
+| Routing | React Router 7 |
+| Editor | Monaco (`@monaco-editor/react`) |
+| Code runner | Pyodide 0.29.5 (from jsDelivr) and Web Workers; Judge0 through the backend |
+| Sanitising | DOMPurify, for user and LeetCode HTML |
+| Icons | lucide-react |
+| Lint | Oxlint |
+
+## Getting started
+
+### Prerequisites
+
+- Node.js 22 or newer and npm.
+- The backend running locally (see the backend's README); by default it serves `http://localhost:8000/api`.
+
+### Install and run
+
+```bash
+cd frontend
+cp .env.example .env      # optional; the defaults below work for local development
+npm install
+npm run dev               # http://localhost:5173
+```
+
+Register with any email and password. Emails are not verified, by design. Signing in with an unknown email creates the account.
+
+## Configuration
+
+Vite reads variables from `.env` at build time. Only `VITE_`-prefixed variables reach the browser, so never put secrets in them.
+
+| Variable | Default | Description |
+|---|---|---|
+| `VITE_API_BASE_URL` | `http://localhost:8000/api` on localhost, otherwise the hosted backend | Base URL of the backend API. A missing `/api` suffix is added automatically. |
+| `VITE_API_URL` | — | Legacy alias, used only when `VITE_API_BASE_URL` is unset. |
+
+`.env.example` also lists `VITE_APP_TITLE`, but the app doesn't currently read it.
+
+## Scripts
+
+| Command | What it does |
+|---|---|
+| `npm run dev` | Starts the Vite dev server with hot reload |
+| `npm run build` | Type-checks (`tsc -b`) and builds to `dist/`, including the generated service worker |
+| `npm run preview` | Serves the production build locally |
+| `npm run lint` | Runs Oxlint |
+| `node scripts/runner-selfcheck.ts` | Self-check of the code-runner harness (input parsing, output comparison) |
 
 ## Architecture
 
 ```
-                         ┌──────────────────────────┐
-  browser ──────────────▶│ frontend (Vercel, PWA)   │
-                         └────────────┬─────────────┘
-                                      │ REST /api (JWT)
-                                      ▼
-                         ┌──────────────────────────┐       ┌──────────────┐
-                         │ backend (FastAPI, Render)│──────▶│ MongoDB Atlas│
-                         └────────────┬─────────────┘       └──────────────┘
-                                      │ LeetCode GraphQL, Judge0 (optional)
-                                      ▼
-                               external services
-
-  extension (popup + background worker) ──▶ LeetCode, Codeforces, GFG, TUF, … (read-only)
-          │
-          └── AI review ──▶ agent (localhost:8001) ──▶ your chosen LLM provider
+            ┌────────────── Browser ──────────────────────────────────────┐
+            │                                                              │
+ index.html │  main.tsx → App (React Router)                               │
+            │     ├─ /login, /register         (public routes)             │
+            │     ├─ /shared/:id               (public, read-only share)    │
+            │     └─ /, /patterns, /question/:id, /revision, … → MainAppShell
+            │            │                                                 │
+            │            ├─ context/  Auth · Preferences · Theme           │
+            │            ├─ app/      view routing, data + action hooks    │
+            │            ├─ lazy views (Workspace, Reviews, Settings, …)   │
+            │            └─ runner/   Pyodide / JS Web Workers ──┐          │
+            │                                                   │         │
+            │  services/api.ts  (fetch, JWT, timezone header) ───┼─────────┼──► backend /api
+            │  offline/         review cache + queued ratings    │         │      (Judge0 for C++/Java)
+            │  sw.js            precached shell and assets       │         │
+            └────────────────────────────────────────────────────┴─────────┘
 ```
 
-- **MongoDB** is the only database. Tests use an in-memory mock, so they never touch a real database.
-- **The extension** keeps its data in the browser. It talks to coding platforms directly, and to the agent only when you ask for an AI review.
-- **The agent** runs on your own machine and is separate from the backend. Your API key never reaches MakePattern's servers.
+- **Routing**:
+  - `App.tsx` defines the public routes (login, register and shared patterns).
+  - Every signed-in path renders the same `MainAppShell`, which picks the view from the URL (`app/useViewRouting.ts`).
+  - Unknown paths redirect to `/`.
+- **State**:
+  - React context holds auth (`AuthContext`) and preferences (`PreferencesContext`), which are kept in `localStorage` and synced to the server.
+  - Feature data lives in hooks under `app/` (`useAppData`, `useFolderActions`, `useQuestionActions`, `useModalState`).
+- **API client** (`services/api.ts`):
+  - A single typed client. It adds the `Authorization: Bearer <JWT>` header and the browser's timezone, so streaks and "today" match the user's day.
+  - It signs the user out when a request comes back 401.
+  - `services/pendingWrites.ts` makes logout wait for in-flight autosaves.
+- **Code runner** (`runner/`):
+  - Python (Pyodide) and JavaScript run in Web Workers, with a 5-second limit per test case.
+  - C++ and Java go to the backend's Judge0 proxy. The Run panel disables them when the server reports `judge0_enabled: false`.
+- **Lazy loading**: the workspace, list views, reviews, settings and shared-pattern views are split into separate chunks (`app/lazyViews.tsx`), so the first page load only ships the app shell. React and React Router go in a separate `react-vendor` chunk that browsers can keep cached across deploys.
+- **PWA**:
+  - At build time, a Vite plugin in `vite.config.ts` generates `/sw.js` from `sw/sw.template.js`, embedding a build id and the list of every JS/CSS asset.
+  - The service worker precaches the shell and assets. A new deploy produces a new worker, and the app shows an update prompt (`pwa/`) instead of forcing a reload.
+  - The worker is registered only in production builds.
+- **Offline reviews** (`offline/`):
+  - The last review queue is cached per user.
+  - Ratings made offline are queued, then sent in batches to `POST /reviews/batch`. Each rating carries an id, so a retried send never counts it twice.
 
-## Quick start
+## Project structure
 
-Prerequisites:
-- Python 3.10 or newer
-- Node.js 22
-- a MongoDB database: local via Docker, or a MongoDB Atlas connection string
+```
+frontend/
+├── index.html
+├── public/                 static files: favicon, PWA icons, manifest, hero image
+├── scripts/
+│   └── runner-selfcheck.ts
+├── sw/
+│   └── sw.template.js      service worker template (build generates /sw.js)
+├── src/
+│   ├── main.tsx            entry point
+│   ├── App.tsx             routes
+│   ├── index.css           Tailwind and theme tokens
+│   ├── app/                app shell, view routing, data/action hooks, lazy views
+│   ├── components/
+│   │   ├── Auth/           route guards
+│   │   ├── Common/         shared UI: bulk bar, undo toast, offline banner, …
+│   │   ├── Dashboard/
+│   │   ├── Header/         header and global search
+│   │   ├── Modals/         create/rename/move/delete, LeetCode import, curricula, share
+│   │   ├── Progress/       activity heatmap
+│   │   ├── Settings/       appearance, import, LeetCode sync
+│   │   ├── Sidebar/
+│   │   ├── Views/          list views, reviews, trash, settings, shared pattern
+│   │   └── Workspace/      question workspace, Monaco editor, run panel, notes
+│   ├── context/            auth, preferences, theme
+│   ├── hooks/              autosave, review queue, selection, undo toasts
+│   ├── offline/            offline review cache and sync
+│   ├── pages/              login and register
+│   ├── pwa/                service-worker registration and update flow
+│   ├── runner/             in-browser code runner and harness
+│   ├── services/           API client, pending-write registry
+│   ├── shortcuts/          keyboard shortcuts
+│   ├── types/              shared TypeScript types
+│   └── utils/
+├── vercel.json             headers and SPA rewrites
+└── vite.config.ts
+```
+
+## Keyboard shortcuts
+
+Press `?` in the app to see this list. Single-key shortcuts can be turned off in **Settings → Appearance**. Shortcuts are ignored while you type in a field or while a dialog is open.
+
+| Keys | Action |
+|---|---|
+| `/` or `Ctrl/⌘ + K` | Search |
+| `?` | Show keyboard shortcuts |
+| `n` | New question |
+| `Esc` | Close dialog / exit focus mode |
+| `g` then `d` / `p` / `r` / `b` / `s` | Go to Dashboard / My patterns / Reviews / Bookmarks / Settings |
+| `j` / `k` | Next / previous question in a list |
+| `Enter` or `o` | Open the selected question |
+| `r` | Start the review queue |
+| `f` | Toggle focus mode (in a question) |
+| `b` | Bookmark the question |
+
+## Testing and quality
 
 ```bash
-git clone --recurse-submodules https://github.com/Aman-kumar-git12/MakePatternDev.git
-cd MakePatternDev   # already cloned? run: git submodule update --init
-
-# 1. Database (optional: local MongoDB on :27017)
-docker compose up -d
-
-# 2. Backend: http://localhost:8000/api
-cd backend
-python3 -m venv venv && source venv/bin/activate
-pip install -r requirements-dev.txt
-cp .env.example .env              # set MONGODB_URI (mongodb://localhost:27017 for the local DB)
-python run.py
-
-# 3. Frontend: http://localhost:5173 (new terminal)
-cd frontend && npm install && npm run dev
-
-# 4. Extension (optional, new terminal)
-cd frontend/extension && npm install && npm run build
-#    then load frontend/extension/dist/chrome-mv3 via chrome://extensions → Load unpacked
-
-# 5. Complexity agent (optional): http://127.0.0.1:8001 (new terminal)
-cd agent
-python3 -m venv venv && source venv/bin/activate
-pip install -r requirements.txt
-python app.py
+npm run lint                        # Oxlint
+npm run build                       # type-check and production build
+node scripts/runner-selfcheck.ts    # code-runner harness checks
 ```
 
-Each service's README covers its full setup and configuration.
-
-## Repository layout
-
-```
-.
-├── backend/                FastAPI API: app/routers, app/schemas, app/services, tests/
-├── frontend/               React + Vite web app
-│   └── extension/          Coding Journey browser extension (separate npm package)
-├── agent/                  Complexity agent (git submodule: makePatternAgent; python app.py)
-├── .github/workflows/      ci.yml (all services) and extension-release.yml (release zips)
-├── docker-compose.yml      local MongoDB for development
-├── CONTRIBUTING.md
-└── LICENSE
-```
-
-`frontend/extension` is a separate package with its own `package.json` and `node_modules`. The web app's Vite and lint configs deliberately ignore that folder.
-
-## Configuration
-
-Each service reads its own environment variables. Copy the `.env.example` next to it and fill in the values.
-
-| Service | File | Key settings |
-|---|---|---|
-| Backend | `backend/.env` | `MONGODB_URI` (required), `JWT_SECRET` (required in production, at least 32 random characters), `CLIENT_URL` / `CORS_ORIGINS`, optional `JUDGE0_*` |
-| Frontend | `frontend/.env` | `VITE_API_BASE_URL` (backend URL) |
-| Agent | `agent/.env` | All optional: host, port, rate limit, fallback provider keys |
-| Extension | none | Configured in its Settings page (usernames, agent URL, provider keys) |
-
-Never commit `.env` files; only the `.env.example` files are tracked.
-
-## Testing and CI
-
-| Service | Command | Notes |
-|---|---|---|
-| Backend | `cd backend && python -m pytest -q` | In-memory MongoDB (mongomock) |
-| Agent | `cd agent && python -m pytest -q` | All providers mocked, no keys needed (tested in its own repo, not this CI) |
-| Frontend | `cd frontend && npm run lint && npm run build` | |
-| Extension | `cd frontend/extension && npm run typecheck && npm test` | Vitest with a fake browser API |
-
-[`ci.yml`](.github/workflows/ci.yml) runs the backend, frontend and extension checks on every push and pull request. [`extension-release.yml`](.github/workflows/extension-release.yml) builds the extension zips and publishes a GitHub Release when a tag like `ext-v0.1.0` is pushed.
+Run `npm run lint` and `npm run build` before pushing. Backend behaviour is covered by the backend's own test suite.
 
 ## Deployment
 
-| Service | Host | Settings |
-|---|---|---|
-| Frontend | Vercel | Root Directory `frontend`; set `VITE_API_BASE_URL` |
-| Backend | Render | Root Directory `backend`; build `pip install -r requirements.txt`; start `uvicorn app.main:app --host 0.0.0.0 --port $PORT`; set `MONGODB_URI` and `JWT_SECRET` |
-| Extension | GitHub Releases | Push a tag `ext-v<version>` matching `frontend/extension/package.json` |
-| Agent | Your machine | Runs locally with `python app.py`. It has no authentication of its own, so don't expose it publicly. |
+The app is a static build and is deployed on **Vercel**:
 
-## Security and privacy
+1. In Vercel, set the project's **Root Directory** to `frontend`.
+2. Leave the build command (`npm run build`) and output directory (`dist`) at their Vite defaults.
+3. Set `VITE_API_BASE_URL` to your backend URL, for example `https://<your-backend>/api`. Make sure the backend's `CLIENT_URL` / `CORS_ORIGINS` allow the deployed origin.
 
-- **No credentials in code:** production refuses to start without `MONGODB_URI` and a strong `JWT_SECRET`.
-- **Passwords and sessions:** passwords are hashed with bcrypt. JWTs carry a token version, so changing your password or choosing "sign out everywhere" ends all other sessions.
-- **Rate limiting:** authentication and other sensitive endpoints are rate-limited.
-- **Extension:** keeps all its data in the browser. Provider API keys are never exported or synced, and the AI review sends code only to your local agent.
-- **Agent:** uses your key for one request at a time and never stores or logs it.
+[`vercel.json`](vercel.json) does three things:
 
-To report a security issue, please contact the maintainer privately rather than opening a public issue.
+- **SPA rewrites**: every path except `sw.js`, `manifest.webmanifest`, `icons/` and `assets/` serves `index.html`, so deep links work.
+- **Service worker**: `sw.js` is never cached (`no-cache, no-store`) and is allowed to control the whole site (`Service-Worker-Allowed: /`), so updates reach users promptly.
+- **Assets**: hashed files under `/assets/` are cached for a year (`immutable`).
+
+Any static host works if it applies the same rewrite rule and doesn't cache `sw.js`.
+
+## Accessibility
+
+- Every theme has a high-contrast mode, and reduced motion can be turned on.
+- Interface scale and the editor font size are adjustable, and readable or dyslexia-friendly fonts are available.
+- Dialogs trap focus and close with `Esc`, and the shortcut overlay is an accessible dialog.
+- Everything can be used from the keyboard, and the single-key shortcuts can be turned off.
+
+## Troubleshooting
+
+| Symptom | Fix |
+|---|---|
+| Requests fail with network or CORS errors | Make sure the backend is running and `VITE_API_BASE_URL` points to it (including `/api`). Add the frontend origin to the backend's `CORS_ORIGINS`. |
+| The first request after a while is slow | The hosted backend sleeps when idle. The app pings it on load (`api.warmup()`), but the first call can still take a few seconds. |
+| C++/Java "Run" is disabled | The backend has no Judge0 key. Python and JavaScript still run in the browser. |
+| Python run is slow the first time | Pyodide (about 10 MB) downloads from jsDelivr on first use and is cached afterwards. |
+| An old version keeps loading after a deploy | Accept the "new version available" prompt, or hard-reload. Check that the host isn't caching `sw.js`. |
+| The service worker doesn't run in dev | Expected: it's registered only in production builds. Use `npm run build && npm run preview`. |
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, the checks to run before a pull request, and branch and commit conventions.
+Run `npm run lint` and `npm run build` before opening a pull request.
 
 ## License
 
-[MIT](LICENSE) © Aman Kumar
+MIT
