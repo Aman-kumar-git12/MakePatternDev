@@ -347,10 +347,11 @@ class ApiService {
     });
   }
 
-  async moveFolder(folderId: string, targetParentId: string | null): Promise<void> {
+  /** `newPosition` pins the folder's place among its new siblings; omitted, the server appends it. */
+  async moveFolder(folderId: string, targetParentId: string | null, newPosition?: number): Promise<void> {
     return this.request<void>(`/folders/${folderId}/move`, {
       method: 'POST',
-      body: JSON.stringify({ target_parent_id: targetParentId }),
+      body: JSON.stringify({ target_parent_id: targetParentId, ...(newPosition !== undefined ? { new_position: newPosition } : {}) }),
     });
   }
 
@@ -426,10 +427,11 @@ class ApiService {
     });
   }
 
-  async moveQuestion(questionId: string, targetFolderId: string | null): Promise<void> {
+  /** `newPosition` pins the question's place in the target folder; omitted, the server appends it. */
+  async moveQuestion(questionId: string, targetFolderId: string | null, newPosition?: number): Promise<void> {
     return this.request<void>(`/questions/${questionId}/move`, {
       method: 'POST',
-      body: JSON.stringify({ target_folder_id: targetFolderId }),
+      body: JSON.stringify({ target_folder_id: targetFolderId, ...(newPosition !== undefined ? { new_position: newPosition } : {}) }),
     });
   }
 
