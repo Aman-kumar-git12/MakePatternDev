@@ -85,7 +85,7 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
   const [dragState, setDragState] = useState<DragState | null>(null);
   const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
 
-  // Nodes are expanded by default unless explicitly collapsed
+  // Topics and subtopics start collapsed; the ones the user opens are remembered for this browser session.
   const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>(() => {
     try {
       const saved = sessionStorage.getItem(EXPANDED_STORAGE_KEY);
@@ -98,18 +98,12 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
     return {};
   });
 
-  const isNodeExpanded = (nodeId: string): boolean => {
-    // Default to true (expanded) if not explicitly set
-    return expandedNodes[nodeId] !== false;
-  };
+  const isNodeExpanded = (nodeId: string): boolean => expandedNodes[nodeId] === true;
 
-  const toggleNode = (nodeId: string) => {
+  const setNodeExpanded = (nodeId: string, open: boolean) => {
     setExpandedNodes((prev) => {
-      const currentlyOpen = prev[nodeId] !== false;
-      const next = {
-        ...prev,
-        [nodeId]: !currentlyOpen,
-      };
+      if ((prev[nodeId] === true) === open) return prev;
+      const next = { ...prev, [nodeId]: open };
       try {
         sessionStorage.setItem(EXPANDED_STORAGE_KEY, JSON.stringify(next));
       } catch (e) {
@@ -117,6 +111,24 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
       }
       return next;
     });
+  };
+
+  const toggleNode = (nodeId: string) => setNodeExpanded(nodeId, !isNodeExpanded(nodeId));
+
+  // While searching, matching topics open so the matching subtopics are visible (unless closed again).
+  const isSearching = searchQuery.trim() !== '';
+  const isTopicExpanded = (topicId: string): boolean =>
+    isNodeExpanded(topicId) || (isSearching && expandedNodes[topicId] !== false);
+  const toggleTopic = (topicId: string) => setNodeExpanded(topicId, !isTopicExpanded(topicId));
+
+  // Adding into a collapsed topic opens it, so the new subtopic or problem is visible.
+  const openCreateSubtopic = (folderId: string) => {
+    setNodeExpanded(folderId, true);
+    onOpenCreateSubtopic(folderId);
+  };
+  const openCreateQuestion = (folderId: string) => {
+    setNodeExpanded(folderId, true);
+    onOpenCreateQuestion(folderId);
   };
 
   const handleAddNewPatternTopic = async (e: React.FormEvent) => {
@@ -850,7 +862,7 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                onOpenCreateSubtopic(node.id);
+                openCreateSubtopic(node.id);
               }}
               className="mp-desktop-only opacity-0 group-hover:opacity-100 flex items-center space-x-1 px-2 py-0.5 rounded-md text-[11px] bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white transition shadow-sm border border-slate-700"
               title={`Add Subtopic inside "${node.name}"`}
@@ -863,7 +875,7 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                onOpenCreateQuestion(node.id);
+                openCreateQuestion(node.id);
               }}
               className="mp-desktop-only opacity-0 group-hover:opacity-100 flex items-center space-x-1 px-2 py-0.5 rounded-md text-[11px] bg-blue-600/20 text-blue-300 hover:bg-blue-600 hover:text-white transition shadow-sm"
               title={`Add Problem inside "${node.name}"`}
@@ -916,8 +928,8 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
               onClick={(e) => {
                 e.stopPropagation();
                 const actions: SheetAction[] = [
-                  { label: 'Add problem here', icon: <Plus className="w-4 h-4" />, onSelect: () => onOpenCreateQuestion(node.id) },
-                  { label: 'Add subtopic here', icon: <FolderTree className="w-4 h-4" />, onSelect: () => onOpenCreateSubtopic(node.id) },
+                  { label: 'Add problem here', icon: <Plus className="w-4 h-4" />, onSelect: () => openCreateQuestion(node.id) },
+                  { label: 'Add subtopic here', icon: <FolderTree className="w-4 h-4" />, onSelect: () => openCreateSubtopic(node.id) },
                   { label: 'Move up', icon: <ChevronUp className="w-4 h-4" />, disabled: isFirst || !node.parent_id, onSelect: () => node.parent_id && handleMoveItem(node.parent_id, node.id, 'up') },
                   { label: 'Move down', icon: <ChevronDown className="w-4 h-4" />, disabled: isLast || !node.parent_id, onSelect: () => node.parent_id && handleMoveItem(node.parent_id, node.id, 'down') },
                 ];
@@ -1033,7 +1045,7 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
               <div className="py-2 px-2.5 text-xs text-slate-500 italic flex items-center justify-between">
                 <span>No problems in this subtopic yet</span>
                 <button
-                  onClick={() => onOpenCreateQuestion(node.id)}
+                  onClick={() => openCreateQuestion(node.id)}
                   className="text-yellow-400 hover:text-yellow-300 font-medium text-xs flex items-center space-x-1"
                 >
                   <Plus className="w-3 h-3" />
@@ -1198,7 +1210,7 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
           </div>
         ) : (
           filteredFolders.map((pattern) => {
-            const expanded = isNodeExpanded(pattern.id);
+            const expanded = isTopicExpanded(pattern.id);
             const patternQuestions = getQuestionsForFolder(pattern.id);
             const subfolders = sortFolders(pattern.subfolders || []);
             const hasChildren = subfolders.length > 0 || patternQuestions.length > 0;
@@ -1290,7 +1302,7 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
                 )}
 
                 {/* Topic Header */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-slate-800/70">
+                <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 ${expanded ? 'pb-3 border-b border-slate-800/70' : ''}`}>
                   <div className="flex items-center space-x-2 min-w-0">
                     {/* Drag Handle for Root Topic */}
                     <div
@@ -1313,7 +1325,7 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
                     </div>
 
                     <div
-                      onClick={() => toggleNode(pattern.id)}
+                      onClick={() => toggleTopic(pattern.id)}
                       className="w-5 h-5 flex items-center justify-center text-slate-400 hover:text-white cursor-pointer transition flex-shrink-0"
                     >
                       {expanded ? (
@@ -1326,7 +1338,7 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
                     </div>
 
                     <div
-                      onClick={() => toggleNode(pattern.id)}
+                      onClick={() => toggleTopic(pattern.id)}
                       className="cursor-pointer group select-none min-w-0"
                     >
                       <div className="flex items-center gap-x-2 gap-y-1 flex-wrap min-w-0">
@@ -1349,7 +1361,7 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
                   <div className="flex items-center space-x-1.5 flex-wrap">
                     {/* Add Subtopic */}
                     <button
-                      onClick={() => onOpenCreateSubtopic(pattern.id)}
+                      onClick={() => openCreateSubtopic(pattern.id)}
                       className="flex items-center space-x-1 px-2.5 py-1 rounded-lg text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition"
                       title={`Add Subtopic under "${pattern.name}"`}
                     >
@@ -1359,7 +1371,7 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
 
                     {/* Add Question */}
                     <button
-                      onClick={() => onOpenCreateQuestion(pattern.id)}
+                      onClick={() => openCreateQuestion(pattern.id)}
                       className="flex items-center space-x-1 px-2.5 py-1 rounded-lg text-xs bg-blue-600 hover:bg-blue-500 text-white font-medium shadow-md transition"
                       title={`Add Question inside "${pattern.name}"`}
                     >
@@ -1423,7 +1435,7 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
                         <p>No subtopics or problems added to this pattern yet.</p>
                         <div className="flex items-center justify-center space-x-2">
                           <button
-                            onClick={() => onOpenCreateSubtopic(pattern.id)}
+                            onClick={() => openCreateSubtopic(pattern.id)}
                             className="text-yellow-400 hover:text-yellow-300 font-medium text-xs flex items-center space-x-1"
                           >
                             <Plus className="w-3 h-3" />
@@ -1431,7 +1443,7 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
                           </button>
                           <span>•</span>
                           <button
-                            onClick={() => onOpenCreateQuestion(pattern.id)}
+                            onClick={() => openCreateQuestion(pattern.id)}
                             className="text-yellow-400 hover:text-yellow-300 font-medium text-xs flex items-center space-x-1"
                           >
                             <Plus className="w-3 h-3" />
