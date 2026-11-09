@@ -115,8 +115,9 @@ export const AllQuestionsView: React.FC<AllQuestionsViewProps> = ({
 
   const handleBulk = async (payload: Omit<BulkActionRequest, 'question_ids'>) => {
     if (!onBulkAction || selection.count === 0) return;
-    await onBulkAction({ ...payload, question_ids: selection.selectedIds });
-    if (payload.action === 'delete') selection.clear();
+    const result = await onBulkAction({ ...payload, question_ids: selection.selectedIds });
+    // null = the delete was cancelled in the confirmation dialog: keep the selection.
+    if (payload.action === 'delete' && result !== null) selection.clear();
   };
 
   const renderCheckbox = (q: QuestionListItem) =>

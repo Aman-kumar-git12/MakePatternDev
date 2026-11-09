@@ -6,6 +6,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import './index.css';
 import App from './App.tsx';
 import { UpdateToast } from './components/Common/UpdateToast';
+import { ConfirmDialogHost } from './components/ConfirmDialog';
 import { registerServiceWorker } from './pwa/registerServiceWorker';
 import { ErrorBoundary } from './components/Common/ErrorBoundary';
 import { reloadForNewVersion } from './pwa/reloadForNewVersion';
@@ -25,6 +26,7 @@ createRoot(document.getElementById('root')!).render(
         <AuthProvider>
           <App />
           <UpdateToast />
+          <ConfirmDialogHost />
         </AuthProvider>
       </ThemeProvider>
     </BrowserRouter>

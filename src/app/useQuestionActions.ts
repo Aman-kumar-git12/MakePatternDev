@@ -12,6 +12,7 @@ import type {
   BulkActionResult,
 } from '../types/dsa';
 import { pushToast, pushUndoToast } from '../hooks/useUndoToasts';
+import { confirmAction } from '../components/ConfirmDialog';
 import type { AppData } from './useAppData';
 import type { ModalState } from './useModalState';
 import type { ActiveQuestionState } from './useActiveQuestion';
@@ -214,10 +215,15 @@ export function useQuestionActions(data: AppData, modals: ModalState, active: Ac
   };
 
   /**
-   * Soft delete with undo: no confirm dialog — the question goes to the trash and a 10-second
-   * "Undo" toast restores it (it also stays restorable from the Trash view for 30 days).
+   * Ask first, then soft delete: the question goes to the trash and a 10-second "Undo" toast
+   * restores it (it also stays restorable from the Trash view for 30 days).
    */
   const handleDeleteQuestion = async (questionId: string, questionTitle: string) => {
+    const ok = await confirmAction({
+      title: `Delete “${truncate(questionTitle)}”?`,
+      message: 'The problem, its solutions, notes and test cases move to Trash and can be restored for 30 days.',
+    });
+    if (!ok) return;
     // Optimistically hide it so the UI reacts instantly.
     setQuestions((prev) => prev.filter((q) => q.id !== questionId));
     const wasActive = activeQuestion?.id === questionId;
@@ -239,10 +245,17 @@ export function useQuestionActions(data: AppData, modals: ModalState, active: Ac
   };
 
   /** Apply one action to many selected questions; deletes get an undo toast. */
-  const handleBulkAction = async (request: BulkActionRequest): Promise<BulkActionResult> => {
-    const res = await api.bulkQuestions(request);
+  const handleBulkAction = async (request: BulkActionRequest): Promise<BulkActionResult | null> => {
     const n = request.question_ids.length;
     const label = `${n} question${n === 1 ? '' : 's'}`;
+    if (request.action === 'delete') {
+      const ok = await confirmAction({
+        title: `Delete ${label}?`,
+        message: `The selected ${n === 1 ? 'problem moves' : 'problems move'} to Trash with their solutions, notes and test cases, and can be restored for 30 days.`,
+      });
+      if (!ok) return null;
+    }
+    const res = await api.bulkQuestions(request);
     if (request.action === 'delete') {
       if (activeQuestion && request.question_ids.includes(activeQuestion.id)) setActiveQuestion(null);
       const trashId = res.trash_id;
