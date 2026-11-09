@@ -26,6 +26,7 @@ import { AttemptLogger } from './AttemptLogger';
 import { useAutosave } from '../../hooks/useAutosave';
 import type { Question, Solution, TestCase, Difficulty, QuestionStatus, SupportedLanguage } from '../../types/dsa';
 import { api } from '../../services/api';
+import { confirmAction } from '../ConfirmDialog';
 
 interface QuestionWorkspaceProps {
   question: Question;
@@ -279,6 +280,12 @@ export const QuestionWorkspace: React.FC<QuestionWorkspaceProps> = ({
   };
 
   const handleDeleteTestCase = async (id: string) => {
+    const index = testCases.findIndex((tc) => tc.id === id);
+    const ok = await confirmAction({
+      title: index >= 0 ? `Delete test case ${index + 1}?` : 'Delete this test case?',
+      message: "Its input and expected output are deleted permanently. This can't be undone.",
+    });
+    if (!ok) return;
     await api.deleteTestCase(id);
     setTestCases((prev) => prev.filter((tc) => tc.id !== id));
   };

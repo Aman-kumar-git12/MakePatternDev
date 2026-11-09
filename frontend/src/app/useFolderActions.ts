@@ -5,9 +5,10 @@ import type { AppData } from './useAppData';
 import type { ModalState } from './useModalState';
 import type { ActiveQuestionState } from './useActiveQuestion';
 import { pushToast, pushUndoToast } from '../hooks/useUndoToasts';
+import { confirmAction } from '../components/ConfirmDialog';
 import { insertFolderNode, isSelfOrDescendant, nextChildPosition, recountTree, removeFolderNode } from './treeOps';
 
-const LARGE_FOLDER_CONFIRM_THRESHOLD = 20;
+const truncateName = (name: string) => (name.length > 60 ? `${name.slice(0, 59)}…` : name);
 
 const findFolder = (nodes: Folder[], id: string): Folder | null => {
   for (const node of nodes) {
@@ -21,7 +22,7 @@ const findFolder = (nodes: Folder[], id: string): Folder | null => {
 /** Folder CRUD, drag-and-drop reordering and moves (direct and via the Move modal). */
 export function useFolderActions(data: AppData, modals: ModalState, active: ActiveQuestionState) {
   const { setFolders, setQuestions, setSummary, refreshData } = data;
-  const { moveData, setDeleteData } = modals;
+  const { moveData } = modals;
   const { activeQuestion, setActiveQuestion } = active;
 
   // Folder Operations
@@ -207,27 +208,35 @@ export function useFolderActions(data: AppData, modals: ModalState, active: Acti
     await refreshData();
   };
 
-  /**
-   * Small folders are deleted immediately (undo replaces the confirm dialog). Large ones
-   * (> 20 questions) still ask first, since restoring them is a bigger surprise if mis-clicked.
-   */
-  const handleDeleteFolder = (folderId: string, folderName: string) => {
-    const folder = findFolder(data.folders, folderId);
-    const questionCount = folder?.question_count ?? 0;
-    if (questionCount <= LARGE_FOLDER_CONFIRM_THRESHOLD) {
-      softDeleteFolder(folderId, folderName).catch((err) => {
-        pushToast({ message: err instanceof Error ? err.message : 'Delete failed', tone: 'error' });
-      });
-      return;
-    }
-    setDeleteData({
-      title: `Delete "${folderName}"?`,
-      message: `This topic contains ${questionCount} questions. It will move to Trash with all its subtopics, solutions and test cases, and can be restored for 30 days.`,
-      itemType: 'folder',
-      onConfirm: async () => {
-        await softDeleteFolder(folderId, folderName);
-      },
+  /** Ask first, then move the topic (with everything inside it) to the trash, with a 10-second undo. */
+  const handleDeleteFolder = async (folderId: string, folderName: string) => {
+    const folder = findFolder(latest.current.folders, folderId);
+    // Count from the live question list: it already reflects deletes/moves the tree hasn't caught up with.
+    const folderIds = new Set<string>();
+    const collect = (f: Folder) => {
+      folderIds.add(f.id);
+      (f.subfolders || []).forEach(collect);
+    };
+    if (folder) collect(folder);
+    const questionCount = latest.current.questions.filter((q) => q.folder_id && folderIds.has(q.folder_id)).length;
+    const subtopicCount = Math.max(0, folderIds.size - 1);
+    const kind = folder?.parent_id ? 'subtopic' : 'topic';
+    const contents = [
+      subtopicCount ? `${subtopicCount} subtopic${subtopicCount === 1 ? '' : 's'}` : '',
+      questionCount ? `${questionCount} problem${questionCount === 1 ? '' : 's'}` : '',
+    ].filter(Boolean);
+    const ok = await confirmAction({
+      title: `Delete ${kind} “${truncateName(folderName)}”?`,
+      message: contents.length
+        ? `It contains ${contents.join(' and ')}. Everything inside, including solutions and test cases, moves to Trash and can be restored for 30 days.`
+        : 'It moves to Trash and can be restored for 30 days.',
     });
+    if (!ok) return;
+    try {
+      await softDeleteFolder(folderId, folderName);
+    } catch (err) {
+      pushToast({ message: err instanceof Error ? err.message : 'Delete failed', tone: 'error' });
+    }
   };
 
   // Execute Move Modal
