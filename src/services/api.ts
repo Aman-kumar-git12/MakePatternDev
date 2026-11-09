@@ -1,4 +1,5 @@
 import type { Preferences } from '../context/preferencesCore';
+import { resolveTempIds } from '../app/pendingIds';
 import type {
   Folder,
   Question,
@@ -173,6 +174,15 @@ class ApiService {
   }
 
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+    // Something created a moment ago may still be saving: wait for it and use its real id.
+    if (endpoint.includes('mptmp-') || (typeof options.body === 'string' && options.body.includes('mptmp-'))) {
+      try {
+        endpoint = await resolveTempIds(endpoint);
+        if (typeof options.body === 'string') options = { ...options, body: await resolveTempIds(options.body) };
+      } catch (err: unknown) {
+        throw new ApiError(err instanceof Error ? err.message : 'Item not saved', 424, null);
+      }
+    }
     const headers = this.buildHeaders(options.headers as Record<string, string> | undefined);
     const sentToken = this.token;
     const method = (options.method || 'GET').toUpperCase();
@@ -323,11 +333,12 @@ class ApiService {
     name: string,
     parentId: string | null = null,
     description: string = '',
-    tags: string[] = []
+    tags: string[] = [],
+    position?: number
   ): Promise<Folder> {
     return this.request<Folder>('/folders/', {
       method: 'POST',
-      body: JSON.stringify({ name, parent_id: parentId, description, tags }),
+      body: JSON.stringify({ name, parent_id: parentId, description, tags, ...(position !== undefined ? { position } : {}) }),
     });
   }
 
@@ -406,6 +417,7 @@ class ApiService {
     tags?: string[];
     problem_statement?: string;
     notes?: string;
+    position?: number;
   }): Promise<Question> {
     return this.request<Question>('/questions/', {
       method: 'POST',

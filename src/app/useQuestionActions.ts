@@ -16,11 +16,14 @@ import { confirmAction } from '../components/ConfirmDialog';
 import type { AppData } from './useAppData';
 import type { ModalState } from './useModalState';
 import type { ActiveQuestionState } from './useActiveQuestion';
+import type { SyncQueue } from './useSyncQueue';
+import { startPendingId } from './pendingIds';
+import { folderPathFor, nextChildPosition, recountTree } from './treeOps';
 
 const truncate = (s: string, n = 40) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 
 /** Question-level actions: bookmarks, revision flag, create/save/rename/move/delete, solutions. */
-export function useQuestionActions(data: AppData, modals: ModalState, active: ActiveQuestionState) {
+export function useQuestionActions(data: AppData, modals: ModalState, active: ActiveQuestionState, sync: SyncQueue) {
   const navigate = useNavigate();
   const { setFolders, setQuestions, setSummary, setActivityKey, refreshReviews, loadInitialData, refreshData } = data;
   const { setIsImportModalOpen, setRenameData, setMoveData } = modals;
@@ -91,7 +94,10 @@ export function useQuestionActions(data: AppData, modals: ModalState, active: Ac
     }
   };
 
-  // Question Operations
+  /**
+   * Add a problem. It shows up at once (at the end of its topic) and is saved in the background;
+   * opening it before the save finishes just waits for the save.
+   */
   const handleCreateQuestion = async (payload: {
     folder_id?: string | null;
     title: string;
@@ -102,25 +108,102 @@ export function useQuestionActions(data: AppData, modals: ModalState, active: Ac
     problem_statement: string;
     notes?: string;
   }) => {
-    const created = await api.createQuestion(payload);
-    const [updatedTree, updatedSummary, updatedQuestions] = await Promise.all([
-      api.getFolderTree(),
-      api.getProgressSummary(),
-      api.listQuestions(),
-    ]);
-    setFolders(updatedTree);
-    setSummary(updatedSummary);
-    setQuestions(updatedQuestions);
+    const title = payload.title.trim();
+    const problemUrl = (payload.problem_url || '').trim();
+    if (!title) throw new Error('Problem title is required');
+    if (title.length > 300) throw new Error('Title must be 300 characters or fewer');
+    if (problemUrl.length > 500) throw new Error('Link must be 500 characters or fewer');
 
-    if (created && created.id) {
-      try {
-        const fullQ = await api.getQuestion(created.id);
-        setActiveQuestion(fullQ);
-      } catch {
-        // Fallback if detail fetch fails
-      }
-    }
+    const { folders, questions } = sync.latest.current;
+    const folderId = payload.folder_id || null;
+    const unfiled = questions.filter((q) => !q.folder_id).map((q) => q.position ?? 0);
+    const position = folderId
+      ? nextChildPosition(folders, questions, folderId)
+      : unfiled.length
+        ? Math.max(...unfiled) + 1
+        : 0;
+    const pendingId = startPendingId();
+    const now = new Date().toISOString();
+    const item: QuestionListItem = {
+      id: pendingId.id,
+      folder_id: folderId,
+      title,
+      problem_url: problemUrl || undefined,
+      difficulty: payload.difficulty,
+      status: payload.status,
+      tags: payload.tags,
+      is_bookmarked: false,
+      folder_path: folderPathFor(folders, folderId),
+      position,
+      solved_at: payload.status === 'Solved' ? now : null,
+      attempts: 0,
+      time_spent_minutes: 0,
+      created_at: now,
+      updated_at: now,
+    };
+    const nextQuestions = [...questions, item];
+    sync.applyLocal(recountTree(folders, nextQuestions), nextQuestions);
+    setSummary((prev) => {
+      if (!prev) return prev;
+      const total = prev.total_questions + 1;
+      const solved = prev.solved_questions + (payload.status === 'Solved' ? 1 : 0);
+      const bucket = prev.difficulty_breakdown?.[payload.difficulty];
+      return {
+        ...prev,
+        total_questions: total,
+        solved_questions: solved,
+        in_progress_questions: prev.in_progress_questions + (payload.status === 'In Progress' ? 1 : 0),
+        needs_revision_questions: prev.needs_revision_questions + (payload.status === 'Needs Revision' ? 1 : 0),
+        not_started_questions: prev.not_started_questions + (payload.status === 'Not Started' ? 1 : 0),
+        overall_percentage: Math.round((solved / total) * 1000) / 10,
+        difficulty_breakdown: bucket
+          ? {
+              ...prev.difficulty_breakdown,
+              [payload.difficulty]: {
+                total: bucket.total + 1,
+                solved: bucket.solved + (payload.status === 'Solved' ? 1 : 0),
+              },
+            }
+          : prev.difficulty_breakdown,
+      };
+    });
     navigate('/patterns');
+
+    sync.enqueueSave(
+      async () => {
+        try {
+          // A folder created a moment ago is swapped for its real id by the API client.
+          const created = await api.createQuestion({ ...payload, title, problem_url: problemUrl || undefined, position });
+          pendingId.saved(created.id);
+          const current = sync.latest.current;
+          const saved = current.questions.map((q) =>
+            q.id === pendingId.id
+              ? {
+                  ...q,
+                  id: created.id,
+                  folder_id: created.folder_id ?? null,
+                  folder_path: created.folder_path ?? q.folder_path,
+                  position: created.position ?? q.position,
+                  solved_at: created.solved_at ?? q.solved_at,
+                  next_review_at: created.next_review_at ?? q.next_review_at,
+                  leetcode_slug: created.leetcode_slug ?? q.leetcode_slug,
+                  created_at: created.created_at ?? q.created_at,
+                  updated_at: created.updated_at ?? q.updated_at,
+                }
+              : q
+          );
+          sync.applyLocal(recountTree(current.folders, saved), saved);
+        } catch (err) {
+          pendingId.failed(err);
+          throw err;
+        }
+      },
+      {
+        reconcile: true,
+        failMessage: (err) =>
+          `Couldn't add “${truncate(title)}”${err instanceof Error && err.message ? `: ${err.message}` : '.'}`,
+      }
+    );
   };
 
   /**
