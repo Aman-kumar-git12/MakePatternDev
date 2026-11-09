@@ -8,6 +8,7 @@ import { useViewRouting } from './useViewRouting';
 import { useActiveQuestion } from './useActiveQuestion';
 import { useFolderActions } from './useFolderActions';
 import { useQuestionActions } from './useQuestionActions';
+import { useSyncQueue } from './useSyncQueue';
 import { MainContent } from './MainContent';
 import { AppModals } from './AppModals';
 import { UndoToastStack } from '../components/Common/UndoToast';
@@ -23,8 +24,10 @@ export function MainAppShell() {
   const modals = useModalState();
   const { currentView, handleSelectNavView } = useViewRouting();
   const active = useActiveQuestion();
-  const folderActions = useFolderActions(data, modals, active);
-  const questionActions = useQuestionActions(data, modals, active);
+  // One background save queue for creates, moves and rearranging, so they reach the server in order.
+  const sync = useSyncQueue(data);
+  const folderActions = useFolderActions(data, modals, active, sync);
+  const questionActions = useQuestionActions(data, modals, active, sync);
 
   const bookmarkedQuestions = data.questions.filter((q) => q.is_bookmarked);
   const dueCount = data.reviews.queue.due_count;

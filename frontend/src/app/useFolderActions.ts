@@ -1,4 +1,3 @@
-import { useEffect, useRef } from 'react';
 import { api } from '../services/api';
 import type { Folder, QuestionListItem } from '../types/dsa';
 import type { AppData } from './useAppData';
@@ -6,39 +5,89 @@ import type { ModalState } from './useModalState';
 import type { ActiveQuestionState } from './useActiveQuestion';
 import { pushToast, pushUndoToast } from '../hooks/useUndoToasts';
 import { confirmAction } from '../components/ConfirmDialog';
-import { insertFolderNode, isSelfOrDescendant, nextChildPosition, recountTree, removeFolderNode } from './treeOps';
+import {
+  findFolderNode,
+  insertFolderNode,
+  isSelfOrDescendant,
+  nextChildPosition,
+  recountTree,
+  removeFolderNode,
+  swapFolderId,
+} from './treeOps';
+import type { SyncQueue } from './useSyncQueue';
+import { startPendingId } from './pendingIds';
 
 const truncateName = (name: string) => (name.length > 60 ? `${name.slice(0, 59)}…` : name);
 
-const findFolder = (nodes: Folder[], id: string): Folder | null => {
-  for (const node of nodes) {
-    if (node.id === id) return node;
-    const hit = node.subfolders?.length ? findFolder(node.subfolders, id) : null;
-    if (hit) return hit;
-  }
-  return null;
-};
-
 /** Folder CRUD, drag-and-drop reordering and moves (direct and via the Move modal). */
-export function useFolderActions(data: AppData, modals: ModalState, active: ActiveQuestionState) {
+export function useFolderActions(data: AppData, modals: ModalState, active: ActiveQuestionState, sync: SyncQueue) {
   const { setFolders, setQuestions, setSummary, refreshData } = data;
+  const { latest, applyLocal, enqueueSave } = sync;
   const { moveData } = modals;
   const { activeQuestion, setActiveQuestion } = active;
 
-  // Folder Operations
+  /**
+   * Create a topic (parentId null) or subtopic. It appears at once, at the end of its parent, and
+   * is saved in the background; until then it has a temporary id that later requests wait on.
+   */
   const handleCreateFolder = async (
     name: string,
     parentId: string | null = null,
     description: string = '',
     tags: string[] = []
   ) => {
-    await api.createFolder(name, parentId, description, tags);
-    const [updatedTree, updatedSummary] = await Promise.all([
-      api.getFolderTree(),
-      api.getProgressSummary(),
-    ]);
-    setFolders(updatedTree);
-    setSummary(updatedSummary);
+    const cleanName = name.trim();
+    if (!cleanName) throw new Error('Name is required');
+    if (cleanName.length > 200) throw new Error('Name must be 200 characters or fewer');
+    const { folders, questions } = latest.current;
+    if (parentId && !findFolderNode(folders, parentId)) throw new Error('That topic no longer exists');
+
+    const position = nextChildPosition(folders, questions, parentId);
+    const pendingId = startPendingId();
+    const now = new Date().toISOString();
+    const folder: Folder = {
+      id: pendingId.id,
+      parent_id: parentId,
+      name: cleanName,
+      description,
+      tags,
+      position,
+      question_count: 0,
+      solved_count: 0,
+      progress_percentage: 0,
+      subfolders: [],
+      questions: [],
+      created_at: now,
+      updated_at: now,
+    };
+    applyLocal(insertFolderNode(folders, parentId, folder));
+    setSummary((prev) =>
+      prev
+        ? parentId
+          ? { ...prev, total_subtopics: (prev.total_subtopics ?? 0) + 1 }
+          : { ...prev, total_topics: (prev.total_topics ?? 0) + 1 }
+        : prev
+    );
+
+    enqueueSave(
+      async () => {
+        try {
+          // A temporary parent id is swapped for the real one by the API client.
+          const created = await api.createFolder(cleanName, parentId, description, tags, position);
+          pendingId.saved(created.id);
+          const next = swapFolderId(latest.current.folders, latest.current.questions, pendingId.id, created);
+          applyLocal(next.folders, next.questions);
+        } catch (err) {
+          pendingId.failed(err);
+          throw err;
+        }
+      },
+      {
+        reconcile: true,
+        failMessage: (err) =>
+          `Couldn't create “${truncateName(cleanName)}”${err instanceof Error && err.message ? `: ${err.message}` : '.'}`,
+      }
+    );
   };
 
   const handleCreateTopic = async (name: string, description?: string, tags?: string[]) => {
@@ -69,71 +118,7 @@ export function useFolderActions(data: AppData, modals: ModalState, active: Acti
     setQuestions(updatedQuestions);
   };
 
-  /*
-   * Rearranging is optimistic: the screen changes at once and the save runs in the background.
-   * Saves run one at a time, in the order they were made, so quick successive drags reach the
-   * server in the same order and a refresh shows exactly what was on screen.
-   */
-  const latest = useRef({ folders: data.folders, questions: data.questions });
-  useEffect(() => {
-    latest.current = { folders: data.folders, questions: data.questions };
-  }, [data.folders, data.questions]);
-  const saveQueue = useRef<Promise<void>>(Promise.resolve());
-  const pendingSaves = useRef(0);
-  const saveFailed = useRef(false);
-  const needsReconcile = useRef(false);
-  /** Bumped on every optimistic change, so a background re-sync never overwrites a newer one. */
-  const localVersion = useRef(0);
-
-  const applyLocal = (folders: Folder[], questions?: QuestionListItem[]) => {
-    localVersion.current += 1;
-    latest.current = { folders, questions: questions ?? latest.current.questions };
-    setFolders(folders);
-    if (questions) setQuestions(questions);
-  };
-
-  /** Once every queued save is done, quietly re-read the server copy (unless something changed since). */
-  const reconcile = async () => {
-    const version = localVersion.current;
-    try {
-      const [tree, list] = await Promise.all([api.getFolderTree(), api.listQuestions()]);
-      if (version === localVersion.current && pendingSaves.current === 0) {
-        latest.current = { folders: tree, questions: list };
-        setFolders(tree);
-        setQuestions(list);
-      }
-    } catch {
-      // Offline or the server is waking up: the optimistic state stays; the next load corrects it.
-    }
-  };
-
-  const enqueueSave = (save: () => Promise<unknown>, opts: { reconcile?: boolean } = {}) => {
-    pendingSaves.current += 1;
-    if (opts.reconcile) needsReconcile.current = true;
-    saveQueue.current = saveQueue.current
-      .then(save)
-      .then(
-        () => undefined,
-        (err) => {
-          console.error('Failed to save the new arrangement:', err);
-          saveFailed.current = true;
-        }
-      )
-      .finally(() => {
-        pendingSaves.current -= 1;
-        if (pendingSaves.current > 0) return;
-        if (saveFailed.current) {
-          saveFailed.current = false;
-          needsReconcile.current = false;
-          pushToast({ message: "Couldn't save the new order — it has been restored.", tone: 'error' });
-          void refreshData().catch(() => undefined);
-        } else if (needsReconcile.current) {
-          needsReconcile.current = false;
-          void reconcile();
-        }
-      });
-  };
-
+  // Rearranging is optimistic: see useSyncQueue for how saves are queued and re-synced.
   /** Top-level topics only: subtopic positions are shared with problems and must not be renumbered. */
   const handleReorderFolders = (reorderedFolders: Folder[]) => {
     applyLocal(reorderedFolders);
@@ -210,7 +195,7 @@ export function useFolderActions(data: AppData, modals: ModalState, active: Acti
 
   /** Ask first, then move the topic (with everything inside it) to the trash, with a 10-second undo. */
   const handleDeleteFolder = async (folderId: string, folderName: string) => {
-    const folder = findFolder(latest.current.folders, folderId);
+    const folder = findFolderNode(latest.current.folders, folderId);
     // Count from the live question list: it already reflects deletes/moves the tree hasn't caught up with.
     const folderIds = new Set<string>();
     const collect = (f: Folder) => {

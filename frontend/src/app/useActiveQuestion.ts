@@ -46,7 +46,8 @@ export function useActiveQuestion() {
       const q = await api.getQuestion(questionId);
       if (seq !== requestSeq.current) return;
       setActiveQuestion(q);
-      navigate(`/question/${questionId}`);
+      // q.id, not questionId: a problem opened while it was still saving had a temporary id.
+      navigate(`/question/${q.id}`);
     } catch (err) {
       console.error('Failed to open question:', err);
     }

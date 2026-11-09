@@ -83,3 +83,47 @@ export function recountTree(nodes: Folder[], questions: QuestionListItem[]): Fol
     });
   return walk(nodes);
 }
+
+/** "Topic / Subtopic" for a folder, built the same way as the server's folder_path. */
+export function folderPathFor(nodes: Folder[], folderId: string | null | undefined): string {
+  if (!folderId) return '';
+  const names: string[] = [];
+  let cur: Folder | null = findFolderNode(nodes, folderId);
+  const seen = new Set<string>();
+  while (cur && !seen.has(cur.id)) {
+    seen.add(cur.id);
+    names.push(cur.name);
+    cur = cur.parent_id ? findFolderNode(nodes, cur.parent_id) : null;
+  }
+  return names.reverse().join(' / ');
+}
+
+/**
+ * A folder created on screen was saved: give it (and everything that points at it) the server id.
+ * Children and problems added inside it meanwhile stay where they are.
+ */
+export function swapFolderId(
+  nodes: Folder[],
+  questions: QuestionListItem[],
+  tempId: string,
+  saved: Pick<Folder, 'id'> & Partial<Folder>
+): { folders: Folder[]; questions: QuestionListItem[] } {
+  const walk = (list: Folder[]): Folder[] =>
+    list.map((n) => {
+      const subfolders = n.subfolders?.length ? walk(n.subfolders) : n.subfolders;
+      if (n.id === tempId) {
+        return {
+          ...n,
+          id: saved.id,
+          user_id: saved.user_id ?? n.user_id,
+          created_at: saved.created_at ?? n.created_at,
+          updated_at: saved.updated_at ?? n.updated_at,
+          subfolders,
+        };
+      }
+      if (n.parent_id === tempId) return { ...n, parent_id: saved.id, subfolders };
+      return subfolders === n.subfolders ? n : { ...n, subfolders };
+    });
+  const nextQuestions = questions.map((q) => (q.folder_id === tempId ? { ...q, folder_id: saved.id } : q));
+  return { folders: recountTree(walk(nodes), nextQuestions), questions: nextQuestions };
+}

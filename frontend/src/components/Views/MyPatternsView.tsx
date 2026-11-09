@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { tempIdFor } from '../../app/pendingIds';
 import {
   Layers,
   Plus,
@@ -98,11 +99,16 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
     return {};
   });
 
-  const isNodeExpanded = (nodeId: string): boolean => expandedNodes[nodeId] === true;
+  // A topic opened while it was still saving was stored under its temporary id.
+  const readExpanded = (map: Record<string, boolean>, nodeId: string): boolean | undefined => {
+    const tempId = tempIdFor(nodeId);
+    return map[nodeId] ?? (tempId ? map[tempId] : undefined);
+  };
+  const isNodeExpanded = (nodeId: string): boolean => readExpanded(expandedNodes, nodeId) === true;
 
   const setNodeExpanded = (nodeId: string, open: boolean) => {
     setExpandedNodes((prev) => {
-      if ((prev[nodeId] === true) === open) return prev;
+      if ((readExpanded(prev, nodeId) === true) === open) return prev;
       const next = { ...prev, [nodeId]: open };
       try {
         sessionStorage.setItem(EXPANDED_STORAGE_KEY, JSON.stringify(next));
@@ -118,7 +124,7 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
   // While searching, matching topics open so the matching subtopics are visible (unless closed again).
   const isSearching = searchQuery.trim() !== '';
   const isTopicExpanded = (topicId: string): boolean =>
-    isNodeExpanded(topicId) || (isSearching && expandedNodes[topicId] !== false);
+    isNodeExpanded(topicId) || (isSearching && readExpanded(expandedNodes, topicId) !== false);
   const toggleTopic = (topicId: string) => setNodeExpanded(topicId, !isTopicExpanded(topicId));
 
   // Adding into a collapsed topic opens it, so the new subtopic or problem is visible.
@@ -416,7 +422,7 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
 
     return (
       <div
-        key={q.id}
+        key={tempIdFor(q.id) ?? q.id}
         onClick={() => onSelectQuestion(q.id)}
         data-nav-id={q.id}
         onDragOver={(e) => {
@@ -689,7 +695,7 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
 
     return (
       <div
-        key={node.id}
+        key={tempIdFor(node.id) ?? node.id}
         className={`text-xs space-y-1 rounded-lg transition-all ${
           isDraggingThis ? 'opacity-60' : ''
         }`}
@@ -1221,7 +1227,7 @@ export const MyPatternsView: React.FC<MyPatternsViewProps> = ({
 
             return (
               <div
-                key={pattern.id}
+                key={tempIdFor(pattern.id) ?? pattern.id}
                 onDragOver={(e) => {
                   if (!dragState) return;
                   if (dragState.type === 'root-folder' && dragState.id !== pattern.id) {
