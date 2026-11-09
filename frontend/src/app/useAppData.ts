@@ -10,6 +10,8 @@ export function useAppData() {
   const [summary, setSummary] = useState<ProgressSummary | null>(null);
   // False until the first load settles, so empty states don't flash while data is in flight.
   const [isLoaded, setIsLoaded] = useState(false);
+  // True when the first load failed (offline / server down), so loading placeholders stop.
+  const [loadFailed, setLoadFailed] = useState(false);
   // Bumped whenever activity-affecting data changes so the heatmap refetches.
   const [activityKey, setActivityKey] = useState(0);
   const reviews = useReviewQueue();
@@ -29,8 +31,10 @@ export function useAppData() {
       setQuestions(listData);
       // Only after a successful load: a failed (e.g. offline) load must not show "workspace empty".
       setIsLoaded(true);
+      setLoadFailed(false);
     } catch (err) {
       console.error('Failed to load initial curriculum data:', err);
+      setLoadFailed(true);
     }
   }, []);
 
@@ -50,6 +54,7 @@ export function useAppData() {
       setSummary(summaryData);
       setQuestions(listData);
       setIsLoaded(true);
+      setLoadFailed(false);
     } catch (err) {
       console.error('Failed to refresh data:', err);
     }
@@ -59,6 +64,7 @@ export function useAppData() {
 
   return {
     isLoaded,
+    loadFailed,
     folders,
     setFolders,
     questions,

@@ -1,6 +1,7 @@
 import { Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Dashboard } from '../components/Dashboard/Dashboard';
+import { PatternsShimmer } from '../components/Shimmer';
 import { api } from '../services/api';
 import type { QuestionListItem, ViewMode } from '../types/dsa';
 import type { AppData } from './useAppData';
@@ -180,27 +181,33 @@ export function MainContent({
           />
         )}
 
-        {currentView === 'patterns' && (
-          <MyPatternsView
-            folders={folders}
-            questions={questions}
-            onSelectQuestion={handleSelectQuestion}
-            onCreateFolder={handleCreateFolder}
-            onEditFolder={(folder) => setEditFolderData(folder)}
-            onDeleteFolder={handleDeleteFolder}
-            onOpenCreateTopic={handleOpenNewTopic}
-            onOpenCreateSubtopic={handleOpenNewSubtopic}
-            onOpenCreateQuestion={handleOpenNewQuestion}
-            onToggleBookmark={handleToggleBookmark}
-            onDeleteQuestion={handleDeleteQuestion}
-            onReorderFolders={handleReorderFolders}
-            onReorderQuestions={handleReorderQuestions}
-            onReorderChildren={handleReorderChildren}
-            onMoveQuestion={handleMoveQuestionDirect}
-            onMoveFolder={handleMoveFolderDirect}
-            activeQuestionId={activeQuestion?.id}
-          />
-        )}
+        {currentView === 'patterns' &&
+          (data.isLoaded || data.loadFailed ? (
+            <Suspense fallback={<PatternsShimmer />}>
+              <MyPatternsView
+                folders={folders}
+                questions={questions}
+                onSelectQuestion={handleSelectQuestion}
+                onCreateFolder={handleCreateFolder}
+                onEditFolder={(folder) => setEditFolderData(folder)}
+                onDeleteFolder={handleDeleteFolder}
+                onOpenCreateTopic={handleOpenNewTopic}
+                onOpenCreateSubtopic={handleOpenNewSubtopic}
+                onOpenCreateQuestion={handleOpenNewQuestion}
+                onToggleBookmark={handleToggleBookmark}
+                onDeleteQuestion={handleDeleteQuestion}
+                onReorderFolders={handleReorderFolders}
+                onReorderQuestions={handleReorderQuestions}
+                onReorderChildren={handleReorderChildren}
+                onMoveQuestion={handleMoveQuestionDirect}
+                onMoveFolder={handleMoveFolderDirect}
+                activeQuestionId={activeQuestion?.id}
+              />
+            </Suspense>
+          ) : (
+            // Topics are still being fetched: show the shimmer instead of an empty "no topics" state.
+            <PatternsShimmer />
+          ))}
 
         {currentView === 'progress' && (
           <ProgressView
