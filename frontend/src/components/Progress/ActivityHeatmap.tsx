@@ -13,6 +13,8 @@ interface ActivityHeatmapProps {
 }
 
 const WEEKS = 53;
+/** Days the grid can show: 52 full weeks plus the current partial week. */
+const GRID_DAYS = WEEKS * 7;
 const DAY_LABELS = ['', 'Mon', '', 'Wed', '', 'Fri', ''];
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -30,11 +32,23 @@ export const ActivityHeatmap: React.FC<ActivityHeatmapProps> = ({ refreshKey, su
   const [data, setData] = useState<ActivityResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  // The local date the grid ends on. Re-checked every minute and when the tab is shown again, so a
+  // page left open overnight moves on to the new day (and refetches) by itself.
+  const [todayKey, setTodayKey] = useState(() => localDateKey(new Date()));
+  useEffect(() => {
+    const check = () => setTodayKey(localDateKey(new Date()));
+    const timer = window.setInterval(check, 60_000);
+    document.addEventListener('visibilitychange', check);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', check);
+    };
+  }, []);
 
   useEffect(() => {
     let alive = true;
     api
-      .getActivity(365)
+      .getActivity(GRID_DAYS)
       .then((res) => {
         if (alive) {
           setData(res);
@@ -45,30 +59,35 @@ export const ActivityHeatmap: React.FC<ActivityHeatmapProps> = ({ refreshKey, su
     return () => {
       alive = false;
     };
-  }, [refreshKey]);
+  }, [refreshKey, todayKey]);
 
   // Show the most recent weeks first on narrow screens.
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollLeft = scrollRef.current.scrollWidth;
   }, [data]);
 
-  const { weeks, max, monthMarkers } = useMemo(() => {
+  const { weeks, max, monthMarkers, totalActions } = useMemo(() => {
     const byDate = new Map((data?.days || []).map((d) => [d.date, d]));
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // Anchored at noon: stepping day by day from midnight drifts to 01:00 after a DST change that
+    // skips midnight, which made today's cell look like a future one.
+    const [y, m, d0] = todayKey.split('-').map(Number);
+    const today = new Date(y, m - 1, d0, 12);
     const start = new Date(today);
     start.setDate(start.getDate() - (WEEKS - 1) * 7 - today.getDay()); // align to Sunday
     const cols: Array<Array<{ key: string; date: Date; count: number; solved: number; reviewed: number; future: boolean }>> = [];
     const markers: Array<{ col: number; label: string }> = [];
     let maxCount = 0;
+    let total = 0;
     const cursor = new Date(start);
     for (let w = 0; w < WEEKS; w++) {
       const col = [];
       for (let d = 0; d < 7; d++) {
         const key = localDateKey(cursor);
         const entry = byDate.get(key);
-        const count = entry?.count || 0;
+        const future = key > todayKey;
+        const count = future ? 0 : entry?.count || 0;
         maxCount = Math.max(maxCount, count);
+        total += count;
         if (cursor.getDate() === 1 || (w === 0 && d === 0)) {
           markers.push({ col: w, label: MONTHS[cursor.getMonth()] });
         }
@@ -78,14 +97,17 @@ export const ActivityHeatmap: React.FC<ActivityHeatmapProps> = ({ refreshKey, su
           count,
           solved: entry?.solved || 0,
           reviewed: entry?.reviewed || 0,
-          future: cursor > today,
+          future,
         });
         cursor.setDate(cursor.getDate() + 1);
       }
       cols.push(col);
     }
-    return { weeks: cols, max: maxCount, monthMarkers: markers };
-  }, [data]);
+    // The first column always names its month; drop that label when the next month starts right
+    // after it, or the two labels are drawn on top of each other.
+    if (markers.length > 1 && markers[0].col === 0 && markers[1].col <= 2) markers.shift();
+    return { weeks: cols, max: maxCount, monthMarkers: markers, totalActions: total };
+  }, [data, todayKey]);
 
   const tiles = [
     { label: 'Current streak', value: `${data?.current_streak ?? summary?.current_streak ?? 0}d`, icon: Flame, color: '#fb923c' },
@@ -94,8 +116,6 @@ export const ActivityHeatmap: React.FC<ActivityHeatmapProps> = ({ refreshKey, su
     { label: 'Solved this week', value: `${summary?.solved_this_week ?? 0}`, icon: CheckCircle2, color: '#34d399' },
     { label: 'Time tracked', value: formatMinutes(summary?.total_time_minutes), icon: Clock, color: '#c084fc' },
   ];
-
-  const totalActions = (data?.days || []).reduce((acc, d) => acc + d.count, 0);
 
   return (
     <section className="mp-card p-4 sm:p-5 space-y-4" aria-label="Activity and streaks">

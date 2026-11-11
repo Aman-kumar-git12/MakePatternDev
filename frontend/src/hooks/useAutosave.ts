@@ -20,6 +20,9 @@ interface Pending<T> {
  * - `flush()` sends whatever is pending immediately; it runs on unmount and when the tab is
  *   hidden. On `pagehide` (tab close) the edits go out with `fetch keepalive`.
  */
+/** Waits before each retry of a failed save (about a minute in total). */
+const RETRY_DELAYS_MS = [2000, 5000, 10000, 20000, 30000];
+
 export function useAutosave<T>(
   save: (id: string, updates: Partial<T>) => Promise<unknown>,
   keepaliveEndpoint: (id: string) => string,
@@ -45,15 +48,11 @@ export function useAutosave<T>(
     if (mountedRef.current) setStatus(s);
   };
 
-  const flush = useCallback((): Promise<unknown> => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-    const pending = pendingRef.current;
-    if (!pending) return chainRef.current;
-    pendingRef.current = null;
+  /** Failed saves waiting to be retried, by timer, so a closing tab can still send them. */
+  const retriesRef = useRef(new Map<ReturnType<typeof setTimeout>, Pending<T>>());
 
+  /** Send one payload after every earlier save; on failure, retry it on its own with backoff. */
+  const send = useCallback((pending: Pending<T>, attempt: number): Promise<unknown> => {
     const seq = ++seqRef.current;
     const fields = Object.keys(pending.updates);
     for (const f of fields) takenRef.current.set(`${pending.id}:${f}`, seq);
@@ -63,36 +62,45 @@ export function useAutosave<T>(
       .catch(() => undefined)
       .then(() => saveRef.current(pending.id, pending.updates))
       .then(() => {
-        if (!pendingRef.current) setStatusSafe('saved');
+        if (!pendingRef.current && retriesRef.current.size === 0) setStatusSafe('saved');
       })
       .catch((err) => {
         console.error('Autosave failed:', err);
-        // Re-queue only the fields no later flush has taken (those carry newer values), and
-        // never over newer edits that are still waiting.
-        const newer = pendingRef.current;
-        if (newer && newer.id !== pending.id) {
-          setStatusSafe('error');
-          return;
-        }
-        const retry: Record<string, unknown> = {};
-        const src = pending.updates as Record<string, unknown>;
-        for (const f of fields) {
-          const stillOurs = takenRef.current.get(`${pending.id}:${f}`) === seq;
-          const hasNewer = newer ? f in (newer.updates as Record<string, unknown>) : false;
-          if (stillOurs && !hasNewer) retry[f] = src[f];
-        }
-        if (Object.keys(retry).length || newer) {
-          pendingRef.current = {
-            id: pending.id,
-            updates: { ...(retry as Partial<T>), ...(newer?.updates || {}) },
-          };
-          setStatusSafe('error');
-        }
-        // Otherwise a later save already carries newer values for every field; its result decides the status.
+        setStatusSafe('error');
+        if (attempt >= RETRY_DELAYS_MS.length) return;
+        // Retried separately (not merged into whatever is pending now, which may be another
+        // question), so switching questions can never drop these edits.
+        const timer = setTimeout(() => {
+          retriesRef.current.delete(timer);
+          // Only fields no later save has taken and no waiting edit replaces: never resurrect
+          // older text over newer text.
+          const newer = pendingRef.current;
+          const src = pending.updates as Record<string, unknown>;
+          const retry: Record<string, unknown> = {};
+          for (const f of fields) {
+            const stillOurs = takenRef.current.get(`${pending.id}:${f}`) === seq;
+            const hasNewer = newer?.id === pending.id && f in (newer.updates as Record<string, unknown>);
+            if (stillOurs && !hasNewer) retry[f] = src[f];
+          }
+          if (Object.keys(retry).length) void send({ id: pending.id, updates: retry as Partial<T> }, attempt + 1);
+        }, RETRY_DELAYS_MS[attempt]);
+        retriesRef.current.set(timer, pending);
       });
     chainRef.current = next;
     return next;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const flush = useCallback((): Promise<unknown> => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    const pending = pendingRef.current;
+    if (!pending) return chainRef.current;
+    pendingRef.current = null;
+    return send(pending, 0);
+  }, [send]);
 
   const queue = useCallback(
     (id: string, updates: Partial<T>) => {
@@ -120,6 +128,12 @@ export function useAutosave<T>(
     };
     // Tab closing: the page is going away, so only a keepalive request can still be delivered.
     const flushOnUnload = () => {
+      // Failed saves still waiting for their retry go out now too.
+      for (const [timer, failed] of retriesRef.current) {
+        clearTimeout(timer);
+        api.flushKeepalive(endpointRef.current(failed.id), failed.updates);
+      }
+      retriesRef.current.clear();
       const pending = pendingRef.current;
       if (!pending) return;
       if (timerRef.current) {

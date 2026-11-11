@@ -64,21 +64,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               setIsLoading(false);
               return;
             }
-            try {
-              await new Promise((r) => setTimeout(r, 1500));
-              setUser(await api.getMe());
-              setIsLoading(false);
-              return;
-            } catch (retryErr) {
-              if (!isAuthRejection(retryErr)) {
-                // Still unreachable and nothing cached to show: keep the token for next time.
-                console.warn('Server unavailable; please retry shortly.', retryErr);
-                api.clearToken();
-                setToken(null);
-                setUser(null);
+            // Nothing cached to show yet: the free-tier server can take up to a minute to wake up,
+            // so keep trying for about that long before giving up (the cookie stays either way).
+            let lastErr: unknown = err;
+            for (const delay of [1500, 3000, 5000, 8000, 10000, 10000, 10000, 10000]) {
+              await new Promise((r) => setTimeout(r, delay));
+              try {
+                setUser(await api.getMe());
                 setIsLoading(false);
                 return;
+              } catch (retryErr) {
+                lastErr = retryErr;
+                if (isAuthRejection(retryErr)) break;
               }
+            }
+            if (!isAuthRejection(lastErr)) {
+              // Still unreachable: show the sign-in page for now but keep the token for next time.
+              console.warn('Server unavailable; please retry shortly.', lastErr);
+              api.clearToken();
+              setToken(null);
+              setUser(null);
+              setIsLoading(false);
+              return;
             }
           }
           console.warn('Stored auth token invalid or expired. Logging out...', err);

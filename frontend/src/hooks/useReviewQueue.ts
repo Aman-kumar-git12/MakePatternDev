@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, isNetworkError } from '../services/api';
 import type { QuestionListItem, ReviewQueue, ReviewRating } from '../types/dsa';
-import { enqueueReview, loadDueCache, saveDueCache, userKeyFromToken } from '../offline/offlineStore';
+import { enqueueReview, loadDueCache, queuedFor, saveDueCache, userKeyFromToken } from '../offline/offlineStore';
 
 const EMPTY: ReviewQueue = { due: [], upcoming: [], due_count: 0, reviewed_today: 0 };
 
@@ -24,8 +24,11 @@ export function useReviewQueue() {
         due_count: data.due_count ?? (data.due || []).length,
         reviewed_today: data.reviewed_today ?? 0,
       };
-      setQueue(next);
       if (user) saveDueCache(user, next);
+      // Cards rated offline whose rating hasn't synced yet stay hidden, so they can't be rated twice.
+      const pending = new Set(queuedFor(user).map((r) => r.question_id));
+      const due = next.due.filter((q) => !pending.has(q.id));
+      setQueue({ ...next, due, due_count: Math.max(0, next.due_count - (next.due.length - due.length)) });
       setOffline(false);
       setCachedAt(null);
       setError(null);

@@ -49,11 +49,13 @@ const problemHref = (q: QuestionListItem) => {
 export const ReviewQueueView: React.FC<ReviewQueueViewProps> = ({ reviews, onSelectQuestion, onReviewed }) => {
   const { queue, loading, error, rate, refresh, offline, cachedAt } = reviews;
   const pending = usePendingReviewCount();
-  const [busyId, setBusyId] = useState<string | null>(null);
+  // Every card with a rating in flight stays disabled, so no card can be rated twice.
+  const [busyIds, setBusyIds] = useState<ReadonlySet<string>>(() => new Set());
   const [toast, setToast] = useState<string | null>(null);
 
   const handleRate = async (q: QuestionListItem, rating: ReviewRating) => {
-    setBusyId(q.id);
+    if (busyIds.has(q.id)) return;
+    setBusyIds((prev) => new Set(prev).add(q.id));
     try {
       const updated = await rate(q.id, rating);
       setToast(
@@ -67,7 +69,11 @@ export const ReviewQueueView: React.FC<ReviewQueueViewProps> = ({ reviews, onSel
       setToast(err instanceof Error ? err.message : 'Could not save review');
       setTimeout(() => setToast(null), 3000);
     } finally {
-      setBusyId(null);
+      setBusyIds((prev) => {
+        const next = new Set(prev);
+        next.delete(q.id);
+        return next;
+      });
     }
   };
 
@@ -134,7 +140,7 @@ export const ReviewQueueView: React.FC<ReviewQueueViewProps> = ({ reviews, onSel
         <ul className="space-y-2.5">
           {queue.due.map((q) => {
             const href = problemHref(q);
-            const busy = busyId === q.id;
+            const busy = busyIds.has(q.id);
             return (
               <li key={q.id} className="mp-card p-3.5 sm:p-4 space-y-3">
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">

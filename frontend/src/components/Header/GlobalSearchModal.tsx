@@ -18,6 +18,8 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  // The query the current results belong to, so Enter never opens a result of an older query.
+  const [resultsFor, setResultsFor] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -32,6 +34,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
   useEffect(() => {
     if (!query.trim()) {
       setResults(null);
+      setIsLoading(false);
       return;
     }
 
@@ -41,7 +44,10 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
       try {
         setIsLoading(true);
         const res = await api.search(query.trim());
-        if (!stale) setResults(res);
+        if (!stale) {
+          setResults(res);
+          setResultsFor(query.trim());
+        }
       } catch (err) {
         console.error(err);
       } finally {
@@ -52,6 +58,8 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
     return () => {
       stale = true;
       clearTimeout(timer);
+      // A superseded request never clears the spinner itself.
+      setIsLoading(false);
     };
   }, [query]);
 
@@ -87,7 +95,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => {
               // Enter opens the top question; Tab then moves through the results.
-              const first = results?.questions[0];
+              const first = resultsFor === query.trim() ? results?.questions[0] : undefined;
               if (e.key === 'Enter' && first) {
                 e.preventDefault();
                 onSelectQuestion(first.id);

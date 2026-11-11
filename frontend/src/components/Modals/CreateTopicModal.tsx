@@ -16,6 +16,17 @@ export const CreateTopicModal: React.FC<CreateTopicModalProps> = ({
   const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The modal stays mounted between uses: start every opening with an empty form.
+  const [wasOpen, setWasOpen] = useState(isOpen);
+  if (isOpen !== wasOpen) {
+    setWasOpen(isOpen);
+    if (isOpen) {
+      setTopicName('');
+      setDescription('');
+      setError(null);
+      setIsSubmitting(false);
+    }
+  }
 
   if (!isOpen) return null;
 

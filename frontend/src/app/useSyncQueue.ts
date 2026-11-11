@@ -22,15 +22,25 @@ interface SaveOptions {
  * save failed, the screen is restored from the server and a toast explains what happened.
  */
 export function useSyncQueue(data: AppData) {
-  const { setFolders, setQuestions, setSummary, refreshData } = data;
+  const { setFolders, setQuestions, setSummary, refreshData, saveTracker } = data;
 
   const latest = useRef({ folders: data.folders, questions: data.questions });
   useEffect(() => {
     latest.current = { folders: data.folders, questions: data.questions };
   }, [data.folders, data.questions]);
 
+  // Closing or reloading the tab while saves are still queued would lose them: ask first.
+  useEffect(() => {
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (!saveTracker.hasPending()) return;
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [saveTracker]);
+
   const saveQueue = useRef<Promise<void>>(Promise.resolve());
-  const pendingSaves = useRef(0);
   const failMessage = useRef<string | null>(null);
   const needsReconcile = useRef(false);
   /** Bumped on every optimistic change, so a background re-sync never overwrites a newer one. */
@@ -51,7 +61,7 @@ export function useSyncQueue(data: AppData) {
         api.listQuestions(),
         api.getProgressSummary(),
       ]);
-      if (version === localVersion.current && pendingSaves.current === 0) {
+      if (version === localVersion.current && !saveTracker.hasPending()) {
         latest.current = { folders: tree, questions: list };
         setFolders(tree);
         setQuestions(list);
@@ -63,7 +73,7 @@ export function useSyncQueue(data: AppData) {
   };
 
   const enqueueSave = (save: () => Promise<unknown>, opts: SaveOptions = {}) => {
-    pendingSaves.current += 1;
+    saveTracker.started();
     if (opts.reconcile) needsReconcile.current = true;
     saveQueue.current = saveQueue.current
       .then(save)
@@ -76,15 +86,15 @@ export function useSyncQueue(data: AppData) {
         }
       )
       .finally(() => {
-        pendingSaves.current -= 1;
-        if (pendingSaves.current > 0) return;
+        if (saveTracker.finished() > 0) return;
+        const deferred = saveTracker.takeDeferredSync();
         if (failMessage.current) {
           const message = failMessage.current;
           failMessage.current = null;
           needsReconcile.current = false;
           pushToast({ message, tone: 'error' });
           void refreshData().catch(() => undefined);
-        } else if (needsReconcile.current) {
+        } else if (needsReconcile.current || deferred) {
           needsReconcile.current = false;
           void reconcile();
         }

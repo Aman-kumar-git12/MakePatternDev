@@ -6,6 +6,7 @@ import { registerConfirmHost, type ConfirmRequest } from './confirm';
 export const ConfirmDialogHost: React.FC = () => {
   const [request, setRequest] = useState<ConfirmRequest | null>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     registerConfirmHost(setRequest);
@@ -19,9 +20,21 @@ export const ConfirmDialogHost: React.FC = () => {
 
   useEffect(() => {
     if (!request) return;
+    // Focus goes back to whatever was focused before (the delete button) once the dialog closes.
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     // Cancel has focus, so a stray Enter never deletes anything.
     cancelRef.current?.focus();
     const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Tab') {
+        // Keep Tab inside the dialog.
+        const buttons = Array.from(dialogRef.current?.querySelectorAll<HTMLButtonElement>('button') ?? []);
+        if (buttons.length === 0) return;
+        const i = buttons.indexOf(document.activeElement as HTMLButtonElement);
+        const next = e.shiftKey ? (i <= 0 ? buttons.length - 1 : i - 1) : i === buttons.length - 1 ? 0 : i + 1;
+        e.preventDefault();
+        buttons[next].focus();
+        return;
+      }
       if (e.key === 'Escape') {
         // Capture phase + stop: Escape closes only this dialog, not whatever is open underneath.
         e.preventDefault();
@@ -31,7 +44,10 @@ export const ConfirmDialogHost: React.FC = () => {
       }
     };
     window.addEventListener('keydown', onKey, true);
-    return () => window.removeEventListener('keydown', onKey, true);
+    return () => {
+      window.removeEventListener('keydown', onKey, true);
+      if (previous?.isConnected) previous.focus();
+    };
   }, [request]);
 
   if (!request) return null;
@@ -43,6 +59,7 @@ export const ConfirmDialogHost: React.FC = () => {
       onClick={() => close(false)}
     >
       <div
+        ref={dialogRef}
         role="alertdialog"
         aria-modal="true"
         aria-labelledby="confirm-dialog-title"

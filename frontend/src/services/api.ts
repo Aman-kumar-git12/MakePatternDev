@@ -278,8 +278,12 @@ class ApiService {
           cleanErrorMessage = 'Invalid request. Please check all provided information.';
         }
       } else if (res.status === 401) {
-        if (!cleanErrorMessage || /not authenticated|unauthorized|invalid token/i.test(cleanErrorMessage)) {
-          cleanErrorMessage = 'Invalid email or password. Please verify your credentials.';
+        if (/^\/auth\/(login|register)/.test(endpoint)) {
+          if (!cleanErrorMessage || /not authenticated|unauthorized|invalid token/i.test(cleanErrorMessage)) {
+            cleanErrorMessage = 'Invalid email or password. Please verify your credentials.';
+          }
+        } else if (!cleanErrorMessage || /not authenticated|unauthorized|invalid token|expired|credentials/i.test(cleanErrorMessage)) {
+          cleanErrorMessage = 'Your session has expired. Please sign in again.';
         }
       } else if (res.status === 429) {
         cleanErrorMessage = cleanErrorMessage || 'Too many attempts. Please wait a minute and try again.';

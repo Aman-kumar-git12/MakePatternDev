@@ -25,7 +25,7 @@ const truncate = (s: string, n = 40) => (s.length > n ? `${s.slice(0, n - 1)}…
 /** Question-level actions: bookmarks, revision flag, create/save/rename/move/delete, solutions. */
 export function useQuestionActions(data: AppData, modals: ModalState, active: ActiveQuestionState, sync: SyncQueue) {
   const navigate = useNavigate();
-  const { setFolders, setQuestions, setSummary, setActivityKey, refreshReviews, loadInitialData, refreshData } = data;
+  const { setQuestions, setServerFolders, setServerQuestions, setSummary, setActivityKey, refreshReviews, loadInitialData, refreshData } = data;
   const { setIsImportModalOpen, setRenameData, setMoveData } = modals;
   const { activeQuestion, setActiveQuestion } = active;
   // Latest save sequence per question; older responses are ignored (out-of-order protection).
@@ -49,7 +49,7 @@ export function useQuestionActions(data: AppData, modals: ModalState, active: Ac
         api.getFolderTree(),
         api.getProgressSummary(),
       ]);
-      setFolders(updatedTree);
+      setServerFolders(updatedTree);
       setSummary(updatedSummary);
     } catch (err) {
       console.error('Failed to toggle bookmark:', err);
@@ -59,6 +59,7 @@ export function useQuestionActions(data: AppData, modals: ModalState, active: Ac
   // Toggle Revision Status
   const handleToggleRevision = async (questionId: string, isChecked: boolean) => {
     const nextStatus: QuestionStatus = isChecked ? 'Needs Revision' : 'Solved';
+    const previousStatus = sync.latest.current.questions.find((q) => q.id === questionId)?.status;
 
     // 1. Optimistic UI update for instantaneous live feedback
     setQuestions((prev) =>
@@ -86,10 +87,16 @@ export function useQuestionActions(data: AppData, modals: ModalState, active: Ac
         api.getFolderTree(),
       ]);
       setSummary(updatedSummary);
-      setFolders(updatedTree);
+      setServerFolders(updatedTree);
       void refreshReviews();
+      // Marking it solved can log a solve for today.
+      if (nextStatus === 'Solved') setActivityKey((k) => k + 1);
     } catch (err) {
       console.error('Failed to toggle revision status:', err);
+      if (previousStatus) {
+        setActiveQuestion((prev) => (prev && prev.id === questionId ? { ...prev, status: previousStatus } : prev));
+      }
+      pushToast({ message: err instanceof Error ? `Couldn't update the status: ${err.message}` : "Couldn't update the status", tone: 'error' });
       loadInitialData();
     }
   };
@@ -193,6 +200,11 @@ export function useQuestionActions(data: AppData, modals: ModalState, active: Ac
               : q
           );
           sync.applyLocal(recountTree(current.folders, saved), saved);
+          // Added as already solved: the server logged a solve, so the heatmap and review queue change.
+          if (created.status === 'Solved') {
+            setActivityKey((k) => k + 1);
+            void refreshReviews();
+          }
         } catch (err) {
           pendingId.failed(err);
           throw err;
@@ -245,7 +257,7 @@ export function useQuestionActions(data: AppData, modals: ModalState, active: Ac
           api.getFolderTree(),
           api.getProgressSummary(),
         ]);
-        setFolders(updatedTree);
+        setServerFolders(updatedTree);
         setSummary(updatedSummary);
         if (updates.status) {
           void refreshReviews();
@@ -253,7 +265,7 @@ export function useQuestionActions(data: AppData, modals: ModalState, active: Ac
         }
       }
     },
-    [refreshReviews, setActiveQuestion, setQuestions, setFolders, setSummary, setActivityKey]
+    [refreshReviews, setActiveQuestion, setQuestions, setServerFolders, setSummary, setActivityKey]
   );
 
   /** A fresh server copy arrived (attempt logged / LeetCode refresh): sync everything derived from it. */
@@ -282,8 +294,8 @@ export function useQuestionActions(data: AppData, modals: ModalState, active: Ac
           api.getFolderTree(),
           api.listQuestions(),
         ]);
-        setFolders(updatedTree);
-        setQuestions(updatedQuestions);
+        setServerFolders(updatedTree);
+        setServerQuestions(updatedQuestions);
         setActiveQuestion((prev) => (prev && prev.id === questionId ? { ...prev, title: newTitle } : prev));
       },
     });

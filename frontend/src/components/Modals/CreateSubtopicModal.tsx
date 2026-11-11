@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { X, FolderTree, Sparkles, Loader2 } from 'lucide-react';
 import type { Folder } from '../../types/dsa';
 
@@ -40,15 +40,19 @@ export const CreateSubtopicModal: React.FC<CreateSubtopicModalProps> = ({
 
   const flatList = flattenFolders(folders);
 
-  useEffect(() => {
+  // Only when the modal opens (it stays mounted between uses): empty form, preselected parent.
+  // Not on every tree change, which happens in the background and would wipe what was typed.
+  const [wasOpen, setWasOpen] = useState(false);
+  if (isOpen !== wasOpen) {
+    setWasOpen(isOpen);
     if (isOpen) {
-      if (initialParentId) {
-        setParentFolderId(initialParentId);
-      } else if (flatList.length > 0) {
-        setParentFolderId(flatList[0].id);
-      }
+      setSubtopicName('');
+      setDescription('');
+      setError(null);
+      setIsSubmitting(false);
+      setParentFolderId(initialParentId || flatList[0]?.id || '');
     }
-  }, [isOpen, initialParentId, folders]);
+  }
 
   if (!isOpen) return null;
 

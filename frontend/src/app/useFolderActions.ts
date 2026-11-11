@@ -21,7 +21,7 @@ const truncateName = (name: string) => (name.length > 60 ? `${name.slice(0, 59)}
 
 /** Folder CRUD, drag-and-drop reordering and moves (direct and via the Move modal). */
 export function useFolderActions(data: AppData, modals: ModalState, active: ActiveQuestionState, sync: SyncQueue) {
-  const { setFolders, setQuestions, setSummary, refreshData } = data;
+  const { setServerFolders, setServerQuestions, setSummary, refreshData } = data;
   const { latest, applyLocal, enqueueSave } = sync;
   const { moveData } = modals;
   const { activeQuestion, setActiveQuestion } = active;
@@ -113,9 +113,9 @@ export function useFolderActions(data: AppData, modals: ModalState, active: Acti
       api.getProgressSummary(),
       api.listQuestions(),
     ]);
-    setFolders(updatedTree);
+    setServerFolders(updatedTree);
     setSummary(updatedSummary);
-    setQuestions(updatedQuestions);
+    setServerQuestions(updatedQuestions);
   };
 
   // Rearranging is optimistic: see useSyncQueue for how saves are queued and re-synced.
@@ -239,9 +239,9 @@ export function useFolderActions(data: AppData, modals: ModalState, active: Acti
       api.getProgressSummary(),
       api.listQuestions(),
     ]);
-    setFolders(updatedTree);
+    setServerFolders(updatedTree);
     setSummary(updatedSummary);
-    setQuestions(updatedQuestions);
+    setServerQuestions(updatedQuestions);
 
     if (activeQuestion && activeQuestion.id === moveData.id) {
       const refreshedQ = await api.getQuestion(activeQuestion.id);

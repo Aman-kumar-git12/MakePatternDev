@@ -26,6 +26,7 @@ import { AttemptLogger } from './AttemptLogger';
 import { useAutosave } from '../../hooks/useAutosave';
 import type { Question, Solution, TestCase, Difficulty, QuestionStatus, SupportedLanguage } from '../../types/dsa';
 import { api } from '../../services/api';
+import { pushToast } from '../../hooks/useUndoToasts';
 import { confirmAction } from '../ConfirmDialog';
 
 interface QuestionWorkspaceProps {
@@ -258,8 +259,24 @@ export const QuestionWorkspace: React.FC<QuestionWorkspaceProps> = ({
   };
 
   const handleDeleteSolution = async (id: string) => {
+    const questionId = question.id;
+    const removed = solutions.find((s) => s.id === id);
+    const index = solutions.findIndex((s) => s.id === id);
     setSolutions((prev) => prev.filter((s) => s.id !== id));
-    await onDeleteSolution(id);
+    try {
+      await onDeleteSolution(id);
+    } catch (err) {
+      // Put it back where it was: the server still has it.
+      if (removed && questionId === currentIdRef.current) {
+        setSolutions((prev) => {
+          if (prev.some((s) => s.id === id)) return prev;
+          const next = [...prev];
+          next.splice(Math.min(Math.max(index, 0), next.length), 0, removed);
+          return next;
+        });
+      }
+      pushToast({ message: err instanceof Error ? `Couldn't delete the solution: ${err.message}` : "Couldn't delete the solution", tone: 'error' });
+    }
   };
 
   // Test Case Operations
@@ -270,13 +287,16 @@ export const QuestionWorkspace: React.FC<QuestionWorkspaceProps> = ({
     notes?: string;
     position?: number;
   }) => {
-    const created = await api.createTestCase(question.id, data);
-    setTestCases((prev) => [...prev, created]);
+    const questionId = question.id;
+    const created = await api.createTestCase(questionId, data);
+    // Skip if the user has since switched to another question.
+    if (questionId === currentIdRef.current) setTestCases((prev) => [...prev, created]);
   };
 
   const handleUpdateTestCase = async (id: string, updates: Partial<TestCase>) => {
+    const questionId = question.id;
     const updated = await api.updateTestCase(id, updates);
-    setTestCases((prev) => prev.map((tc) => (tc.id === id ? updated : tc)));
+    if (questionId === currentIdRef.current) setTestCases((prev) => prev.map((tc) => (tc.id === id ? updated : tc)));
   };
 
   const handleDeleteTestCase = async (id: string) => {
@@ -286,8 +306,14 @@ export const QuestionWorkspace: React.FC<QuestionWorkspaceProps> = ({
       message: "Its input and expected output are deleted permanently. This can't be undone.",
     });
     if (!ok) return;
-    await api.deleteTestCase(id);
-    setTestCases((prev) => prev.filter((tc) => tc.id !== id));
+    const questionId = question.id;
+    try {
+      await api.deleteTestCase(id);
+    } catch (err) {
+      pushToast({ message: err instanceof Error ? `Couldn't delete the test case: ${err.message}` : "Couldn't delete the test case", tone: 'error' });
+      return;
+    }
+    if (questionId === currentIdRef.current) setTestCases((prev) => prev.filter((tc) => tc.id !== id));
   };
 
   const difficultyColors = {
