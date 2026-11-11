@@ -66,10 +66,13 @@ def import_export(db: Database, user_id: str, payload: Dict[str, Any]) -> Dict[s
         if f.get("id"):
             fmap[str(f["id"])] = new_id()
     folders: List[Dict[str, Any]] = [root]
+    seen: set = set()
     for f in folders_in:
         old = str(f.get("id") or "")
-        if old not in fmap:
+        # A file listing the same folder id twice must not insert two folders with one id.
+        if old not in fmap or old in seen:
             continue
+        seen.add(old)
         parent = fmap.get(str(f.get("parent_id") or ""))
         if parent == fmap[old]:
             parent = None

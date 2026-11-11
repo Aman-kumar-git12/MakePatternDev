@@ -53,12 +53,18 @@ def status_change_updates(q: Dict[str, Any], new_status: str, now: Optional[date
         if not q.get("solved_at"):
             updates["solved_at"] = to_iso(now)
             newly_solved = True
-        if not q.get("next_review_at"):
-            updates["next_review_at"] = to_iso(now + timedelta(days=REVIEW_LADDER[0]))
-            updates["review_step"] = 0
-            updates["review_interval_days"] = REVIEW_LADDER[0]
+        # Coming back from "Needs Revision" (which made it due right away) also needs a fresh
+        # schedule, or the question stays due although it was just solved.
+        if not q.get("next_review_at") or old == "Needs Revision":
+            step = q.get("review_step")
+            step = min(max(int(step), 0), len(REVIEW_LADDER) - 1) if step is not None else 0
+            updates["next_review_at"] = to_iso(now + timedelta(days=REVIEW_LADDER[step]))
+            updates["review_step"] = step
+            updates["review_interval_days"] = REVIEW_LADDER[step]
     elif new_status == "Needs Revision":
         updates["next_review_at"] = to_iso(now)  # due right away
+        # When it was flagged: a LeetCode sync must not undo a flag newer than the submission.
+        updates["revision_flagged_at"] = to_iso(now)
     elif new_status in ("Not Started", "In Progress"):
         updates["next_review_at"] = None
     return updates, newly_solved
@@ -119,6 +125,14 @@ def record_activity(
     if client_id:
         doc["client_id"] = client_id
     db.activity.insert_one(doc)  # raises DuplicateKeyError for a repeated client_id
+
+
+def solved_logged_since(db: Database, user_id: str, question_id: str, hours: int = 12) -> bool:
+    """True when a "solved" activity for this question was logged within the last `hours`."""
+    since = to_iso(now_utc() - timedelta(hours=hours))
+    return db.activity.find_one(
+        {"user_id": user_id, "question_id": question_id, "type": "solved", "at": {"$gte": since}}, {"_id": 1}
+    ) is not None
 
 
 def daily_activity(db: Database, user_id: str, tz: ZoneInfo, days: int) -> Dict[str, Dict[str, int]]:

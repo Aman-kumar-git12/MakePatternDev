@@ -85,6 +85,9 @@ def update_folder(folder_id: str, folder_in: FolderUpdate, db: Database = Depend
         updates["parent_id"] = target
     if folder_in.position is not None:
         updates["position"] = folder_in.position
+    elif "parent_id" in updates and updates["parent_id"] != folder.get("parent_id"):
+        # Moved without a position: go to the end of the new parent, not onto a sibling's slot.
+        updates["position"] = next_position(db, "folders", {"user_id": current_user.id, "parent_id": updates["parent_id"]})
     if updates:
         updates["updated_at"] = now_iso()
         db.folders.update_one({"id": folder_id, "user_id": current_user.id}, {"$set": updates})

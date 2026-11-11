@@ -219,3 +219,77 @@ def test_unhandled_error_has_cors_headers(client, monkeypatch):
     assert r.status_code == 500
     assert r.headers.get("access-control-allow-origin") == "https://make-pattern-dev.vercel.app"
     assert "boom" not in r.text
+
+
+# --- 2026-11-11 audit: heatmap, revision schedule, moves ---------------------------------------
+
+def _set_status(client, auth, qid, status):
+    r = client.put(f"/api/questions/{qid}", json={"status": status}, headers=auth)
+    assert r.status_code == 200, r.text
+
+
+def test_solving_again_counts_on_the_heatmap(client, auth, mdb):
+    q = make_question(client, auth)
+    _set_status(client, auth, q["id"], "Solved")
+    assert mdb.activity.count_documents({"question_id": q["id"], "type": "solved"}) == 1
+    # Flipping back and forth within a few hours is still one solve...
+    _set_status(client, auth, q["id"], "Not Started")
+    _set_status(client, auth, q["id"], "Solved")
+    assert mdb.activity.count_documents({"question_id": q["id"], "type": "solved"}) == 1
+    # ...but solving it again on a later day is logged.
+    mdb.activity.update_many({"question_id": q["id"]}, {"$set": {"at": "2026-01-01T10:00:00.000000+00:00"}})
+    _set_status(client, auth, q["id"], "Not Started")
+    _set_status(client, auth, q["id"], "Solved")
+    assert mdb.activity.count_documents({"question_id": q["id"], "type": "solved"}) == 2
+    days = client.get("/api/progress/activity?days=7", headers=auth).json()["days"]
+    assert days[-1]["solved"] == 1
+
+
+def test_needs_revision_then_solved_is_no_longer_due(client, auth):
+    q = make_question(client, auth)
+    _set_status(client, auth, q["id"], "Solved")
+    _set_status(client, auth, q["id"], "Needs Revision")
+    assert any(d["id"] == q["id"] for d in client.get("/api/reviews/due", headers=auth).json()["due"])
+    _set_status(client, auth, q["id"], "Solved")
+    assert not any(d["id"] == q["id"] for d in client.get("/api/reviews/due", headers=auth).json()["due"])
+
+
+def test_sync_does_not_undo_a_manual_needs_revision_flag(client, auth, mdb, monkeypatch):
+    old_ac = int((datetime.now(timezone.utc) - timedelta(days=10)).timestamp())
+    monkeypatch.setattr(lc, "get_profile", lambda u: {"username": u, "solved": {}, "total": {}})
+    monkeypatch.setattr(lc, "get_recent_accepted", lambda u, limit=20: [{"slug": "two-sum", "title": "Two Sum", "timestamp": old_ac}])
+    q = make_question(client, auth, "Two Sum", problem_url="https://leetcode.com/problems/two-sum/")
+    _set_status(client, auth, q["id"], "Needs Revision")  # set by hand, not via a review
+    assert client.post("/api/leetcode/sync", json={"username": "someone"}, headers=auth).status_code == 200
+    assert mdb.questions.find_one({"id": q["id"]})["status"] == "Needs Revision"
+
+
+def test_moving_by_update_goes_to_the_end_of_the_new_parent(client, auth, mdb):
+    a = make_folder(client, auth, "A")
+    b = make_folder(client, auth, "B")
+    q1 = make_question(client, auth, "In B", folder_id=b["id"])
+    q2 = make_question(client, auth, "From A", folder_id=a["id"])
+    client.put(f"/api/questions/{q2['id']}", json={"folder_id": b["id"]}, headers=auth)
+    p1 = mdb.questions.find_one({"id": q1["id"]})["position"]
+    p2 = mdb.questions.find_one({"id": q2["id"]})["position"]
+    assert p2 > p1
+    s1 = client.post("/api/folders/", json={"name": "S1", "parent_id": b["id"]}, headers=auth).json()
+    s2 = client.post("/api/folders/", json={"name": "S2", "parent_id": a["id"]}, headers=auth).json()
+    client.put(f"/api/folders/{s2['id']}", json={"parent_id": b["id"]}, headers=auth)
+    assert mdb.folders.find_one({"id": s2["id"]})["position"] > mdb.folders.find_one({"id": s1["id"]})["position"]
+
+
+def test_import_with_duplicate_folder_ids_is_not_a_500(client, auth):
+    payload = {"folders": [{"id": "f1", "name": "One"}, {"id": "f1", "name": "Again"}], "questions": [{"title": "Q", "folder_id": "f1"}]}
+    r = _import(client, auth, payload)
+    assert r.status_code < 500, r.text
+
+
+def test_all_share_leaves_out_unfiled_questions(client, auth, mdb):
+    from app.services.share_service import capture_snapshot
+    f = make_folder(client, auth)
+    make_question(client, auth, "Filed", folder_id=f["id"])
+    loose = make_question(client, auth, "Loose")
+    uid = mdb.questions.find_one({"id": loose["id"]})["user_id"]
+    snap = capture_snapshot(mdb, uid, "all")
+    assert loose["id"] not in snap["questions"] and len(snap["questions"]) == 1

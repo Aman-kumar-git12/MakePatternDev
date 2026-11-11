@@ -63,8 +63,11 @@ def run_submission(language: str, code: str, stdin: str, client: Optional[httpx.
         data = resp.json()
     except ValueError:
         raise HTTPException(status_code=502, detail="The code execution service returned an invalid response.")
+    if not isinstance(data, dict):
+        raise HTTPException(status_code=502, detail="The code execution service returned an invalid response.")
 
-    status = (data.get("status") or {}).get("description") or "Unknown"
+    status_info = data.get("status")
+    status = (status_info.get("description") if isinstance(status_info, dict) else None) or "Unknown"
     return {
         "status": status,
         "stdout": data.get("stdout") or "",

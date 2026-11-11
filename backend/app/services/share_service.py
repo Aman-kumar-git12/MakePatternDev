@@ -67,7 +67,9 @@ def capture_snapshot(db: Database, user_id: str, folder_id: str) -> Dict[str, An
     if folder_id == "all":
         trees = build_tree_for_user(db, user_id)
         share_type = "all"
-        questions = list(db.questions.find({"user_id": user_id}, {"_id": 0}))
+        # Only questions inside a topic: unfiled ones aren't in the shared tree, so they must not
+        # end up in the public snapshot either.
+        questions = list(db.questions.find({"user_id": user_id, "folder_id": {"$nin": [None, ""]}}, {"_id": 0}))
     else:
         tree = build_tree_for_folder(db, user_id, folder_id)
         if not tree:

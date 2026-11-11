@@ -31,7 +31,7 @@ from app.services.repo import (
     to_list_item,
     to_response,
 )
-from app.services.tracking import record_activity, status_change_updates
+from app.services.tracking import record_activity, solved_logged_since, status_change_updates
 from app.services.trash import trash_questions
 
 router = APIRouter(prefix="/questions", tags=["questions"])
@@ -59,9 +59,12 @@ def _resolve_folder(db: Database, user_id: str, folder_id: Optional[str]) -> Opt
 
 
 def apply_status(db: Database, user_id: str, q: Dict[str, Any], new_status: str, updates: Dict[str, Any]) -> None:
-    status_updates, newly_solved = status_change_updates(q, new_status)
+    old_status = q.get("status") or "Not Started"
+    status_updates, _ = status_change_updates(q, new_status)
     updates.update(status_updates)
-    if newly_solved:
+    # Every move into Solved is a solve for the heatmap and streaks, not only the first one
+    # (re-solving later counts too). Flipping the status back and forth logs it once.
+    if new_status == "Solved" and old_status != "Solved" and not solved_logged_since(db, user_id, q["id"]):
         record_activity(db, user_id, "solved", q["id"])
 
 
@@ -254,6 +257,9 @@ def update_question(question_id: str, q_in: QuestionUpdate, db: Database = Depen
         updates["tags"] = q_in.tags
     if q_in.position is not None:
         updates["position"] = q_in.position
+    elif "folder_id" in updates and updates["folder_id"] != q.get("folder_id"):
+        # Moved without a position: go to the end of the new folder, not onto a sibling's slot.
+        updates["position"] = next_position(db, "questions", {"user_id": current_user.id, "folder_id": updates["folder_id"]})
     if q_in.status is not None:
         apply_status(db, current_user.id, q, q_in.status, updates)
 

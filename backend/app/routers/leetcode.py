@@ -131,9 +131,14 @@ def build_question_from_problem(
 
 def _mark_solved_at(db: Database, user_id: str, q: Dict[str, Any], solved_at: datetime, persist: bool = True) -> bool:
     """Mark Solved, using the real LeetCode submission time for solved_at/activity."""
+    was_solved = (q.get("status") or "Not Started") == "Solved"
     updates, newly_solved = status_change_updates(q, "Solved")
     if newly_solved:
         updates["solved_at"] = to_iso(solved_at)
+    # Solved again after being reset also counts on the heatmap, at the submission's time (once).
+    if not was_solved and not db.activity.find_one(
+        {"user_id": user_id, "question_id": q["id"], "type": "solved", "at": to_iso(solved_at)}, {"_id": 1}
+    ):
         db.activity.insert_one({
             "id": new_id(), "user_id": user_id, "type": "solved", "question_id": q["id"], "minutes": 0, "at": to_iso(solved_at),
         })
@@ -271,8 +276,8 @@ def sync(body: SyncRequest, db: Database = Depends(get_db), current_user: Curren
             # A problem the user flagged for revision after this accepted submission must not
             # be flipped back to Solved; only a newer accepted submission counts.
             if status_now == "Needs Revision":
-                last_review = parse_dt(q.get("last_reviewed_at"))
-                if last_review and solved_at <= last_review:
+                flagged = [d for d in (parse_dt(q.get("last_reviewed_at")), parse_dt(q.get("revision_flagged_at"))) if d]
+                if flagged and solved_at <= max(flagged):
                     already_solved += 1
                     continue
             _mark_solved_at(db, current_user.id, q, solved_at)
